@@ -1282,70 +1282,184 @@ function EmTransitoScreen({ frete, onNavigate }) {
 // ─────────────────────────────────────────────
 function PerfilMotorista({ onNavigate }) {
   const { user, logout } = useAuth();
+  const [tab, setTab] = useState("resumo");
   const [kmVazio] = useState(342);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
   const [editMeta, setEditMeta] = useState(false);
   const [novaMeta, setNovaMeta] = useState("800");
+  const pctMeta = Math.min(100, Math.round((kmVazio / metaKmVazio) * 100));
+
+  const kmVazioPorCarga = [
+    { tipo: "Carga Seca", icon: "📦", km: 180, fretes: 12 },
+    { tipo: "Graneleiro", icon: "🌾", km: 95, fretes: 8 },
+    { tipo: "Refrigerada", icon: "❄️", km: 42, fretes: 5 },
+    { tipo: "Líquidos", icon: "💧", km: 25, fretes: 3 },
+  ];
+
+  const ganhosPorMes = [
+    { mes: "Abr", valor: 11200 }, { mes: "Mai", valor: 13800 },
+    { mes: "Jun", valor: 14280 },
+  ];
 
   return (
     <div className="screen">
       <div className="header"><h1>Perfil</h1></div>
       <div className="content">
-        <div style={{ textAlign: "center", padding: "18px 0 24px" }}>
+        {/* Header perfil */}
+        <div style={{ textAlign: "center", padding: "14px 0 20px" }}>
           <div style={{ width: 68, height: 68, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 28 }}>🚛</div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>{user?.nome}</div>
-          <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>{user?.email}</div>
-          <div style={{ marginTop: 8 }}><span className="badge badge-active">Motorista</span></div>
+          <div style={{ fontSize: 13, color: "#555", marginTop: 3 }}>{user?.email}</div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
+            <span className="badge badge-active">Motorista</span>
+            <span className="badge" style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.4)" }}>⭐ 4.8</span>
+          </div>
         </div>
 
-        <div className="card">
-          <div className="card-title">Meta de KM Vazio</div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: "var(--orange)" }}>{formatKm(kmVazio)}</div>
-              <div style={{ fontSize: 12, color: "#555" }}>rodado vazio hoje</div>
+        {/* Tabs */}
+        <div className="tab-bar" style={{ marginBottom: 14 }}>
+          {[["resumo", "Resumo"], ["ganhos", "Ganhos"], ["km-vazio", "KM Vazio"], ["docs", "Docs"]].map(([id, label]) => (
+            <button key={id} className={`tab-btn ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
+          ))}
+        </div>
+
+        {tab === "resumo" && (
+          <>
+            <div className="grid-2" style={{ marginBottom: 12 }}>
+              <div className="stat-card"><div className="stat-value">28</div><div className="stat-label">Fretes feitos</div></div>
+              <div className="stat-card"><div className="stat-value">4.8</div><div className="stat-label">Avaliação</div></div>
+              <div className="stat-card"><div className="stat-value">{formatKm(8420)}</div><div className="stat-label">Km carregado</div></div>
+              <div className="stat-card"><div className="stat-value">{formatKm(kmVazio)}</div><div className="stat-label">Km vazio</div></div>
             </div>
-            <div style={{ textAlign: "right" }}>
-              {!editMeta ? (
+            <div className="card">
+              <div className="card-title">Dados do veículo</div>
+              <div className="info-row"><span className="info-label">Tipo</span><span className="info-value">🚛 Truck</span></div>
+              <div className="info-row"><span className="info-label">Placa</span><span className="info-value">{user?.placa || "ABC-1234"}</span></div>
+              <div className="info-row"><span className="info-label">RNTRC</span><span className="info-value">{user?.rntrc || "—"}</span></div>
+              <div className="info-row"><span className="info-label">CNH</span><span className="info-value">{user?.cnh || "—"}</span></div>
+            </div>
+            {[["📦", "Meus Fretes", "meus-fretes-motorista"], ["💬", "Chat", "chat"], ["⭐", "Avaliações", "avaliacoes"]].map(([icon, label, screen]) => (
+              <div key={label} className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate(screen)}>
+                <span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontWeight: 600 }}>{label}</span><span style={{ marginLeft: "auto", color: "#555" }}>›</span>
+              </div>
+            ))}
+            <button className="btn btn-danger" style={{ marginTop: 8 }} onClick={logout}>Sair da Conta</button>
+          </>
+        )}
+
+        {tab === "ganhos" && (
+          <>
+            <div className="card" style={{ textAlign: "center", borderColor: "rgba(249,115,22,0.3)" }}>
+              <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>Ganhos este mês</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: "var(--orange)" }}>R$ 14.280,00</div>
+              <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>28 fretes · média R$ 510/frete</div>
+            </div>
+            <div className="card">
+              <div className="card-title">Histórico mensal</div>
+              {ganhosPorMes.map(m => (
+                <div key={m.mes} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
+                    <span style={{ fontWeight: 700 }}>{m.mes}/2026</span>
+                    <span style={{ color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.valor)}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill green" style={{ width: `${Math.round((m.valor / 15000) * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="card">
+              <div className="card-title">Breakdown</div>
+              <div className="info-row"><span className="info-label">Valor bruto fretes</span><span className="info-value" style={{ color: "var(--green)" }}>R$ 15.867,00</span></div>
+              <div className="info-row"><span className="info-label">Comissão TRUKER (10%)</span><span className="info-value" style={{ color: "var(--red)" }}>- R$ 1.587,00</span></div>
+              <div className="info-row"><span className="info-label">Líquido recebido</span><span className="info-value" style={{ color: "var(--orange)", fontWeight: 800, fontSize: 16 }}>R$ 14.280,00</span></div>
+            </div>
+          </>
+        )}
+
+        {tab === "km-vazio" && (
+          <>
+            <div className="card">
+              <div className="card-title">Meta de KM Vazio (mensal)</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>Meta: {formatKm(metaKmVazio)}</div>
-                  <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => setEditMeta(true)}>Editar meta</span>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: pctMeta > 100 ? "var(--red)" : pctMeta > 75 ? "var(--orange)" : "var(--green)" }}>{formatKm(kmVazio)}</div>
+                  <div style={{ fontSize: 12, color: "#555" }}>rodado vazio este mês</div>
                 </div>
-              ) : (
-                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <input type="number" value={novaMeta} onChange={e => setNovaMeta(e.target.value)} style={{ width: 80, background: "var(--dark3)", border: "1px solid #333", borderRadius: 8, padding: "6px 8px", color: "var(--white)", fontSize: 14, fontFamily: "Barlow, sans-serif" }} />
-                  <button className="btn btn-primary btn-sm" onClick={() => { setMetaKmVazio(Number(novaMeta)); setEditMeta(false); }}>OK</button>
+                <div style={{ textAlign: "right" }}>
+                  {!editMeta ? (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Meta: {formatKm(metaKmVazio)}</div>
+                      <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => setEditMeta(true)}>✏️ Editar</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input type="number" value={novaMeta} onChange={e => setNovaMeta(e.target.value)} style={{ width: 80, background: "var(--dark3)", border: "1px solid #333", borderRadius: 8, padding: "6px 8px", color: "var(--white)", fontSize: 14, fontFamily: "Barlow, sans-serif" }} />
+                      <button className="btn btn-primary btn-sm" onClick={() => { setMetaKmVazio(Number(novaMeta)); setEditMeta(false); }}>OK</button>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+              <div className="progress-bar" style={{ height: 10 }}>
+                <div className={`progress-fill ${pctMeta > 100 ? "red" : pctMeta > 75 ? "" : "green"}`} style={{ width: `${Math.min(pctMeta, 100)}%` }} />
+              </div>
+              <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>
+                {pctMeta >= 100 ? "⚠️ Meta ultrapassada! Aceite fretes de retorno." : pctMeta > 75 ? "⚡ Atenção: próximo da meta." : `✅ ${formatKm(metaKmVazio - kmVazio)} restantes até a meta`}
+              </div>
             </div>
-          </div>
-          <div className="progress-bar">
-            <div className={`progress-fill ${Math.round((kmVazio / metaKmVazio) * 100) > 100 ? "red" : "green"}`} style={{ width: `${Math.min(Math.round((kmVazio / metaKmVazio) * 100), 100)}%` }} />
-          </div>
-        </div>
+            <div className="card">
+              <div className="card-title">KM Vazio por tipo de carga</div>
+              {kmVazioPorCarga.map(c => (
+                <div key={c.tipo} style={{ marginBottom: 14 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
+                    <span>{c.icon} {c.tipo}</span>
+                    <span style={{ color: "#666" }}>{formatKm(c.km)} · {c.fretes} fretes</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{ width: `${Math.round((c.km / kmVazio) * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="card">
+              <div className="card-title">Eficiência geral</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: "var(--green)" }}>✅ Carregado: {formatKm(8420)}</span>
+                <span style={{ fontSize: 13, color: "var(--red)" }}>⬜ Vazio: {formatKm(kmVazio)}</span>
+              </div>
+              <div className="progress-bar" style={{ height: 10 }}>
+                <div className="progress-fill green" style={{ width: `${Math.round((8420 / (8420 + kmVazio)) * 100)}%` }} />
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 8, color: "var(--green)" }}>
+                {Math.round((8420 / (8420 + kmVazio)) * 100)}% de eficiência
+              </div>
+            </div>
+          </>
+        )}
 
-        <div className="card">
-          <div className="card-title">Estatísticas</div>
-          <div className="grid-2">
-            <div className="stat-card"><div className="stat-value">28</div><div className="stat-label">Fretes feitos</div></div>
-            <div className="stat-card"><div className="stat-value">4.8</div><div className="stat-label">Avaliação</div></div>
-            <div className="stat-card"><div className="stat-value">{formatKm(8420)}</div><div className="stat-label">Km carregado</div></div>
-            <div className="stat-card"><div className="stat-value">{formatKm(kmVazio)}</div><div className="stat-label">Km vazio</div></div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-title">Ganhos</div>
-          <div style={{ fontSize: 30, fontWeight: 800, color: "var(--orange)" }}>R$ 14.280,00</div>
-          <div style={{ fontSize: 12, color: "#555" }}>Total do mês</div>
-        </div>
-
-        {[["📦", "Meus Fretes", "meus-fretes-motorista"], ["💳", "Pagamentos", "pagamentos"], ["⭐", "Avaliações", "avaliacoes"]].map(([icon, label, screen]) => (
-          <div key={label} className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate(screen)}>
-            <span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontWeight: 600 }}>{label}</span><span style={{ marginLeft: "auto", color: "#555" }}>›</span>
-          </div>
-        ))}
-        <button className="btn btn-danger" style={{ marginTop: 8 }} onClick={logout}>Sair da Conta</button>
+        {tab === "docs" && (
+          <>
+            <div className="card">
+              <div className="card-title">Documentos pessoais</div>
+              {[["📄 CNH", "Aprovado", true], ["🪪 CPF", "Aprovado", true], ["📋 Comprovante endereço", "Pendente", false]].map(([doc, status, ok]) => (
+                <div key={doc} className="info-row">
+                  <span className="info-label">{doc}</span>
+                  <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{status}</span>
+                </div>
+              ))}
+            </div>
+            <div className="card">
+              <div className="card-title">Documentos do veículo</div>
+              {[["🚛 CRLV", "Aprovado", true], ["📋 RNTRC/ANTT", "Aprovado", true], ["📸 Foto placa", "Aprovado", true], ["🔍 Vistoria", "Pendente", false]].map(([doc, status, ok]) => (
+                <div key={doc} className="info-row">
+                  <span className="info-label">{doc}</span>
+                  <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{status}</span>
+                </div>
+              ))}
+            </div>
+            <div className="upload-area" onClick={() => {}}>📤 Enviar documento pendente</div>
+          </>
+        )}
       </div>
       <BottomNavMotorista active="perfil" onNavigate={onNavigate} />
     </div>
