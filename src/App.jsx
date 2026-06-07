@@ -837,8 +837,34 @@ function AddressBlock({ tipo, titulo, form, setField }) {
                 ))}
               </div>
             </div>
-            <AddressBlock tipo="origem" titulo="📍 Endereço de Coleta" form={form} setField={set} />
-            <AddressBlock tipo="dest" titulo="🏁 Endereço de Entrega" form={form} setField={set} />
+            <div className="card">
+              <div className="card-title">📍 Endereço de Coleta</div>
+              <div className="field"><label>CEP</label><input placeholder="00000-000" value={form.origemCep} onChange={e => { const v = maskCep(e.target.value); set("origemCep", v); if (v.replace(/\D/g,"").length===8) fetchCep(v,"origem",set); }} /></div>
+              <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form.origemLogradouro} onChange={e => set("origemLogradouro", e.target.value)} /></div>
+              <div className="grid-2">
+                <div className="field"><label>Número</label><input placeholder="123" value={form.origemNumero} onChange={e => set("origemNumero", e.target.value)} /></div>
+                <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form.origemComplemento} onChange={e => set("origemComplemento", e.target.value)} /></div>
+              </div>
+              <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form.origemBairro} onChange={e => set("origemBairro", e.target.value)} /></div>
+              <div className="grid-2">
+                <div className="field"><label>Cidade</label><input placeholder="Curitiba" value={form.origemCidade} onChange={e => set("origemCidade", e.target.value)} /></div>
+                <div className="field"><label>UF</label><input placeholder="PR" maxLength={2} value={form.origemUF} onChange={e => set("origemUF", e.target.value.toUpperCase())} /></div>
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-title">🏁 Endereço de Entrega</div>
+              <div className="field"><label>CEP</label><input placeholder="00000-000" value={form.destCep} onChange={e => { const v = maskCep(e.target.value); set("destCep", v); if (v.replace(/\D/g,"").length===8) fetchCep(v,"dest",set); }} /></div>
+              <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form.destLogradouro} onChange={e => set("destLogradouro", e.target.value)} /></div>
+              <div className="grid-2">
+                <div className="field"><label>Número</label><input placeholder="123" value={form.destNumero} onChange={e => set("destNumero", e.target.value)} /></div>
+                <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form.destComplemento} onChange={e => set("destComplemento", e.target.value)} /></div>
+              </div>
+              <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form.destBairro} onChange={e => set("destBairro", e.target.value)} /></div>
+              <div className="grid-2">
+                <div className="field"><label>Cidade</label><input placeholder="São Paulo" value={form.destCidade} onChange={e => set("destCidade", e.target.value)} /></div>
+                <div className="field"><label>UF</label><input placeholder="SP" maxLength={2} value={form.destUF} onChange={e => set("destUF", e.target.value.toUpperCase())} /></div>
+              </div>
+            </div>
             <div className="card">
               <div className="card-title">Agendamento</div>
               <div className="field"><label>Data de coleta</label><input type="date" value={form.dataColeta} onChange={e => set("dataColeta", e.target.value)} /></div>
