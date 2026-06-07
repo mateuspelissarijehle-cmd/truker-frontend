@@ -748,44 +748,76 @@ function AddressBlock({ tipo, titulo, form, setField }) {
   );
 }
 
-
+function SolicitarFreteScreen({ onNavigate }) {
   const { token } = useAuth();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    tipoFrete: "interestadual",
-    origemCep: "", origemLogradouro: "", origemNumero: "", origemComplemento: "",
-    origemBairro: "", origemCidade: "", origemUF: "",
-    destCep: "", destLogradouro: "", destNumero: "", destComplemento: "",
-    destBairro: "", destCidade: "", destUF: "",
-    dataColeta: "", horario: "",
-    tipoCarga: "carga_seca", tipoVeiculo: "truck",
+    tipoFrete: "interestadual", tipoCarga: "carga_seca", tipoVeiculo: "truck",
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
     descricao: "", precisaMunck: false, precisaEmpilhadeira: false,
+    dataColeta: "", horario: "",
+  });
+  const [addr, setAddr] = useState({
+    origemCep:"", origemLogradouro:"", origemNumero:"", origemComplemento:"",
+    origemBairro:"", origemCidade:"", origemUF:"",
+    destCep:"", destLogradouro:"", destNumero:"", destComplemento:"",
+    destBairro:"", destCidade:"", destUF:"",
   });
   const [calc, setCalc] = useState(null);
   const [loading, setLoading] = useState(false);
   const [calcLoading, setCalcLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const FR = useRef(null);
+  if (!FR.current) FR.current = {
+    origemCep:{current:null}, origemLogradouro:{current:null}, origemNumero:{current:null},
+    origemComplemento:{current:null}, origemBairro:{current:null}, origemCidade:{current:null}, origemUF:{current:null},
+    destCep:{current:null}, destLogradouro:{current:null}, destNumero:{current:null},
+    destComplemento:{current:null}, destBairro:{current:null}, destCidade:{current:null}, destUF:{current:null},
+  };
+  const rv = k => FR.current[k]?.current?.value?.trim() || "";
+
+  const set = (k, val) => setForm(f => ({ ...f, [k]: val }));
   const tipoCargaObj = TIPOS_CARGA.find(c => c.id === form.tipoCarga);
   const tipoVeiculoObj = TIPOS_VEICULO.find(v => v.id === form.tipoVeiculo);
 
-  const composeAddr = (tipo) => {
-    const f = form;
-    return [f[`${tipo}Logradouro`], f[`${tipo}Numero`], f[`${tipo}Complemento`],
-            f[`${tipo}Bairro`], f[`${tipo}Cidade`], f[`${tipo}UF`], f[`${tipo}Cep`]]
-      .filter(Boolean).join(", ");
+  const fillCep = async (cep, tipo) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const d = await res.json();
+      if (!d.erro) {
+        [["Logradouro", d.logradouro], ["Bairro", d.bairro], ["Cidade", d.localidade], ["UF", d.uf]].forEach(([f, val]) => {
+          if (FR.current[`${tipo}${f}`]?.current) FR.current[`${tipo}${f}`].current.value = val || "";
+        });
+      }
+    } catch {}
+  };
+
+  const composeAddr = (tipo, a) => [a[`${tipo}Logradouro`], a[`${tipo}Numero`], a[`${tipo}Complemento`], a[`${tipo}Bairro`], a[`${tipo}Cidade`], a[`${tipo}UF`]].filter(Boolean).join(", ");
+
+  const handleContinuar = () => {
+    const snap = {
+      origemCep: rv("origemCep"), origemLogradouro: rv("origemLogradouro"), origemNumero: rv("origemNumero"),
+      origemComplemento: rv("origemComplemento"), origemBairro: rv("origemBairro"), origemCidade: rv("origemCidade"), origemUF: rv("origemUF"),
+      destCep: rv("destCep"), destLogradouro: rv("destLogradouro"), destNumero: rv("destNumero"),
+      destComplemento: rv("destComplemento"), destBairro: rv("destBairro"), destCidade: rv("destCidade"), destUF: rv("destUF"),
+    };
+    if (!snap.origemLogradouro || !snap.origemNumero || !snap.origemCidade) return setError("Preencha logradouro, número e cidade da coleta");
+    if (!snap.destLogradouro || !snap.destNumero || !snap.destCidade) return setError("Preencha logradouro, número e cidade da entrega");
+    setError(""); setAddr(snap); setStep(2);
   };
 
   const calcular = async () => {
-    const origem = composeAddr("origem");
-    const dest = composeAddr("dest");
-    if (!origem || !dest) return setError("Preencha o endereço completo de origem e destino");
+    const origem = composeAddr("origem", addr);
+    const dest = composeAddr("dest", addr);
+    if (!origem || !dest) return setError("Endereço incompleto — volte ao passo 1");
     setError(""); setCalcLoading(true);
     const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
     try {
-      const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(origem)}&destino=${encodeURIComponent(dest)}&peso=${(Number(form.pesoKg) || 1000) / 1000}&veiculo=${form.tipoVeiculo}&carga=${cargaBackend}`, null, token);
+      const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(origem)}&destino=${encodeURIComponent(dest)}&peso=${(Number(form.pesoKg)||1000)/1000}&veiculo=${form.tipoVeiculo}&carga=${cargaBackend}`, null, token);
       setCalc({ distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracao, valor: data.frete?.valorAntt || data.frete?.valorFinal });
       setStep(3);
     } catch (e) { setError(e.message); }
@@ -799,11 +831,9 @@ function AddressBlock({ tipo, titulo, form, setField }) {
     try {
       await api("POST", "/api/fretes", {
         tipoCarga: cargaBackend, tipoVeiculo: form.tipoVeiculo,
-        pesoTons: (Number(form.pesoKg) || 1000) / 1000,
-        origemEndereco: composeAddr("origem"),
-        origemCidade: form.origemCidade, origemEstado: form.origemUF,
-        destEndereco: composeAddr("dest"),
-        destCidade: form.destCidade, destEstado: form.destUF,
+        pesoTons: (Number(form.pesoKg)||1000)/1000,
+        origemEndereco: composeAddr("origem", addr), origemCidade: addr.origemCidade, origemEstado: addr.origemUF,
+        destEndereco: composeAddr("dest", addr), destCidade: addr.destCidade, destEstado: addr.destUF,
         distanciaKm: calc?.distancia_km, valorAntt: calc?.valor,
       }, token);
       setSuccess(true);
@@ -830,39 +860,45 @@ function AddressBlock({ tipo, titulo, form, setField }) {
               <div className="carga-grid">
                 {TIPOS_FRETE.map(t => (
                   <div key={t.id} className={`carga-item ${form.tipoFrete === t.id ? "selected" : ""}`} onClick={() => set("tipoFrete", t.id)}>
-                    <div className="ci-icon">{t.icon}</div>
-                    <div className="ci-label">{t.label}</div>
-                    <div className="ci-desc">{t.desc}</div>
+                    <div className="ci-icon">{t.icon}</div><div className="ci-label">{t.label}</div><div className="ci-desc">{t.desc}</div>
                   </div>
                 ))}
               </div>
             </div>
             <div className="card">
               <div className="card-title">📍 Endereço de Coleta</div>
-              <div className="field"><label>CEP</label><input placeholder="00000-000" value={form.origemCep} onChange={e => { const v = maskCep(e.target.value); set("origemCep", v); if (v.replace(/\D/g,"").length===8) fetchCep(v,"origem",set); }} /></div>
-              <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form.origemLogradouro} onChange={e => set("origemLogradouro", e.target.value)} /></div>
+              <div className="field"><label>CEP</label>
+                <input ref={FR.current.origemCep} defaultValue={addr.origemCep} placeholder="00000-000"
+                  onChange={e => { e.target.value = maskCep(e.target.value); if (e.target.value.replace(/\D/g,"").length===8) fillCep(e.target.value,"origem"); }} /></div>
+              <div className="field"><label>Logradouro</label>
+                <input ref={FR.current.origemLogradouro} defaultValue={addr.origemLogradouro} placeholder="Rua, Avenida, Rodovia..." /></div>
               <div className="grid-2">
-                <div className="field"><label>Número</label><input placeholder="123" value={form.origemNumero} onChange={e => set("origemNumero", e.target.value)} /></div>
-                <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form.origemComplemento} onChange={e => set("origemComplemento", e.target.value)} /></div>
+                <div className="field"><label>Número</label><input ref={FR.current.origemNumero} defaultValue={addr.origemNumero} placeholder="123" /></div>
+                <div className="field"><label>Complemento</label><input ref={FR.current.origemComplemento} defaultValue={addr.origemComplemento} placeholder="Galpão, Sala..." /></div>
               </div>
-              <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form.origemBairro} onChange={e => set("origemBairro", e.target.value)} /></div>
+              <div className="field"><label>Bairro / Distrito</label>
+                <input ref={FR.current.origemBairro} defaultValue={addr.origemBairro} placeholder="Bairro" /></div>
               <div className="grid-2">
-                <div className="field"><label>Cidade</label><input placeholder="Curitiba" value={form.origemCidade} onChange={e => set("origemCidade", e.target.value)} /></div>
-                <div className="field"><label>UF</label><input placeholder="PR" maxLength={2} value={form.origemUF} onChange={e => set("origemUF", e.target.value.toUpperCase())} /></div>
+                <div className="field"><label>Cidade</label><input ref={FR.current.origemCidade} defaultValue={addr.origemCidade} placeholder="Curitiba" /></div>
+                <div className="field"><label>UF</label><input ref={FR.current.origemUF} defaultValue={addr.origemUF} placeholder="PR" maxLength={2} onChange={e => { e.target.value = e.target.value.toUpperCase(); }} /></div>
               </div>
             </div>
             <div className="card">
               <div className="card-title">🏁 Endereço de Entrega</div>
-              <div className="field"><label>CEP</label><input placeholder="00000-000" value={form.destCep} onChange={e => { const v = maskCep(e.target.value); set("destCep", v); if (v.replace(/\D/g,"").length===8) fetchCep(v,"dest",set); }} /></div>
-              <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form.destLogradouro} onChange={e => set("destLogradouro", e.target.value)} /></div>
+              <div className="field"><label>CEP</label>
+                <input ref={FR.current.destCep} defaultValue={addr.destCep} placeholder="00000-000"
+                  onChange={e => { e.target.value = maskCep(e.target.value); if (e.target.value.replace(/\D/g,"").length===8) fillCep(e.target.value,"dest"); }} /></div>
+              <div className="field"><label>Logradouro</label>
+                <input ref={FR.current.destLogradouro} defaultValue={addr.destLogradouro} placeholder="Rua, Avenida, Rodovia..." /></div>
               <div className="grid-2">
-                <div className="field"><label>Número</label><input placeholder="123" value={form.destNumero} onChange={e => set("destNumero", e.target.value)} /></div>
-                <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form.destComplemento} onChange={e => set("destComplemento", e.target.value)} /></div>
+                <div className="field"><label>Número</label><input ref={FR.current.destNumero} defaultValue={addr.destNumero} placeholder="123" /></div>
+                <div className="field"><label>Complemento</label><input ref={FR.current.destComplemento} defaultValue={addr.destComplemento} placeholder="Galpão, Sala..." /></div>
               </div>
-              <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form.destBairro} onChange={e => set("destBairro", e.target.value)} /></div>
+              <div className="field"><label>Bairro / Distrito</label>
+                <input ref={FR.current.destBairro} defaultValue={addr.destBairro} placeholder="Bairro" /></div>
               <div className="grid-2">
-                <div className="field"><label>Cidade</label><input placeholder="São Paulo" value={form.destCidade} onChange={e => set("destCidade", e.target.value)} /></div>
-                <div className="field"><label>UF</label><input placeholder="SP" maxLength={2} value={form.destUF} onChange={e => set("destUF", e.target.value.toUpperCase())} /></div>
+                <div className="field"><label>Cidade</label><input ref={FR.current.destCidade} defaultValue={addr.destCidade} placeholder="São Paulo" /></div>
+                <div className="field"><label>UF</label><input ref={FR.current.destUF} defaultValue={addr.destUF} placeholder="SP" maxLength={2} onChange={e => { e.target.value = e.target.value.toUpperCase(); }} /></div>
               </div>
             </div>
             <div className="card">
@@ -870,11 +906,7 @@ function AddressBlock({ tipo, titulo, form, setField }) {
               <div className="field"><label>Data de coleta</label><input type="date" value={form.dataColeta} onChange={e => set("dataColeta", e.target.value)} /></div>
               <div className="field"><label>Horário preferido</label><input type="time" value={form.horario} onChange={e => set("horario", e.target.value)} /></div>
             </div>
-            <button className="btn btn-primary" onClick={() => {
-              if (!form.origemLogradouro || !form.origemNumero || !form.origemCidade) return setError("Preencha o endereço de coleta completo");
-              if (!form.destLogradouro || !form.destNumero || !form.destCidade) return setError("Preencha o endereço de entrega completo");
-              setError(""); setStep(2);
-            }}>Continuar →</button>
+            <button className="btn btn-primary" onClick={handleContinuar}>Continuar →</button>
           </>
         )}
 
@@ -885,8 +917,7 @@ function AddressBlock({ tipo, titulo, form, setField }) {
               <div className="carga-grid">
                 {TIPOS_CARGA.map(c => (
                   <div key={c.id} className={`carga-item ${form.tipoCarga === c.id ? "selected" : ""}`} onClick={() => set("tipoCarga", c.id)}>
-                    <div className="ci-icon">{c.icon}</div>
-                    <div className="ci-label">{c.label}</div>
+                    <div className="ci-icon">{c.icon}</div><div className="ci-label">{c.label}</div>
                   </div>
                 ))}
               </div>
@@ -939,8 +970,8 @@ function AddressBlock({ tipo, titulo, form, setField }) {
               {form.precisaMunck && <span className="tag-chip">🏗️ Munck</span>}
               {form.precisaEmpilhadeira && <span className="tag-chip">🏭 Empilhadeira</span>}
               <div className="divider" />
-              <div className="info-row"><span className="info-label">Coleta</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("origem")}</span></div>
-              <div className="info-row"><span className="info-label">Entrega</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("dest")}</span></div>
+              <div className="info-row"><span className="info-label">Coleta</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("origem", addr)}</span></div>
+              <div className="info-row"><span className="info-label">Entrega</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("dest", addr)}</span></div>
               <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{calc.distancia_km} km</span></div>
               <div className="info-row"><span className="info-label">Duração</span><span className="info-value">{calc.duracao}</span></div>
               <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{form.pesoKg} kg</span></div>
