@@ -1472,11 +1472,54 @@ function MeusFretesMot({ onNavigate }) {
 // ─────────────────────────────────────────────
 // EM TRÂNSITO
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// EM TRÂNSITO — ✅ GPS real a cada 30s
+// ─────────────────────────────────────────────
 function EmTransitoScreen({ frete, onNavigate }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showFreteRetorno, setShowFreteRetorno] = useState(false);
+  const [posicao, setPosicao] = useState(null);
+  const [gpsStatus, setGpsStatus] = useState("aguardando"); // aguardando | ativo | erro
+  const posicaoRef = useRef(null);
+  const watchIdRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  // Inicia GPS ao montar a tela
+  useEffect(() => {
+    if (!frete) return;
+    if (!navigator.geolocation) { setGpsStatus("erro"); return; }
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        posicaoRef.current = coords;
+        setPosicao(coords);
+        setGpsStatus("ativo");
+      },
+      (err) => { console.error("GPS:", err.message); setGpsStatus("erro"); },
+      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
+    );
+
+    // Envia posição para o backend a cada 30 segundos
+    intervalRef.current = setInterval(async () => {
+      if (!posicaoRef.current) return;
+      try {
+        await api("PATCH", "/api/motoristas/localizacao", {
+          lat: posicaoRef.current.lat,
+          lng: posicaoRef.current.lng,
+          freteId: frete.id,
+        }, token);
+      } catch (e) { console.error("Erro GPS send:", e.message); }
+    }, 30000);
+
+    return () => {
+      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [frete?.id]);
+
   if (!frete) return <Loading />;
 
   const atualizarStatus = async (status) => {
@@ -1493,6 +1536,9 @@ function EmTransitoScreen({ frete, onNavigate }) {
     { id: "r1", origem: frete.dest_cidade || "SP", destino: frete.origem_cidade || "CWB", distancia: Math.round(frete.distancia_km * 0.95), valor: formatMoney(Math.round((frete.valor_motorista || 0) * 0.85)), tipo: "Carga Seca" },
     { id: "r2", origem: frete.dest_cidade || "SP", destino: "Campinas, SP", distancia: 100, valor: "R$ 980,00", tipo: "Graneleiro" },
   ];
+
+  const gpsIcon = gpsStatus === "ativo" ? "📍" : gpsStatus === "erro" ? "❌" : "🔍";
+  const gpsLabel = gpsStatus === "ativo" ? "GPS ativo — rastreando" : gpsStatus === "erro" ? "GPS indisponível" : "Obtendo localização...";
 
   return (
     <div className="screen">
@@ -1516,9 +1562,18 @@ function EmTransitoScreen({ frete, onNavigate }) {
         <StatusBadge status={frete.status} />
         <div className="card" style={{ marginTop: 12 }}>
           <div className="map-placeholder" style={{ height: 180 }}>
-            <div style={{ fontSize: 36 }}>📍</div>
-            <span style={{ fontWeight: 700 }}>Rastreamento ativo</span>
-            <span style={{ fontSize: 12 }}>{frete.origem_cidade || "—"} → {frete.dest_cidade || "—"}</span>
+            <div style={{ fontSize: 36 }}>{gpsIcon}</div>
+            <span style={{ fontWeight: 700 }}>{gpsLabel}</span>
+            {posicao ? (
+              <>
+                <span style={{ fontSize: 11, color: "#888" }}>
+                  {posicao.lat.toFixed(5)}, {posicao.lng.toFixed(5)}
+                </span>
+                <span style={{ fontSize: 11, color: "var(--green)" }}>● Enviando posição a cada 30s</span>
+              </>
+            ) : (
+              <span style={{ fontSize: 12 }}>{frete.origem_cidade || "—"} → {frete.dest_cidade || "—"}</span>
+            )}
           </div>
           <div className="info-row"><span className="info-label">Distância total</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Seu valor</span><span className="info-value" style={{ color: "var(--orange)" }}>{formatMoney(frete.valor_motorista || 0)}</span></div>
