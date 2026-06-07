@@ -6,6 +6,32 @@ import { useState, useEffect, createContext, useContext, useRef } from "react";
 const API_BASE = "https://truker-app-production.up.railway.app";
 const ADMIN_EMAIL = "admin@truker.app";
 const ADMIN_SENHA = "truker2024";
+const VAPID_PUBLIC_KEY = "BJICdViJpwdue5vsJ21ZyJ2h8pMuDd6R1UzSCGTGz1sIgu1SC6YFhonj3RpEGscC_62Rrekhn4zMScYLRYqYXYw";
+
+// ─── Registrar Service Worker e assinar push ──────────────────
+async function registrarPushNotifications(token) {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    await api("POST", "/api/push/subscribe", { subscription: sub.toJSON() }, token);
+  } catch (err) {
+    console.error("Push registration error:", err);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
 
 async function api(method, path, body, token) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -101,6 +127,13 @@ function AuthProvider({ children }) {
     localStorage.removeItem("truker_user");
     localStorage.removeItem("truker_token");
   };
+
+  // Registra push notifications quando motorista faz login
+  useEffect(() => {
+    if (user?.tipo === "motorista" && token) {
+      registrarPushNotifications(token);
+    }
+  }, [user?.id]);
 
   return <AuthContext.Provider value={{ user, token, login, logout }}>{children}</AuthContext.Provider>;
 }
