@@ -270,6 +270,78 @@ function StatusBadge({ status }) {
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 function Loading() { return <div className="loading"><div className="spinner" />Carregando...</div>; }
+
+// ─────────────────────────────────────────────
+// MAPA LEAFLET + OPENSTREETMAP (gratuito)
+// ─────────────────────────────────────────────
+function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [] }) {
+  const divRef = useRef(null);
+  const mapRef = useRef(null);
+  const marcadorRef = useRef(null);
+
+  const initMap = () => {
+    if (!divRef.current || mapRef.current) return;
+    const L = window.L;
+    const centerLat = lat || -25.4284;
+    const centerLng = lng || -49.2733;
+    const map = L.map(divRef.current, { zoomControl: false, attributionControl: false })
+      .setView([centerLat, centerLng], zoom);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    if (lat && lng) {
+      const icon = L.divIcon({
+        html: '<div style="background:#F97316;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(249,115,22,0.8)"></div>',
+        className: "", iconSize: [14, 14], iconAnchor: [7, 7],
+      });
+      marcadorRef.current = L.marker([lat, lng], { icon }).addTo(map);
+    }
+    marcadores.forEach(m => {
+      if (!m.lat || !m.lng) return;
+      const icon = L.divIcon({
+        html: `<div style="background:#3B82F6;color:#fff;padding:2px 7px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.4)">📦 ${m.label || ""}</div>`,
+        className: "", iconAnchor: [0, 8],
+      });
+      L.marker([m.lat, m.lng], { icon }).addTo(map);
+    });
+    mapRef.current = map;
+  };
+
+  useEffect(() => {
+    if (window.L) { initMap(); return; }
+    if (!document.querySelector("#leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css"; link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+    if (!document.querySelector("#leaflet-js")) {
+      const script = document.createElement("script");
+      script.id = "leaflet-js"; script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload = initMap;
+      document.head.appendChild(script);
+    }
+    return () => {
+      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; marcadorRef.current = null; }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mapRef.current || !window.L || !lat || !lng) return;
+    mapRef.current.setView([lat, lng], zoom, { animate: true, duration: 0.5 });
+    if (marcadorRef.current) marcadorRef.current.setLatLng([lat, lng]);
+    else {
+      const L = window.L;
+      const icon = L.divIcon({
+        html: '<div style="background:#F97316;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(249,115,22,0.8)"></div>',
+        className: "", iconSize: [14, 14], iconAnchor: [7, 7],
+      });
+      marcadorRef.current = L.marker([lat, lng], { icon }).addTo(mapRef.current);
+    }
+  }, [lat, lng]);
+
+  return (
+    <div ref={divRef} style={{ width: "100%", height: `${height}px`, borderRadius: 12, overflow: "hidden", position: "relative", zIndex: 1, background: "#1C1C1C" }} />
+  );
+}
 function PasswordInput({ value, onChange, placeholder }) {
   const [show, setShow] = useState(false);
   return (
@@ -1250,6 +1322,18 @@ function MotoristaHome({ onNavigate }) {
   const [filtroPeso, setFiltroPeso] = useState("todos");
   const [kmVazio, setKmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
+  const [posicaoAtual, setPosicaoAtual] = useState(null);
+
+  // GPS para mostrar no mapa
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      pos => setPosicaoAtual({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => console.error("GPS home:", err),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
 
   // Carrega fretes disponíveis quando fica online
   useEffect(() => {
@@ -1279,6 +1363,10 @@ function MotoristaHome({ onNavigate }) {
     if (filtroPeso === "pesado" && peso < 14) return false;
     return true;
   });
+
+  const marcadoresFretes = disponiveis
+    .filter(f => f.origem_lat && f.origem_lng)
+    .map(f => ({ lat: parseFloat(f.origem_lat), lng: parseFloat(f.origem_lng), label: f.origem_cidade || "Frete" }));
 
   return (
     <div className="screen">
@@ -1313,11 +1401,12 @@ function MotoristaHome({ onNavigate }) {
           </div>
         </div>
 
-        <div className="map-placeholder" style={{ height: 180 }}>
-          <div style={{ fontSize: 36 }}>🗺️</div>
-          <span style={{ fontWeight: 700 }}>Mapa ao vivo</span>
-          <span style={{ fontSize: 12 }}>Sua localização · {filtrados.length} fretes próximos</span>
-        </div>
+        <MapaLeaflet
+          lat={posicaoAtual?.lat}
+          lng={posicaoAtual?.lng}
+          height={180}
+          marcadores={marcadoresFretes}
+        />
 
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 11, color: "#555", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Tipo de frete</div>
@@ -1561,18 +1650,16 @@ function EmTransitoScreen({ frete, onNavigate }) {
         )}
         <StatusBadge status={frete.status} />
         <div className="card" style={{ marginTop: 12 }}>
-          <div className="map-placeholder" style={{ height: 180 }}>
-            <div style={{ fontSize: 36 }}>{gpsIcon}</div>
-            <span style={{ fontWeight: 700 }}>{gpsLabel}</span>
-            {posicao ? (
-              <>
-                <span style={{ fontSize: 11, color: "#888" }}>
-                  {posicao.lat.toFixed(5)}, {posicao.lng.toFixed(5)}
-                </span>
-                <span style={{ fontSize: 11, color: "var(--green)" }}>● Enviando posição a cada 30s</span>
-              </>
-            ) : (
-              <span style={{ fontSize: 12 }}>{frete.origem_cidade || "—"} → {frete.dest_cidade || "—"}</span>
+          <div style={{ position: "relative" }}>
+            <MapaLeaflet lat={posicao?.lat} lng={posicao?.lng} height={200} />
+            <div style={{ position: "absolute", top: 8, left: 8, zIndex: 10, background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 10 }}>{gpsIcon}</span>
+              <span style={{ fontSize: 10, color: gpsStatus === "ativo" ? "var(--green)" : gpsStatus === "erro" ? "var(--red)" : "#888", fontWeight: 700 }}>{gpsLabel}</span>
+            </div>
+            {posicao && (
+              <div style={{ position: "absolute", bottom: 8, right: 8, zIndex: 10, background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "3px 8px" }}>
+                <span style={{ fontSize: 9, color: "var(--green)" }}>● {posicao.lat.toFixed(4)}, {posicao.lng.toFixed(4)}</span>
+              </div>
             )}
           </div>
           <div className="info-row"><span className="info-label">Distância total</span><span className="info-value">{frete.distancia_km} km</span></div>
