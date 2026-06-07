@@ -372,6 +372,10 @@ function CadastroScreen({ onNavigate }) {
   const [form, setForm] = useState({ nome: "", email: "", senha: "", telefone: "", tipo: "contratante", documento: "", nomeEmpresa: "", tiposCarga: [], tipoVeiculo: "", cnh: "", rntrc: "", placa: "", anoFab: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pendingUser, setPendingUser] = useState(null);
+  const [codigoVerif, setCodigoVerif] = useState("");
+  const [reenviando, setReenviando] = useState(false);
+  const [reenviadoMsg, setReenviadoMsg] = useState("");
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleCarga = (id) => setForm(f => ({ ...f, tiposCarga: f.tiposCarga.includes(id) ? f.tiposCarga.filter(x => x !== id) : [...f.tiposCarga, id] }));
@@ -380,10 +384,66 @@ function CadastroScreen({ onNavigate }) {
     setError(""); setLoading(true);
     try {
       const data = await api("POST", "/api/auth/cadastro", { ...form, tipo });
-      login(data.user || data.usuario, data.token);
+      setPendingUser({ usuario: data.usuario, token: data.token });
+      setStep(99); // tela de verificação
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
+
+  const verificarEmail = async () => {
+    if (codigoVerif.length !== 6) return setError("Digite o código de 6 dígitos");
+    setError(""); setLoading(true);
+    try {
+      await api("POST", "/api/auth/verificar-email", { usuarioId: pendingUser.usuario.id, codigo: codigoVerif });
+      login(pendingUser.usuario, pendingUser.token);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const reenviarCodigo = async () => {
+    setReenviando(true); setReenviadoMsg("");
+    try {
+      await api("POST", "/api/auth/reenviar-codigo", { usuarioId: pendingUser.usuario.id });
+      setReenviadoMsg("Novo código enviado!");
+    } catch (e) { setReenviadoMsg("Erro ao reenviar."); }
+    finally { setReenviando(false); }
+  };
+
+  // Tela de verificação de email
+  if (step === 99 && pendingUser) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 24px" }}>
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 52, marginBottom: 8 }}>📧</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Verifique seu email</div>
+          <p style={{ color: "#666", fontSize: 14, margin: 0 }}>
+            Enviamos um código de 6 dígitos para<br />
+            <strong style={{ color: "var(--orange)" }}>{pendingUser.usuario.email}</strong>
+          </p>
+        </div>
+        {error && <div className="alert alert-error">{error}</div>}
+        {reenviadoMsg && <div className="alert alert-success">✅ {reenviadoMsg}</div>}
+        <div className="field">
+          <label>Código de verificação</label>
+          <input
+            type="text" inputMode="numeric" maxLength={6}
+            value={codigoVerif} onChange={e => setCodigoVerif(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            style={{ fontSize: 28, letterSpacing: 12, textAlign: "center", fontFamily: "monospace" }}
+          />
+        </div>
+        <button className="btn btn-primary" onClick={verificarEmail} disabled={loading} style={{ marginBottom: 12 }}>
+          {loading ? "Verificando..." : "✅ Verificar Email"}
+        </button>
+        <button className="btn btn-secondary" onClick={reenviarCodigo} disabled={reenviando}>
+          {reenviando ? "Enviando..." : "🔄 Reenviar código"}
+        </button>
+        <p style={{ textAlign: "center", marginTop: 16, color: "#555", fontSize: 12 }}>
+          O código expira em 15 minutos
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", padding: "24px" }}>
