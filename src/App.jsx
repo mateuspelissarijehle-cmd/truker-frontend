@@ -69,6 +69,17 @@ const TIPOS_FRETE = [
   { id: "internacional", label: "Internacional", icon: "🌎", desc: "Cruzando fronteiras" },
 ];
 
+// Mapeamento frontend → backend (ANTT só aceita categorias básicas)
+const CARGA_BACKEND_MAP = {
+  carga_seca: "geral", graneleiro: "geral", refrigerada: "frigorificado",
+  frigorifico: "frigorificado", mudanca: "geral", carga_viva: "geral",
+  liquidos: "geral", inflamavel: "perigoso", perigosa: "perigoso",
+  farmaceutico: "geral", eletronicos: "geral", alimentos: "geral",
+  bebidas: "geral", construcao: "geral", maquinario: "geral",
+  superdimensionado: "geral", residuos: "geral", veiculos: "geral",
+  classificados: "geral", madeira: "geral",
+};
+
 // ─────────────────────────────────────────────
 // AUTH CONTEXT
 // ─────────────────────────────────────────────
@@ -701,12 +712,15 @@ function SolicitarFreteScreen({ onNavigate }) {
   const { token } = useAuth();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    origem: "", destino: "", tipoFrete: "interestadual",
+    tipoFrete: "interestadual",
+    origemCep: "", origemLogradouro: "", origemNumero: "", origemComplemento: "",
+    origemBairro: "", origemCidade: "", origemUF: "",
+    destCep: "", destLogradouro: "", destNumero: "", destComplemento: "",
+    destBairro: "", destCidade: "", destUF: "",
+    dataColeta: "", horario: "",
     tipoCarga: "carga_seca", tipoVeiculo: "truck",
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
     descricao: "", precisaMunck: false, precisaEmpilhadeira: false,
-    dataColeta: "", horario: "", freteRecorrente: false,
-    multiDestinos: false,
   });
   const [calc, setCalc] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -717,11 +731,38 @@ function SolicitarFreteScreen({ onNavigate }) {
   const tipoCargaObj = TIPOS_CARGA.find(c => c.id === form.tipoCarga);
   const tipoVeiculoObj = TIPOS_VEICULO.find(v => v.id === form.tipoVeiculo);
 
-  const calcular = async () => {
-    if (!form.origem || !form.destino) return setError("Informe origem e destino");
-    setError(""); setCalcLoading(true);
+  const maskCep = v => v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+
+  const buscarCep = async (cep, tipo) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
     try {
-      const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(form.origem)}&destino=${encodeURIComponent(form.destino)}&peso=${(Number(form.pesoKg) || 1000) / 1000}&veiculo=${form.tipoVeiculo}&carga=${form.tipoCarga}`, null, token);
+      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        set(`${tipo}Logradouro`, data.logradouro || "");
+        set(`${tipo}Bairro`, data.bairro || "");
+        set(`${tipo}Cidade`, data.localidade || "");
+        set(`${tipo}UF`, data.uf || "");
+      }
+    } catch {}
+  };
+
+  const composeAddr = (tipo) => {
+    const f = form;
+    return [f[`${tipo}Logradouro`], f[`${tipo}Numero`], f[`${tipo}Complemento`],
+            f[`${tipo}Bairro`], f[`${tipo}Cidade`], f[`${tipo}UF`], f[`${tipo}Cep`]]
+      .filter(Boolean).join(", ");
+  };
+
+  const calcular = async () => {
+    const origem = composeAddr("origem");
+    const dest = composeAddr("dest");
+    if (!origem || !dest) return setError("Preencha o endereço completo de origem e destino");
+    setError(""); setCalcLoading(true);
+    const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
+    try {
+      const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(origem)}&destino=${encodeURIComponent(dest)}&peso=${(Number(form.pesoKg) || 1000) / 1000}&veiculo=${form.tipoVeiculo}&carga=${cargaBackend}`, null, token);
       setCalc({ distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracao, valor: data.frete?.valorAntt || data.frete?.valorFinal });
       setStep(3);
     } catch (e) { setError(e.message); }
@@ -731,20 +772,43 @@ function SolicitarFreteScreen({ onNavigate }) {
   const solicitar = async () => {
     if (!calc) return;
     setLoading(true); setError("");
+    const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
     try {
       await api("POST", "/api/fretes", {
-        tipoCarga: form.tipoCarga, tipoVeiculo: form.tipoVeiculo,
+        tipoCarga: cargaBackend, tipoVeiculo: form.tipoVeiculo,
         pesoTons: (Number(form.pesoKg) || 1000) / 1000,
-        origemEndereco: form.origem, origemCidade: form.origem.split(",")[0]?.trim(), origemEstado: form.origem.split(",")[1]?.trim() || "PR",
-        destEndereco: form.destino, destCidade: form.destino.split(",")[0]?.trim(), destEstado: form.destino.split(",")[1]?.trim() || "SP",
-        distanciaKm: calc?.distancia_km,
-        valorAntt: calc?.valor,
+        origemEndereco: composeAddr("origem"),
+        origemCidade: form.origemCidade, origemEstado: form.origemUF,
+        destEndereco: composeAddr("dest"),
+        destCidade: form.destCidade, destEstado: form.destUF,
+        distanciaKm: calc?.distancia_km, valorAntt: calc?.valor,
       }, token);
       setSuccess(true);
       setTimeout(() => onNavigate("meus-fretes"), 2000);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
+
+  const AddressBlock = ({ tipo, titulo }) => (
+    <div className="card">
+      <div className="card-title">{titulo}</div>
+      <div className="field">
+        <label>CEP</label>
+        <input placeholder="00000-000" value={form[`${tipo}Cep`]}
+          onChange={e => { const v = maskCep(e.target.value); set(`${tipo}Cep`, v); if (v.replace(/\D/g,"").length === 8) buscarCep(v, tipo); }} />
+      </div>
+      <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form[`${tipo}Logradouro`]} onChange={e => set(`${tipo}Logradouro`, e.target.value)} /></div>
+      <div className="grid-2">
+        <div className="field"><label>Número</label><input placeholder="123" value={form[`${tipo}Numero`]} onChange={e => set(`${tipo}Numero`, e.target.value)} /></div>
+        <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form[`${tipo}Complemento`]} onChange={e => set(`${tipo}Complemento`, e.target.value)} /></div>
+      </div>
+      <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form[`${tipo}Bairro`]} onChange={e => set(`${tipo}Bairro`, e.target.value)} /></div>
+      <div className="grid-2">
+        <div className="field"><label>Cidade</label><input placeholder="Curitiba" value={form[`${tipo}Cidade`]} onChange={e => set(`${tipo}Cidade`, e.target.value)} /></div>
+        <div className="field"><label>UF</label><input placeholder="PR" maxLength={2} value={form[`${tipo}UF`]} onChange={e => set(`${tipo}UF`, e.target.value.toUpperCase())} /></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="screen">
@@ -771,14 +835,18 @@ function SolicitarFreteScreen({ onNavigate }) {
                 ))}
               </div>
             </div>
+            <AddressBlock tipo="origem" titulo="📍 Endereço de Coleta" />
+            <AddressBlock tipo="dest" titulo="🏁 Endereço de Entrega" />
             <div className="card">
-              <div className="card-title">Rota</div>
-              <div className="field"><label>Origem</label><input placeholder="Ex: Curitiba, PR" value={form.origem} onChange={e => set("origem", e.target.value)} /></div>
-              <div className="field"><label>Destino</label><input placeholder="Ex: São Paulo, SP" value={form.destino} onChange={e => set("destino", e.target.value)} /></div>
+              <div className="card-title">Agendamento</div>
               <div className="field"><label>Data de coleta</label><input type="date" value={form.dataColeta} onChange={e => set("dataColeta", e.target.value)} /></div>
               <div className="field"><label>Horário preferido</label><input type="time" value={form.horario} onChange={e => set("horario", e.target.value)} /></div>
             </div>
-            <button className="btn btn-primary" onClick={() => { if (!form.origem || !form.destino) { setError("Informe origem e destino"); return; } setError(""); setStep(2); }}>Continuar →</button>
+            <button className="btn btn-primary" onClick={() => {
+              if (!form.origemLogradouro || !form.origemNumero || !form.origemCidade) return setError("Preencha o endereço de coleta completo");
+              if (!form.destLogradouro || !form.destNumero || !form.destCidade) return setError("Preencha o endereço de entrega completo");
+              setError(""); setStep(2);
+            }}>Continuar →</button>
           </>
         )}
 
@@ -836,15 +904,15 @@ function SolicitarFreteScreen({ onNavigate }) {
           <>
             <div className="card" style={{ borderColor: "var(--orange)", borderWidth: 2 }}>
               <div className="card-title">Resumo do Frete</div>
-              <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
                 <span className="tag-chip">{tipoCargaObj?.icon} {tipoCargaObj?.label}</span>
                 <span className="tag-chip">🚛 {tipoVeiculoObj?.label}</span>
               </div>
               {form.precisaMunck && <span className="tag-chip">🏗️ Munck</span>}
               {form.precisaEmpilhadeira && <span className="tag-chip">🏭 Empilhadeira</span>}
               <div className="divider" />
-              <div className="info-row"><span className="info-label">Origem</span><span className="info-value">{form.origem}</span></div>
-              <div className="info-row"><span className="info-label">Destino</span><span className="info-value">{form.destino}</span></div>
+              <div className="info-row"><span className="info-label">Coleta</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("origem")}</span></div>
+              <div className="info-row"><span className="info-label">Entrega</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("dest")}</span></div>
               <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{calc.distancia_km} km</span></div>
               <div className="info-row"><span className="info-label">Duração</span><span className="info-value">{calc.duracao}</span></div>
               <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{form.pesoKg} kg</span></div>
