@@ -181,7 +181,7 @@ const css = `
   .badge-pending { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.4); }
   .badge-active { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.4); }
   .badge-done { background: rgba(99,102,241,0.15); color: #818CF8; border: 1px solid rgba(99,102,241,0.4); }
-  .badge-cancel { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.4); }
+  .badge-cancel { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
   .badge-admin { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.4); }
   .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--dark); border-top: 1px solid #222; display: flex; z-index: 100; }
   .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 8px; gap: 3px; cursor: pointer; border: none; background: none; color: var(--gray); font-family: 'Barlow', sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: color 0.15s; }
@@ -307,7 +307,6 @@ function LoginScreen({ onNavigate }) {
   const handle = async () => {
     setError("");
     if (!form.email || !form.senha) return setError("Preencha todos os campos");
-    // Admin master login
     if (form.email === ADMIN_EMAIL && form.senha === ADMIN_SENHA) {
       login({ nome: "Admin Master", email: ADMIN_EMAIL, tipo: "admin" }, "admin-token-truker-2024");
       return;
@@ -341,7 +340,7 @@ function LoginScreen({ onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
-// ESQUECI SENHA
+// ESQUECI SENHA — ✅ REAL (integrado ao backend)
 // ─────────────────────────────────────────────
 function EsqueciSenhaScreen({ onNavigate }) {
   const [email, setEmail] = useState("");
@@ -349,29 +348,36 @@ function EsqueciSenhaScreen({ onNavigate }) {
   const [code, setCode] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const enviarCodigo = async () => {
-    if (!email) return;
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setLoading(false);
-    setStep(2);
+    if (!email) return setError("Digite seu email");
+    setError(""); setLoading(true);
+    try {
+      await api("POST", "/api/auth/esqueci-senha", { email });
+      setStep(2);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
   };
 
   const verificarCodigo = async () => {
-    if (code.length < 4) return;
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    setLoading(false);
-    setStep(3);
+    if (code.length < 6) return setError("Digite o código de 6 dígitos");
+    setError(""); setLoading(true);
+    try {
+      await api("POST", "/api/auth/verificar-codigo-senha", { email, codigo: code });
+      setStep(3);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
   };
 
   const redefinir = async () => {
-    if (!novaSenha) return;
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    setLoading(false);
-    setStep(4);
+    if (!novaSenha || novaSenha.length < 6) return setError("A senha deve ter pelo menos 6 caracteres");
+    setError(""); setLoading(true);
+    try {
+      await api("POST", "/api/auth/redefinir-senha", { email, codigo: code, novaSenha });
+      setStep(4);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -380,7 +386,7 @@ function EsqueciSenhaScreen({ onNavigate }) {
       <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
       <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Recuperar senha</div>
       {step === 1 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Digite seu email para receber o código de recuperação.</p>}
-      {step === 2 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Enviamos um código para <strong style={{ color: "var(--orange)" }}>{email}</strong>. Digite abaixo.</p>}
+      {step === 2 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Código enviado para <strong style={{ color: "var(--orange)" }}>{email}</strong>. Digite abaixo.</p>}
       {step === 3 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Defina sua nova senha.</p>}
       {step === 4 && (
         <div>
@@ -388,9 +394,34 @@ function EsqueciSenhaScreen({ onNavigate }) {
           <button className="btn btn-primary" onClick={() => onNavigate("login")}>Ir para o Login</button>
         </div>
       )}
-      {step === 1 && (<><div className="field"><label>Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" /></div><button className="btn btn-primary" onClick={enviarCodigo} disabled={loading}>{loading ? "Enviando..." : "Enviar código"}</button></>)}
-      {step === 2 && (<><div className="field"><label>Código de verificação</label><input value={code} onChange={e => setCode(e.target.value)} placeholder="Ex: 1234" maxLength={6} /></div><button className="btn btn-primary" onClick={verificarCodigo} disabled={loading}>{loading ? "Verificando..." : "Verificar"}</button></>)}
-      {step === 3 && (<><div className="field"><label>Nova senha</label><PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} /></div><button className="btn btn-primary" onClick={redefinir} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button></>)}
+      {error && <div className="alert alert-error">{error}</div>}
+      {step === 1 && (
+        <>
+          <div className="field"><label>Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" /></div>
+          <button className="btn btn-primary" onClick={enviarCodigo} disabled={loading}>{loading ? "Enviando..." : "Enviar código"}</button>
+        </>
+      )}
+      {step === 2 && (
+        <>
+          <div className="field">
+            <label>Código de verificação</label>
+            <input
+              type="text" inputMode="numeric" maxLength={6}
+              value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
+              style={{ fontSize: 28, letterSpacing: 12, textAlign: "center", fontFamily: "monospace" }}
+            />
+          </div>
+          <button className="btn btn-primary" onClick={verificarCodigo} disabled={loading}>{loading ? "Verificando..." : "Verificar código"}</button>
+          <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={enviarCodigo} disabled={loading}>🔄 Reenviar código</button>
+        </>
+      )}
+      {step === 3 && (
+        <>
+          <div className="field"><label>Nova senha</label><PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} /></div>
+          <button className="btn btn-primary" onClick={redefinir} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
+        </>
+      )}
     </div>
   );
 }
@@ -418,7 +449,7 @@ function CadastroScreen({ onNavigate }) {
     try {
       const data = await api("POST", "/api/auth/cadastro", { ...form, tipo });
       setPendingUser({ usuario: data.usuario, token: data.token });
-      setStep(99); // tela de verificação
+      setStep(99);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -442,7 +473,6 @@ function CadastroScreen({ onNavigate }) {
     finally { setReenviando(false); }
   };
 
-  // Tela de verificação de email
   if (step === 99 && pendingUser) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 24px" }}>
@@ -471,9 +501,7 @@ function CadastroScreen({ onNavigate }) {
         <button className="btn btn-secondary" onClick={reenviarCodigo} disabled={reenviando}>
           {reenviando ? "Enviando..." : "🔄 Reenviar código"}
         </button>
-        <p style={{ textAlign: "center", marginTop: 16, color: "#555", fontSize: 12 }}>
-          O código expira em 15 minutos
-        </p>
+        <p style={{ textAlign: "center", marginTop: 16, color: "#555", fontSize: 12 }}>O código expira em 15 minutos</p>
       </div>
     );
   }
@@ -691,6 +719,14 @@ function AdminDashboard({ onNavigate }) {
           </>
         )}
 
+        {!loadingStats && tab === "overview" && !stats && (
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>⚠️</div>
+            <p style={{ fontWeight: 600 }}>Erro ao carregar dados</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Verifique a conexão com o banco de dados</p>
+          </div>
+        )}
+
         {!loadingStats && tab === "motoristas" && (
           <>
             {motoristas.length === 0 && <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>Nenhum motorista cadastrado</div>}
@@ -738,18 +774,15 @@ function AdminDashboard({ onNavigate }) {
             <div className="card">
               <div className="card-title">Eficiência por Motorista</div>
               {motoristas.length === 0 && <p style={{ fontSize: 13, color: "#555" }}>Sem dados ainda</p>}
-              {motoristas.map(m => {
-                const ef = m.total_fretes > 0 ? Math.min(100, Math.round((Number(m.km_carregado) / Math.max(Number(m.km_carregado), 1)) * 100)) : 0;
-                return (
-                  <div key={m.id} className="admin-row">
-                    <div>
-                      <span style={{ fontSize: 13, fontWeight: 600 }}>{m.nome}</span>
-                      <div style={{ fontSize: 11, color: "#666" }}>{m.total_fretes} fretes · {formatKm(m.km_carregado)}</div>
-                    </div>
-                    <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.ganhos_total)}</span>
+              {motoristas.map(m => (
+                <div key={m.id} className="admin-row">
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{m.nome}</span>
+                    <div style={{ fontSize: 11, color: "#666" }}>{m.total_fretes} fretes · {formatKm(m.km_carregado)}</div>
                   </div>
-                );
-              })}
+                  <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.ganhos_total)}</span>
+                </div>
+              ))}
             </div>
             <div className="card">
               <div className="card-title">Resumo Financeiro</div>
@@ -832,44 +865,6 @@ function ContratanteHome({ onNavigate }) {
 // SOLICITAR FRETE
 // ─────────────────────────────────────────────
 const maskCep = v => v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
-
-async function fetchCep(cep, tipo, setField) {
-  const clean = cep.replace(/\D/g, "");
-  if (clean.length !== 8) return;
-  try {
-    const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-    const data = await res.json();
-    if (!data.erro) {
-      setField(`${tipo}Logradouro`, data.logradouro || "");
-      setField(`${tipo}Bairro`, data.bairro || "");
-      setField(`${tipo}Cidade`, data.localidade || "");
-      setField(`${tipo}UF`, data.uf || "");
-    }
-  } catch {}
-}
-
-function AddressBlock({ tipo, titulo, form, setField }) {
-  return (
-    <div className="card">
-      <div className="card-title">{titulo}</div>
-      <div className="field">
-        <label>CEP</label>
-        <input placeholder="00000-000" value={form[`${tipo}Cep`]}
-          onChange={e => { const v = maskCep(e.target.value); setField(`${tipo}Cep`, v); if (v.replace(/\D/g, "").length === 8) fetchCep(v, tipo, setField); }} />
-      </div>
-      <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form[`${tipo}Logradouro`]} onChange={e => setField(`${tipo}Logradouro`, e.target.value)} /></div>
-      <div className="grid-2">
-        <div className="field"><label>Número</label><input placeholder="123" value={form[`${tipo}Numero`]} onChange={e => setField(`${tipo}Numero`, e.target.value)} /></div>
-        <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form[`${tipo}Complemento`]} onChange={e => setField(`${tipo}Complemento`, e.target.value)} /></div>
-      </div>
-      <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form[`${tipo}Bairro`]} onChange={e => setField(`${tipo}Bairro`, e.target.value)} /></div>
-      <div className="grid-2">
-        <div className="field"><label>Cidade</label><input placeholder="Curitiba" value={form[`${tipo}Cidade`]} onChange={e => setField(`${tipo}Cidade`, e.target.value)} /></div>
-        <div className="field"><label>UF</label><input placeholder="PR" maxLength={2} value={form[`${tipo}UF`]} onChange={e => setField(`${tipo}UF`, e.target.value.toUpperCase())} /></div>
-      </div>
-    </div>
-  );
-}
 
 function SolicitarFreteScreen({ onNavigate }) {
   const { token } = useAuth();
@@ -1244,22 +1239,35 @@ function PerfilContratante({ onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
-// MOTORISTA HOME (estilo Uber)
+// MOTORISTA HOME — ✅ toggle online chama API
 // ─────────────────────────────────────────────
 function MotoristaHome({ onNavigate }) {
   const { user, token } = useAuth();
   const [disponiveis, setDisponiveis] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [online, setOnline] = useState(true);
+  const [online, setOnline] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroPeso, setFiltroPeso] = useState("todos");
-  const [kmVazio, setKmVazio] = useState(342);
+  const [kmVazio, setKmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
 
+  // Carrega fretes disponíveis quando fica online
   useEffect(() => {
     if (!online) { setDisponiveis([]); setLoading(false); return; }
-    api("GET", "/api/fretes/disponiveis", null, token).then(setDisponiveis).catch(() => setDisponiveis([])).finally(() => setLoading(false));
+    setLoading(true);
+    api("GET", "/api/fretes/disponiveis", null, token)
+      .then(setDisponiveis).catch(() => setDisponiveis([])).finally(() => setLoading(false));
   }, [online]);
+
+  // ✅ Toggle online/offline — atualiza no banco
+  const toggleOnline = async (val) => {
+    setOnline(val);
+    try {
+      await api("PATCH", "/api/motoristas/online", { online: val }, token);
+    } catch (e) {
+      console.error("Erro ao atualizar status online:", e.message);
+    }
+  };
 
   const pctMeta = Math.min(100, Math.round((kmVazio / metaKmVazio) * 100));
 
@@ -1283,12 +1291,14 @@ function MotoristaHome({ onNavigate }) {
           <h1>{user?.nome?.split(" ")[0] || "Motorista"}</h1>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
-          <label className="toggle"><input type="checkbox" checked={online} onChange={e => setOnline(e.target.checked)} /><span className="toggle-slider" /></label>
+          <label className="toggle">
+            <input type="checkbox" checked={online} onChange={e => toggleOnline(e.target.checked)} />
+            <span className="toggle-slider" />
+          </label>
           <span style={{ fontSize: 22, cursor: "pointer" }} onClick={() => onNavigate("perfil-motorista")}>👤</span>
         </div>
       </div>
       <div className="content">
-        {/* KM Vazio tracker */}
         <div className="km-vazio-bar">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>📊 KM VAZIO HOJE</span>
@@ -1303,14 +1313,12 @@ function MotoristaHome({ onNavigate }) {
           </div>
         </div>
 
-        {/* Mapa placeholder */}
         <div className="map-placeholder" style={{ height: 180 }}>
           <div style={{ fontSize: 36 }}>🗺️</div>
           <span style={{ fontWeight: 700 }}>Mapa ao vivo</span>
           <span style={{ fontSize: 12 }}>Sua localização · {filtrados.length} fretes próximos</span>
         </div>
 
-        {/* Filtros */}
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 11, color: "#555", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Tipo de frete</div>
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
@@ -1348,7 +1356,7 @@ function MotoristaHome({ onNavigate }) {
             <p style={{ fontWeight: 600 }}>Nenhum frete disponível</p>
             <p style={{ fontSize: 13, marginTop: 4, color: "#444" }}>Novos fretes aparecem aqui automaticamente</p>
           </div>
-        ) : (disponiveis).map(f => {
+        ) : (filtrados.length > 0 ? filtrados : disponiveis).map(f => {
           const cargaObj = TIPOS_CARGA.find(c => c.id === f.tipo_carga);
           return (
             <div key={f.id} className="uber-card" onClick={() => onNavigate("aceitar-frete", f)}>
@@ -1530,16 +1538,29 @@ function EmTransitoScreen({ frete, onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
-// PERFIL MOTORISTA
+// PERFIL MOTORISTA — ✅ ganhos reais da API
 // ─────────────────────────────────────────────
 function PerfilMotorista({ onNavigate }) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const [tab, setTab] = useState("resumo");
-  const [kmVazio] = useState(342);
+  const [kmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
   const [editMeta, setEditMeta] = useState(false);
   const [novaMeta, setNovaMeta] = useState("800");
+  const [ganhos, setGanhos] = useState(null);
+  const [loadingGanhos, setLoadingGanhos] = useState(false);
   const pctMeta = Math.min(100, Math.round((kmVazio / metaKmVazio) * 100));
+
+  // Busca ganhos reais ao entrar na aba
+  useEffect(() => {
+    if ((tab === "ganhos" || tab === "resumo") && !ganhos && !loadingGanhos) {
+      setLoadingGanhos(true);
+      api("GET", "/api/motoristas/ganhos", null, token)
+        .then(setGanhos)
+        .catch(() => setGanhos(null))
+        .finally(() => setLoadingGanhos(false));
+    }
+  }, [tab]);
 
   const kmVazioPorCarga = [
     { tipo: "Carga Seca", icon: "📦", km: 180, fretes: 12 },
@@ -1548,27 +1569,20 @@ function PerfilMotorista({ onNavigate }) {
     { tipo: "Líquidos", icon: "💧", km: 25, fretes: 3 },
   ];
 
-  const ganhosPorMes = [
-    { mes: "Abr", valor: 11200 }, { mes: "Mai", valor: 13800 },
-    { mes: "Jun", valor: 14280 },
-  ];
-
   return (
     <div className="screen">
       <div className="header"><h1>Perfil</h1></div>
       <div className="content">
-        {/* Header perfil */}
         <div style={{ textAlign: "center", padding: "14px 0 20px" }}>
           <div style={{ width: 68, height: 68, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 28 }}>🚛</div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>{user?.nome}</div>
           <div style={{ fontSize: 13, color: "#555", marginTop: 3 }}>{user?.email}</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
             <span className="badge badge-active">Motorista</span>
-            <span className="badge" style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.4)" }}>⭐ 4.8</span>
+            <span className="badge" style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.4)" }}>⭐ {ganhos ? Number(ganhos.avaliacao_media).toFixed(1) : "—"}</span>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="tab-bar" style={{ marginBottom: 14 }}>
           {[["resumo", "Resumo"], ["ganhos", "Ganhos"], ["km-vazio", "KM Vazio"], ["docs", "Docs"]].map(([id, label]) => (
             <button key={id} className={`tab-btn ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
@@ -1577,16 +1591,18 @@ function PerfilMotorista({ onNavigate }) {
 
         {tab === "resumo" && (
           <>
-            <div className="grid-2" style={{ marginBottom: 12 }}>
-              <div className="stat-card"><div className="stat-value">28</div><div className="stat-label">Fretes feitos</div></div>
-              <div className="stat-card"><div className="stat-value">4.8</div><div className="stat-label">Avaliação</div></div>
-              <div className="stat-card"><div className="stat-value">{formatKm(8420)}</div><div className="stat-label">Km carregado</div></div>
-              <div className="stat-card"><div className="stat-value">{formatKm(kmVazio)}</div><div className="stat-label">Km vazio</div></div>
-            </div>
+            {loadingGanhos ? <Loading /> : (
+              <div className="grid-2" style={{ marginBottom: 12 }}>
+                <div className="stat-card"><div className="stat-value">{ganhos?.total_fretes ?? "—"}</div><div className="stat-label">Fretes feitos</div></div>
+                <div className="stat-card"><div className="stat-value">{ganhos ? Number(ganhos.avaliacao_media).toFixed(1) : "—"}</div><div className="stat-label">Avaliação</div></div>
+                <div className="stat-card"><div className="stat-value">{ganhos ? formatKm(ganhos.km_carregado) : "—"}</div><div className="stat-label">Km carregado</div></div>
+                <div className="stat-card"><div className="stat-value">{formatKm(kmVazio)}</div><div className="stat-label">Km vazio</div></div>
+              </div>
+            )}
             <div className="card">
               <div className="card-title">Dados do veículo</div>
-              <div className="info-row"><span className="info-label">Tipo</span><span className="info-value">🚛 Truck</span></div>
-              <div className="info-row"><span className="info-label">Placa</span><span className="info-value">{user?.placa || "ABC-1234"}</span></div>
+              <div className="info-row"><span className="info-label">Tipo</span><span className="info-value">🚛 {user?.tipo_veiculo || "Truck"}</span></div>
+              <div className="info-row"><span className="info-label">Placa</span><span className="info-value">{user?.placa || "—"}</span></div>
               <div className="info-row"><span className="info-label">RNTRC</span><span className="info-value">{user?.rntrc || "—"}</span></div>
               <div className="info-row"><span className="info-label">CNH</span><span className="info-value">{user?.cnh || "—"}</span></div>
             </div>
@@ -1601,31 +1617,45 @@ function PerfilMotorista({ onNavigate }) {
 
         {tab === "ganhos" && (
           <>
-            <div className="card" style={{ textAlign: "center", borderColor: "rgba(249,115,22,0.3)" }}>
-              <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>Ganhos este mês</div>
-              <div style={{ fontSize: 36, fontWeight: 800, color: "var(--orange)" }}>R$ 14.280,00</div>
-              <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>28 fretes · média R$ 510/frete</div>
-            </div>
-            <div className="card">
-              <div className="card-title">Histórico mensal</div>
-              {ganhosPorMes.map(m => (
-                <div key={m.mes} style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
-                    <span style={{ fontWeight: 700 }}>{m.mes}/2026</span>
-                    <span style={{ color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.valor)}</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill green" style={{ width: `${Math.round((m.valor / 15000) * 100)}%` }} />
+            {loadingGanhos ? <Loading /> : ganhos ? (
+              <>
+                <div className="card" style={{ textAlign: "center", borderColor: "rgba(249,115,22,0.3)" }}>
+                  <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>Ganhos este mês</div>
+                  <div style={{ fontSize: 36, fontWeight: 800, color: "var(--orange)" }}>{formatMoney(ganhos.ganhos_mes_atual)}</div>
+                  <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
+                    {ganhos.fretes_mes_atual} fretes · média {formatMoney(ganhos.media_por_frete)}/frete
                   </div>
                 </div>
-              ))}
-            </div>
-            <div className="card">
-              <div className="card-title">Breakdown</div>
-              <div className="info-row"><span className="info-label">Valor bruto fretes</span><span className="info-value" style={{ color: "var(--green)" }}>R$ 15.867,00</span></div>
-              <div className="info-row"><span className="info-label">Comissão TRUKER (10%)</span><span className="info-value" style={{ color: "var(--red)" }}>- R$ 1.587,00</span></div>
-              <div className="info-row"><span className="info-label">Líquido recebido</span><span className="info-value" style={{ color: "var(--orange)", fontWeight: 800, fontSize: 16 }}>R$ 14.280,00</span></div>
-            </div>
+                {ganhos.historico_mensal?.length > 0 && (
+                  <div className="card">
+                    <div className="card-title">Histórico mensal</div>
+                    {ganhos.historico_mensal.map(m => (
+                      <div key={m.mes} style={{ marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
+                          <span style={{ fontWeight: 700 }}>{m.mes}/{m.ano}</span>
+                          <span style={{ color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.valor)}</span>
+                        </div>
+                        <div className="progress-bar">
+                          <div className="progress-fill green" style={{ width: `${Math.round((Number(m.valor) / Math.max(...ganhos.historico_mensal.map(x => Number(x.valor)), 1)) * 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="card">
+                  <div className="card-title">Resumo total</div>
+                  <div className="info-row"><span className="info-label">Total de fretes</span><span className="info-value">{ganhos.total_fretes}</span></div>
+                  <div className="info-row"><span className="info-label">Km carregado total</span><span className="info-value">{formatKm(ganhos.km_carregado)}</span></div>
+                  <div className="info-row"><span className="info-label">Ganhos totais</span><span className="info-value" style={{ color: "var(--orange)", fontWeight: 800 }}>{formatMoney(ganhos.ganhos_total)}</span></div>
+                </div>
+              </>
+            ) : (
+              <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>📊</div>
+                <p style={{ fontWeight: 600 }}>Nenhum dado disponível</p>
+                <p style={{ fontSize: 13, marginTop: 4 }}>Complete seu primeiro frete para ver os ganhos</p>
+              </div>
+            )}
           </>
         )}
 
@@ -1668,7 +1698,7 @@ function PerfilMotorista({ onNavigate }) {
                     <span style={{ color: "#666" }}>{formatKm(c.km)} · {c.fretes} fretes</span>
                   </div>
                   <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${Math.round((c.km / kmVazio) * 100)}%` }} />
+                    <div className="progress-fill" style={{ width: `${Math.round((c.km / Math.max(kmVazio, 1)) * 100)}%` }} />
                   </div>
                 </div>
               ))}
@@ -1676,14 +1706,14 @@ function PerfilMotorista({ onNavigate }) {
             <div className="card">
               <div className="card-title">Eficiência geral</div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: "var(--green)" }}>✅ Carregado: {formatKm(8420)}</span>
+                <span style={{ fontSize: 13, color: "var(--green)" }}>✅ Carregado: {ganhos ? formatKm(ganhos.km_carregado) : "—"}</span>
                 <span style={{ fontSize: 13, color: "var(--red)" }}>⬜ Vazio: {formatKm(kmVazio)}</span>
               </div>
               <div className="progress-bar" style={{ height: 10 }}>
-                <div className="progress-fill green" style={{ width: `${Math.round((8420 / (8420 + kmVazio)) * 100)}%` }} />
+                <div className="progress-fill green" style={{ width: `${ganhos ? Math.round((Number(ganhos.km_carregado) / Math.max(Number(ganhos.km_carregado) + kmVazio, 1)) * 100) : 0}%` }} />
               </div>
               <div style={{ fontSize: 13, fontWeight: 700, marginTop: 8, color: "var(--green)" }}>
-                {Math.round((8420 / (8420 + kmVazio)) * 100)}% de eficiência
+                {ganhos ? `${Math.round((Number(ganhos.km_carregado) / Math.max(Number(ganhos.km_carregado) + kmVazio, 1)) * 100)}% de eficiência` : "—"}
               </div>
             </div>
           </>
