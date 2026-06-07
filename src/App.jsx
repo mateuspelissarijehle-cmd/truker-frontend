@@ -515,19 +515,32 @@ function AdminLoginScreen({ onNavigate }) {
 // ADMIN DASHBOARD
 // ─────────────────────────────────────────────
 function AdminDashboard({ onNavigate }) {
-  const { logout } = useAuth();
+  const { token, logout } = useAuth();
   const [tab, setTab] = useState("overview");
+  const [stats, setStats] = useState(null);
+  const [motoristas, setMotoristas] = useState([]);
+  const [fretes, setFretes] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  const mockMotoristas = [
-    { nome: "Carlos Silva", veiculo: "Truck", kmVazio: 1240, kmCarregado: 8420, meta: 1000, fretes: 28, avaliacao: 4.8, online: true },
-    { nome: "José Oliveira", veiculo: "Carreta", kmVazio: 560, kmCarregado: 12300, meta: 800, fretes: 41, avaliacao: 4.6, online: true },
-    { nome: "Pedro Santos", veiculo: "Toco", kmVazio: 2100, kmCarregado: 5600, meta: 1500, fretes: 15, avaliacao: 4.2, online: false },
-    { nome: "Ana Costa", veiculo: "VUC", kmVazio: 320, kmCarregado: 3200, meta: 500, fretes: 22, avaliacao: 4.9, online: true },
-  ];
+  useEffect(() => {
+    setLoadingStats(true);
+    Promise.all([
+      api("GET", "/api/admin/stats", null, token),
+      api("GET", "/api/admin/motoristas", null, token),
+      api("GET", "/api/admin/fretes", null, token),
+    ]).then(([s, m, f]) => { setStats(s); setMotoristas(m); setFretes(f); })
+      .catch(console.error)
+      .finally(() => setLoadingStats(false));
+  }, []);
 
-  const totalKmVazio = mockMotoristas.reduce((a, m) => a + m.kmVazio, 0);
-  const totalKmCarregado = mockMotoristas.reduce((a, m) => a + m.kmCarregado, 0);
-  const eficiencia = Math.round((totalKmCarregado / (totalKmVazio + totalKmCarregado)) * 100);
+  const totalKmCarregado = motoristas.reduce((a, m) => a + Number(m.km_carregado || 0), 0);
+  const eficiencia = stats ? Math.round((stats.fretes_entregues / Math.max(stats.total_fretes, 1)) * 100) : 0;
+
+  const StatusFreteTag = ({ status }) => {
+    const map = { aguardando: ["badge-pending","Aguardando"], aceito: ["badge-active","Aceito"], em_rota: ["badge-active","Em Rota"], entregue: ["badge-done","Entregue"], cancelado: ["badge-cancel","Cancelado"] };
+    const [cls, label] = map[status] || ["badge-pending", status];
+    return <span className={`badge ${cls}`}>{label}</span>;
+  };
 
   return (
     <div className="screen">
@@ -537,39 +550,47 @@ function AdminDashboard({ onNavigate }) {
       </div>
       <div className="content">
         <div className="tab-bar">
-          {[["overview", "Visão Geral"], ["motoristas", "Motoristas"], ["fretes", "Fretes"], ["relatorios", "Relatórios"]].map(([id, label]) => (
+          {[["overview","Visão Geral"],["motoristas","Motoristas"],["fretes","Fretes"],["relatorios","Relatórios"]].map(([id, label]) => (
             <button key={id} className={`tab-btn ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
 
-        {tab === "overview" && (
+        {loadingStats && <Loading />}
+
+        {!loadingStats && tab === "overview" && stats && (
           <>
             <div className="grid-2" style={{ marginBottom: 14 }}>
-              <div className="stat-card"><div className="stat-value">4</div><div className="stat-label">Motoristas Ativos</div></div>
-              <div className="stat-card"><div className="stat-value">106</div><div className="stat-label">Fretes Totais</div></div>
-              <div className="stat-card"><div className="stat-value">{eficiencia}%</div><div className="stat-label">Eficiência Frota</div></div>
-              <div className="stat-card"><div className="stat-value">{formatKm(totalKmVazio)}</div><div className="stat-label">Km Vazios Total</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.total_motoristas}</div><div className="stat-label">Motoristas</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.total_fretes}</div><div className="stat-label">Fretes Totais</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.fretes_entregues}</div><div className="stat-label">Entregues</div></div>
+              <div className="stat-card"><div className="stat-value">{stats.motoristas_online}</div><div className="stat-label">Online Agora</div></div>
             </div>
             <div className="card">
-              <div className="card-title">Km Vazio vs Carregado (frota)</div>
-              <div style={{ marginBottom: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4 }}>
-                  <span style={{ color: "var(--green)" }}>Carregado: {formatKm(totalKmCarregado)}</span>
-                  <span style={{ color: "var(--red)" }}>Vazio: {formatKm(totalKmVazio)}</span>
-                </div>
-                <div className="progress-bar" style={{ height: 12 }}>
-                  <div className="progress-fill green" style={{ width: `${eficiencia}%` }} />
-                </div>
-              </div>
+              <div className="card-title">Receita da Plataforma</div>
+              <div className="info-row"><span className="info-label">Volume total movimentado</span><span className="info-value" style={{ color: "var(--orange)" }}>{formatMoney(stats.valor_total_movimentado)}</span></div>
+              <div className="info-row"><span className="info-label">Pago aos motoristas</span><span className="info-value" style={{ color: "var(--green)" }}>{formatMoney(stats.valor_pago_motoristas)}</span></div>
+              <div className="info-row"><span className="info-label">Receita TRUKER</span><span className="info-value" style={{ color: "var(--orange)" }}>{formatMoney(stats.receita_truker)}</span></div>
             </div>
             <div className="card">
-              <div className="card-title">Motoristas Online agora</div>
-              {mockMotoristas.filter(m => m.online).map(m => (
-                <div key={m.nome} className="admin-row">
-                  <div><span className="online-dot" /><strong>{m.nome}</strong><div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{m.veiculo} · ⭐ {m.avaliacao}</div></div>
+              <div className="card-title">Status dos Fretes</div>
+              {[["Aguardando", stats.fretes_aguardando, "var(--orange)"], ["Aceitos / Em Rota", stats.fretes_aceito + stats.fretes_em_rota, "var(--blue)"], ["Entregues", stats.fretes_entregues, "var(--green)"], ["Cancelados", stats.fretes_cancelados, "var(--red)"]].map(([label, val, cor]) => (
+                <div key={label} style={{ marginBottom: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                    <span>{label}</span><span style={{ color: cor, fontWeight: 700 }}>{val}</span>
+                  </div>
+                  <div className="progress-bar"><div className="progress-fill" style={{ width: `${Math.round((val / Math.max(stats.total_fretes, 1)) * 100)}%`, background: cor }} /></div>
+                </div>
+              ))}
+            </div>
+            <div className="card">
+              <div className="card-title">Motoristas Online</div>
+              {motoristas.filter(m => m.online).length === 0 && <p style={{ fontSize: 13, color: "#555" }}>Nenhum motorista online agora</p>}
+              {motoristas.filter(m => m.online).map(m => (
+                <div key={m.id} className="admin-row">
+                  <div><span className="online-dot" /><strong>{m.nome}</strong><div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{m.tipo_veiculo} · {m.total_fretes} fretes · ⭐ {Number(m.avaliacao_media).toFixed(1)}</div></div>
                   <div style={{ textAlign: "right", fontSize: 12 }}>
-                    <div style={{ color: "var(--green)" }}>{formatKm(m.kmCarregado)}</div>
-                    <div style={{ color: "var(--red)", fontSize: 11 }}>Vazio: {formatKm(m.kmVazio)}</div>
+                    <div style={{ color: "var(--green)" }}>{formatKm(m.km_carregado)}</div>
+                    <div style={{ color: "var(--orange)", fontSize: 11 }}>{formatMoney(m.ganhos_total)} ganhos</div>
                   </div>
                 </div>
               ))}
@@ -577,67 +598,76 @@ function AdminDashboard({ onNavigate }) {
           </>
         )}
 
-        {tab === "motoristas" && (
+        {!loadingStats && tab === "motoristas" && (
           <>
-            {mockMotoristas.map(m => {
-              const pct = Math.min(100, Math.round((m.kmVazio / m.meta) * 100));
-              const cor = pct > 100 ? "red" : pct > 75 ? "" : "green";
-              return (
-                <div key={m.nome} className="card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontWeight: 700 }}>{m.online ? <><span className="online-dot" /></> : <><span className="offline-dot" /></>}{m.nome}</div>
-                      <div style={{ fontSize: 12, color: "#666" }}>{m.veiculo} · {m.fretes} fretes · ⭐ {m.avaliacao}</div>
-                    </div>
-                    <span className={`badge ${m.online ? "badge-active" : ""}`} style={!m.online ? { background: "#222", color: "#555", border: "1px solid #333" } : {}}>{m.online ? "Online" : "Offline"}</span>
+            {motoristas.length === 0 && <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>Nenhum motorista cadastrado</div>}
+            {motoristas.map(m => (
+              <div key={m.id} className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{m.online ? <span className="online-dot" /> : <span className="offline-dot" />}{m.nome}</div>
+                    <div style={{ fontSize: 12, color: "#666" }}>{m.tipo_veiculo || "—"} · {m.total_fretes} fretes · ⭐ {Number(m.avaliacao_media).toFixed(1)}</div>
                   </div>
-                  <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
-                    Meta km vazio: {formatKm(m.meta)} · Atual: {formatKm(m.kmVazio)} ({pct}%)
-                  </div>
-                  <div className="progress-bar">
-                    <div className={`progress-fill ${cor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-                  </div>
-                  <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 12 }}>
-                    <span style={{ color: "var(--green)" }}>✅ Carregado: {formatKm(m.kmCarregado)}</span>
-                    <span style={{ color: "var(--red)" }}>⬜ Vazio: {formatKm(m.kmVazio)}</span>
-                  </div>
+                  <span className={`badge ${m.online ? "badge-active" : ""}`} style={!m.online ? { background: "#222", color: "#555", border: "1px solid #333" } : {}}>{m.online ? "Online" : "Offline"}</span>
                 </div>
-              );
-            })}
+                <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
+                  <span style={{ color: "var(--green)" }}>✅ {formatKm(m.km_carregado)} carregado</span>
+                  <span style={{ color: "var(--orange)" }}>💰 {formatMoney(m.ganhos_total)}</span>
+                </div>
+              </div>
+            ))}
           </>
         )}
 
-        {tab === "fretes" && (
-          <div className="card" style={{ textAlign: "center", padding: 40, color: "#555" }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>📦</div>
-            <p>Lista de todos os fretes da plataforma</p>
-            <p style={{ fontSize: 12, marginTop: 8 }}>Conectar à API em breve</p>
-          </div>
+        {!loadingStats && tab === "fretes" && (
+          <>
+            {fretes.length === 0 && <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>Nenhum frete na plataforma</div>}
+            {fretes.map(f => (
+              <div key={f.id} className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                  <StatusFreteTag status={f.status} />
+                  <span className="price" style={{ fontSize: 16 }}>{formatMoney(f.valor_antt)}</span>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{f.origem_cidade} → {f.dest_cidade}</div>
+                <div style={{ fontSize: 12, color: "#666" }}>
+                  📦 {f.tipo_carga} · 📏 {f.distancia_km} km · ⚖️ {f.peso_tons}t
+                </div>
+                <div style={{ fontSize: 11, color: "#555", marginTop: 6 }}>
+                  Contratante: {f.contratante_nome} {f.motorista_nome ? `· Motorista: ${f.motorista_nome}` : ""}
+                </div>
+              </div>
+            ))}
+          </>
         )}
 
-        {tab === "relatorios" && (
+        {!loadingStats && tab === "relatorios" && (
           <>
             <div className="card">
-              <div className="card-title">Relatório de Eficiência</div>
-              {mockMotoristas.map(m => {
-                const total = m.kmVazio + m.kmCarregado;
-                const ef = Math.round((m.kmCarregado / total) * 100);
+              <div className="card-title">Eficiência por Motorista</div>
+              {motoristas.length === 0 && <p style={{ fontSize: 13, color: "#555" }}>Sem dados ainda</p>}
+              {motoristas.map(m => {
+                const ef = m.total_fretes > 0 ? Math.min(100, Math.round((Number(m.km_carregado) / Math.max(Number(m.km_carregado), 1)) * 100)) : 0;
                 return (
-                  <div key={m.nome} className="admin-row">
-                    <span style={{ fontSize: 13 }}>{m.nome}</span>
-                    <span style={{ fontSize: 13, color: ef > 80 ? "var(--green)" : ef > 60 ? "var(--orange)" : "var(--red)", fontWeight: 700 }}>{ef}% eficiência</span>
+                  <div key={m.id} className="admin-row">
+                    <div>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{m.nome}</span>
+                      <div style={{ fontSize: 11, color: "#666" }}>{m.total_fretes} fretes · {formatKm(m.km_carregado)}</div>
+                    </div>
+                    <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.ganhos_total)}</span>
                   </div>
                 );
               })}
             </div>
             <div className="card">
-              <div className="card-title">Tipos de carga mais solicitados</div>
-              {[["Carga Seca", "📦", 42], ["Graneleiro", "🌾", 28], ["Refrigerada", "❄️", 18], ["Líquidos", "💧", 12]].map(([l, i, v]) => (
-                <div key={l} style={{ marginBottom: 12 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}><span>{i} {l}</span><span style={{ color: "#666" }}>{v} fretes</span></div>
-                  <div className="progress-bar"><div className="progress-fill" style={{ width: `${v * 2}%` }} /></div>
-                </div>
-              ))}
+              <div className="card-title">Resumo Financeiro</div>
+              {stats && (
+                <>
+                  <div className="info-row"><span className="info-label">Contratantes</span><span className="info-value">{stats.total_contratantes}</span></div>
+                  <div className="info-row"><span className="info-label">Fretes aguardando</span><span className="info-value" style={{ color: "var(--orange)" }}>{stats.fretes_aguardando}</span></div>
+                  <div className="info-row"><span className="info-label">Taxa de entrega</span><span className="info-value" style={{ color: "var(--green)" }}>{eficiencia}%</span></div>
+                  <div className="info-row"><span className="info-label">Volume total</span><span className="info-value">{formatMoney(stats.valor_total_movimentado)}</span></div>
+                </>
+              )}
             </div>
           </>
         )}
