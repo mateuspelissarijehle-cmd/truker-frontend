@@ -682,7 +682,7 @@ function ContratanteHome({ onNavigate }) {
           <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <StatusBadge status={f.status} />
-              <div className="price">{formatMoney(f.valor_final || f.valor_motorista || 0)}</div>
+              <div className="price">{formatMoney(f.valor_antt || f.valor_final || f.valor_motorista || 0)}</div>
             </div>
             <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
             <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
@@ -737,6 +737,8 @@ function SolicitarFreteScreen({ onNavigate }) {
         pesoTons: (Number(form.pesoKg) || 1000) / 1000,
         origemEndereco: form.origem, origemCidade: form.origem.split(",")[0]?.trim(), origemEstado: form.origem.split(",")[1]?.trim() || "PR",
         destEndereco: form.destino, destCidade: form.destino.split(",")[0]?.trim(), destEstado: form.destino.split(",")[1]?.trim() || "SP",
+        distanciaKm: calc?.distancia_km,
+        valorAntt: calc?.valor,
       }, token);
       setSuccess(true);
       setTimeout(() => onNavigate("meus-fretes"), 2000);
@@ -894,9 +896,9 @@ function MeusFretes({ onNavigate }) {
           <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <StatusBadge status={f.status} />
-              <div className="price">{formatMoney(f.valor_final || 0)}</div>
+              <div className="price">{formatMoney(f.valor_antt || f.valor_final || 0)}</div>
             </div>
-            <div className="route">{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
+            <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
             <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span></div>
           </div>
         ))}
@@ -930,7 +932,7 @@ function DetalheFrete({ frete, onNavigate }) {
         {error && <div className="alert alert-error">{error}</div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <StatusBadge status={frete.status} />
-          <div className="price">{formatMoney(frete.valor_final || 0)}</div>
+          <div className="price">{formatMoney(frete.valor_antt || frete.valor_final || 0)}</div>
         </div>
         <div className="card">
           <div className="card-title">Rota</div>
@@ -1152,7 +1154,7 @@ function AceitarFreteScreen({ frete, onNavigate }) {
         <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
           <div className="price" style={{ fontSize: 42 }}>{formatMoney(frete.valor_motorista || 0)}</div>
           <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>Seu valor como motorista</div>
-          <div style={{ fontSize: 12, color: "#444", marginTop: 2 }}>Plataforma: {formatMoney(frete.comissao_truker || 0)} · Total: {formatMoney(frete.valor_final || 0)}</div>
+          <div style={{ fontSize: 12, color: "#444", marginTop: 2 }}>Plataforma: {formatMoney(frete.comissao_truker || 0)} · Total: {formatMoney(frete.valor_antt || frete.valor_final || 0)}</div>
         </div>
         <div className="card">
           <div className="map-placeholder">
@@ -1197,9 +1199,9 @@ function MeusFretesMot({ onNavigate }) {
           <div key={f.id} className="frete-card" onClick={() => onNavigate("em-transito", f)}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <StatusBadge status={f.status} />
-              <div className="price">{formatMoney(f.valor_motorista || 0)}</div>
+              <div className="price">{formatMoney(f.valor_motorista || f.valor_antt || 0)}</div>
             </div>
-            <div className="route">{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
+            <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
             <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span></div>
           </div>
         ))}
