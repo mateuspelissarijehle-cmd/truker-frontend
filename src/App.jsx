@@ -708,7 +708,47 @@ function ContratanteHome({ onNavigate }) {
 // ─────────────────────────────────────────────
 // SOLICITAR FRETE
 // ─────────────────────────────────────────────
-function SolicitarFreteScreen({ onNavigate }) {
+const maskCep = v => v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+
+async function fetchCep(cep, tipo, setField) {
+  const clean = cep.replace(/\D/g, "");
+  if (clean.length !== 8) return;
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+    const data = await res.json();
+    if (!data.erro) {
+      setField(`${tipo}Logradouro`, data.logradouro || "");
+      setField(`${tipo}Bairro`, data.bairro || "");
+      setField(`${tipo}Cidade`, data.localidade || "");
+      setField(`${tipo}UF`, data.uf || "");
+    }
+  } catch {}
+}
+
+function AddressBlock({ tipo, titulo, form, setField }) {
+  return (
+    <div className="card">
+      <div className="card-title">{titulo}</div>
+      <div className="field">
+        <label>CEP</label>
+        <input placeholder="00000-000" value={form[`${tipo}Cep`]}
+          onChange={e => { const v = maskCep(e.target.value); setField(`${tipo}Cep`, v); if (v.replace(/\D/g, "").length === 8) fetchCep(v, tipo, setField); }} />
+      </div>
+      <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form[`${tipo}Logradouro`]} onChange={e => setField(`${tipo}Logradouro`, e.target.value)} /></div>
+      <div className="grid-2">
+        <div className="field"><label>Número</label><input placeholder="123" value={form[`${tipo}Numero`]} onChange={e => setField(`${tipo}Numero`, e.target.value)} /></div>
+        <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form[`${tipo}Complemento`]} onChange={e => setField(`${tipo}Complemento`, e.target.value)} /></div>
+      </div>
+      <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form[`${tipo}Bairro`]} onChange={e => setField(`${tipo}Bairro`, e.target.value)} /></div>
+      <div className="grid-2">
+        <div className="field"><label>Cidade</label><input placeholder="Curitiba" value={form[`${tipo}Cidade`]} onChange={e => setField(`${tipo}Cidade`, e.target.value)} /></div>
+        <div className="field"><label>UF</label><input placeholder="PR" maxLength={2} value={form[`${tipo}UF`]} onChange={e => setField(`${tipo}UF`, e.target.value.toUpperCase())} /></div>
+      </div>
+    </div>
+  );
+}
+
+
   const { token } = useAuth();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -730,23 +770,6 @@ function SolicitarFreteScreen({ onNavigate }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const tipoCargaObj = TIPOS_CARGA.find(c => c.id === form.tipoCarga);
   const tipoVeiculoObj = TIPOS_VEICULO.find(v => v.id === form.tipoVeiculo);
-
-  const maskCep = v => v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
-
-  const buscarCep = async (cep, tipo) => {
-    const clean = cep.replace(/\D/g, "");
-    if (clean.length !== 8) return;
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-      const data = await res.json();
-      if (!data.erro) {
-        set(`${tipo}Logradouro`, data.logradouro || "");
-        set(`${tipo}Bairro`, data.bairro || "");
-        set(`${tipo}Cidade`, data.localidade || "");
-        set(`${tipo}UF`, data.uf || "");
-      }
-    } catch {}
-  };
 
   const composeAddr = (tipo) => {
     const f = form;
@@ -789,27 +812,6 @@ function SolicitarFreteScreen({ onNavigate }) {
     finally { setLoading(false); }
   };
 
-  const AddressBlock = ({ tipo, titulo }) => (
-    <div className="card">
-      <div className="card-title">{titulo}</div>
-      <div className="field">
-        <label>CEP</label>
-        <input placeholder="00000-000" value={form[`${tipo}Cep`]}
-          onChange={e => { const v = maskCep(e.target.value); set(`${tipo}Cep`, v); if (v.replace(/\D/g,"").length === 8) buscarCep(v, tipo); }} />
-      </div>
-      <div className="field"><label>Logradouro</label><input placeholder="Rua, Avenida, Rodovia..." value={form[`${tipo}Logradouro`]} onChange={e => set(`${tipo}Logradouro`, e.target.value)} /></div>
-      <div className="grid-2">
-        <div className="field"><label>Número</label><input placeholder="123" value={form[`${tipo}Numero`]} onChange={e => set(`${tipo}Numero`, e.target.value)} /></div>
-        <div className="field"><label>Complemento</label><input placeholder="Galpão, Sala..." value={form[`${tipo}Complemento`]} onChange={e => set(`${tipo}Complemento`, e.target.value)} /></div>
-      </div>
-      <div className="field"><label>Bairro / Distrito</label><input placeholder="Bairro" value={form[`${tipo}Bairro`]} onChange={e => set(`${tipo}Bairro`, e.target.value)} /></div>
-      <div className="grid-2">
-        <div className="field"><label>Cidade</label><input placeholder="Curitiba" value={form[`${tipo}Cidade`]} onChange={e => set(`${tipo}Cidade`, e.target.value)} /></div>
-        <div className="field"><label>UF</label><input placeholder="PR" maxLength={2} value={form[`${tipo}UF`]} onChange={e => set(`${tipo}UF`, e.target.value.toUpperCase())} /></div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="screen">
       <div className="header">
@@ -835,8 +837,8 @@ function SolicitarFreteScreen({ onNavigate }) {
                 ))}
               </div>
             </div>
-            <AddressBlock tipo="origem" titulo="📍 Endereço de Coleta" />
-            <AddressBlock tipo="dest" titulo="🏁 Endereço de Entrega" />
+            <AddressBlock tipo="origem" titulo="📍 Endereço de Coleta" form={form} setField={set} />
+            <AddressBlock tipo="dest" titulo="🏁 Endereço de Entrega" form={form} setField={set} />
             <div className="card">
               <div className="card-title">Agendamento</div>
               <div className="field"><label>Data de coleta</label><input type="date" value={form.dataColeta} onChange={e => set("dataColeta", e.target.value)} /></div>
