@@ -274,26 +274,51 @@ function Loading() { return <div className="loading"><div className="spinner" />
 // ─────────────────────────────────────────────
 // MAPA LEAFLET + OPENSTREETMAP (gratuito)
 // ─────────────────────────────────────────────
-function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [] }) {
+function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null }) {
   const divRef = useRef(null);
   const mapRef = useRef(null);
   const marcadorRef = useRef(null);
+  const propsRef = useRef({ lat, lng, zoom, origem, destino });
+  propsRef.current = { lat, lng, zoom, origem, destino };
 
   const initMap = () => {
     if (!divRef.current || mapRef.current) return;
     const L = window.L;
-    const centerLat = lat || -25.4284;
-    const centerLng = lng || -49.2733;
+    const p = propsRef.current;
+    const centerLat = p.lat || p.origem?.lat || -25.4284;
+    const centerLng = p.lng || p.origem?.lng || -49.2733;
     const map = L.map(divRef.current, { zoomControl: false, attributionControl: false })
-      .setView([centerLat, centerLng], zoom);
+      .setView([centerLat, centerLng], p.zoom);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
-    if (lat && lng) {
+
+    // Marcador do motorista (laranja)
+    if (p.lat && p.lng) {
       const icon = L.divIcon({
         html: '<div style="background:#F97316;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(249,115,22,0.8)"></div>',
         className: "", iconSize: [14, 14], iconAnchor: [7, 7],
       });
-      marcadorRef.current = L.marker([lat, lng], { icon }).addTo(map);
+      marcadorRef.current = L.marker([p.lat, p.lng], { icon }).addTo(map);
     }
+
+    // Marcador de coleta (verde)
+    if (p.origem?.lat && p.origem?.lng) {
+      const icon = L.divIcon({
+        html: `<div style="background:#22C55E;color:#fff;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.4)">📍 ${p.origem.label || "Coleta"}</div>`,
+        className: "", iconAnchor: [0, 12],
+      });
+      L.marker([p.origem.lat, p.origem.lng], { icon }).addTo(map);
+    }
+
+    // Marcador de entrega (vermelho)
+    if (p.destino?.lat && p.destino?.lng) {
+      const icon = L.divIcon({
+        html: `<div style="background:#EF4444;color:#fff;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.4)">🏁 ${p.destino.label || "Entrega"}</div>`,
+        className: "", iconAnchor: [0, 12],
+      });
+      L.marker([p.destino.lat, p.destino.lng], { icon }).addTo(map);
+    }
+
+    // Marcadores de fretes disponíveis (azul)
     marcadores.forEach(m => {
       if (!m.lat || !m.lng) return;
       const icon = L.divIcon({
@@ -302,7 +327,31 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [] }) {
       });
       L.marker([m.lat, m.lng], { icon }).addTo(map);
     });
+
+    // Ajusta zoom para mostrar todos os pontos
+    const pontos = [];
+    if (p.lat && p.lng) pontos.push([p.lat, p.lng]);
+    if (p.origem?.lat) pontos.push([p.origem.lat, p.origem.lng]);
+    if (p.destino?.lat) pontos.push([p.destino.lat, p.destino.lng]);
+    if (pontos.length > 1) map.fitBounds(L.latLngBounds(pontos), { padding: [35, 35] });
+
     mapRef.current = map;
+
+    // Rota real via OSRM (gratuito, sem API key)
+    const start = p.lat && p.lng ? `${p.lng},${p.lat}` : p.origem?.lng ? `${p.origem.lng},${p.origem.lat}` : null;
+    const end = p.destino?.lat ? `${p.destino.lng},${p.destino.lat}` : p.origem?.lat ? `${p.origem.lng},${p.origem.lat}` : null;
+    if (start && end && start !== end) {
+      fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.routes?.[0]?.geometry && mapRef.current) {
+            window.L.geoJSON(data.routes[0].geometry, {
+              style: { color: "#F97316", weight: 4, opacity: 0.75, dashArray: "10,6" }
+            }).addTo(mapRef.current);
+          }
+        })
+        .catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -326,7 +375,6 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [] }) {
 
   useEffect(() => {
     if (!mapRef.current || !window.L || !lat || !lng) return;
-    mapRef.current.setView([lat, lng], zoom, { animate: true, duration: 0.5 });
     if (marcadorRef.current) marcadorRef.current.setLatLng([lat, lng]);
     else {
       const L = window.L;
@@ -1651,7 +1699,13 @@ function EmTransitoScreen({ frete, onNavigate }) {
         <StatusBadge status={frete.status} />
         <div className="card" style={{ marginTop: 12 }}>
           <div style={{ position: "relative" }}>
-            <MapaLeaflet lat={posicao?.lat} lng={posicao?.lng} height={200} />
+            <MapaLeaflet
+              lat={posicao?.lat}
+              lng={posicao?.lng}
+              height={220}
+              origem={frete.origem_lat ? { lat: parseFloat(frete.origem_lat), lng: parseFloat(frete.origem_lng), label: frete.origem_cidade } : null}
+              destino={frete.dest_lat ? { lat: parseFloat(frete.dest_lat), lng: parseFloat(frete.dest_lng), label: frete.dest_cidade } : null}
+            />
             <div style={{ position: "absolute", top: 8, left: 8, zIndex: 10, background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 10 }}>{gpsIcon}</span>
               <span style={{ fontSize: 10, color: gpsStatus === "ativo" ? "var(--green)" : gpsStatus === "erro" ? "var(--red)" : "#888", fontWeight: 700 }}>{gpsLabel}</span>
