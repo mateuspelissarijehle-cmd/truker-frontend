@@ -10,19 +10,29 @@ const VAPID_PUBLIC_KEY = "BJICdViJpwdue5vsJ21ZyJ2h8pMuDd6R1UzSCGTGz1sIgu1SC6YFho
 
 // ─── Registrar Service Worker e assinar push ──────────────────
 async function registrarPushNotifications(token) {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    console.warn("[TRUKER] Push não suportado neste browser");
+    return;
+  }
   try {
     const reg = await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
+    if (permission !== "granted") {
+      console.warn("[TRUKER] Permissão de notificação negada");
+      return;
+    }
+    // Cancela subscription antiga e cria nova para garantir validade
+    const subExistente = await reg.pushManager.getSubscription();
+    if (subExistente) await subExistente.unsubscribe();
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
     await api("POST", "/api/push/subscribe", { subscription: sub.toJSON() }, token);
+    console.log("[TRUKER] Push subscrito:", sub.endpoint);
   } catch (err) {
-    console.error("Push registration error:", err);
+    console.error("[TRUKER] Push registration error:", err);
   }
 }
 
@@ -128,12 +138,16 @@ function AuthProvider({ children }) {
     localStorage.removeItem("truker_token");
   };
 
-  // Registra push notifications quando motorista faz login
+  // Registra push notifications sempre que motorista abre o app
   useEffect(() => {
     if (user?.tipo === "motorista" && token) {
-      registrarPushNotifications(token);
+      registrarPushNotifications(token).then(() => {
+        console.log("[TRUKER] Push registration OK para", user?.email);
+      }).catch(err => {
+        console.error("[TRUKER] Push registration ERRO:", err);
+      });
     }
-  }, [user?.id]);
+  }, [user?.id, token]);
 
   return <AuthContext.Provider value={{ user, token, login, logout }}>{children}</AuthContext.Provider>;
 }
