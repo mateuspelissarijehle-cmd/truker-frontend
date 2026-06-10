@@ -6,7 +6,7 @@ import { useState, useEffect, createContext, useContext, useRef } from "react";
 const API_BASE = "https://truker-app-production.up.railway.app";
 const ADMIN_EMAIL = "admin@truker.app";
 const ADMIN_SENHA = "truker2024";
-const VAPID_PUBLIC_KEY = "BJICdViJpwdue5vsJ21ZyJ2h8pMuDd6R1UzSCGTGz1sIgu1SC6YFhonj3RpEGscC_62Rrekhn4zMScYLRYqYXYw";
+const VAPID_PUBLIC_KEY = "BPXxf7PJkl_WSVBkmMFljhbNEZfZs61C7aPrPkL48U_Nk7T4OYOny6vPSJX6ny03qzdO4LvuvSP5sCg9u5JAFLg";
 
 // ─── Registrar Service Worker e assinar push ──────────────────
 async function registrarPushNotifications(token) {
@@ -1767,24 +1767,6 @@ function PerfilMotorista({ onNavigate }) {
   const [novaMeta, setNovaMeta] = useState("800");
   const [ganhos, setGanhos] = useState(null);
   const [loadingGanhos, setLoadingGanhos] = useState(false);
-  const [testePushMsg, setTestePushMsg] = useState(null);
-
-  const testarPush = async () => {
-    setTestePushMsg("Enviando...");
-    try {
-      const res = await api("POST", "/api/push/testar", {}, token);
-      const ok = res.resultados?.some(r => r.ok);
-      if (ok) {
-        setTestePushMsg("✅ Push enviado! Verifique a notificação.");
-      } else {
-        const erros = res.resultados?.map(r => `${r.status}: ${r.erro}`).join(", ");
-        setTestePushMsg("❌ Falhou: " + (erros || "sem subscription"));
-      }
-    } catch (e) {
-      setTestePushMsg("❌ Erro: " + e.message);
-    }
-    setTimeout(() => setTestePushMsg(null), 8000);
-  };
   const pctMeta = Math.min(100, Math.round((kmVazio / metaKmVazio) * 100));
 
   // Busca ganhos reais ao entrar na aba
@@ -1848,8 +1830,6 @@ function PerfilMotorista({ onNavigate }) {
               </div>
             ))}
             <button className="btn btn-danger" style={{ marginTop: 8 }} onClick={logout}>Sair da Conta</button>
-            <button className="btn btn-outline" style={{ marginTop: 8 }} onClick={testarPush}>🔔 Testar Push Notification</button>
-            {testePushMsg && <div style={{ marginTop: 10, padding: "10px 14px", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", borderRadius: 8, fontSize: 13, color: "#f97316", textAlign: "center" }}>{testePushMsg}</div>}
           </>
         )}
 
