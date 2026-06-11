@@ -156,38 +156,42 @@ function AuthProvider({ children }) {
 // CSS
 // ─────────────────────────────────────────────
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@700;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --orange: #F97316; --orange-dark: #EA6C0A; --orange-light: rgba(249,115,22,0.12);
-    --black: #0A0A0A; --dark: #141414; --dark2: #1C1C1C; --dark3: #252525; --dark4: #2E2E2E;
-    --gray: #555; --gray2: #888; --gray3: #AAA;
-    --white: #F5F5F5; --green: #22C55E; --red: #EF4444; --blue: #3B82F6; --yellow: #F59E0B;
+    --orange: #C9A84C; --orange-dark: #A8873A; --orange-light: rgba(201,168,76,0.12);
+    --gold: #C9A84C; --gold-dark: #A8873A; --gold-light: rgba(201,168,76,0.12);
+    --black: #F5F0E8; --dark: #FFFFFF; --dark2: #F9F5EE; --dark3: #EFE9DC; --dark4: #E5DDD0;
+    --gray: #8A7E6E; --gray2: #A09282; --gray3: #C0B4A4;
+    --white: #1A1209; --green: #2D7A3A; --red: #C0392B; --blue: #2563EB; --yellow: #C9A84C;
+    --text: #1A1209; --text2: #4A3F30; --text3: #8A7E6E;
+    --surface: #FFFFFF; --surface2: #F9F5EE; --surface3: #EFE9DC;
+    --border: #DDD4C0; --border2: #E8E0D0;
   }
-  body { font-family: 'Barlow', sans-serif; background: var(--black); color: var(--white); min-height: 100vh; max-width: 430px; margin: 0 auto; }
+  body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); min-height: 100vh; max-width: 430px; margin: 0 auto; }
   .screen { min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 80px; }
-  .header { background: var(--dark); padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 10; }
-  .header h1 { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 800; color: var(--orange); letter-spacing: 1px; text-transform: uppercase; }
-  .back-btn { background: none; border: none; color: var(--white); font-size: 22px; cursor: pointer; padding: 4px; line-height: 1; }
+  .header { background: var(--surface); padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .header h1 { font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+  .back-btn { background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 4px; line-height: 1; }
   .content { flex: 1; padding: 16px; }
-  .card { background: var(--dark2); border-radius: 14px; padding: 16px; margin-bottom: 12px; border: 1px solid #272727; }
+  .card { background: var(--surface); border-radius: 14px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
   .card-title { font-size: 11px; font-weight: 700; color: var(--gray2); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 12px; }
-  .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-family: 'Barlow', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.5px; }
+  .btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.5px; }
   .btn:active { transform: scale(0.97); }
-  .btn-primary { background: var(--orange); color: #fff; }
-  .btn-primary:hover { background: var(--orange-dark); }
+  .btn-primary { background: linear-gradient(135deg, #C9A84C, #A8873A); color: #fff; box-shadow: 0 2px 8px rgba(201,168,76,0.3); }
+  .btn-primary:hover { background: linear-gradient(135deg, #D4A843, #9A7930); }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-secondary { background: var(--dark3); color: var(--white); border: 1px solid #333; }
-  .btn-outline { background: transparent; color: var(--orange); border: 2px solid var(--orange); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-outline { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
   .btn-danger { background: var(--red); color: #fff; }
   .btn-success { background: var(--green); color: #fff; }
   .btn-sm { padding: 9px 14px; width: auto; font-size: 12px; border-radius: 8px; }
   .field { margin-bottom: 14px; }
-  .field label { display: block; font-size: 11px; font-weight: 700; color: var(--gray2); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
-  .field input, .field select, .field textarea { width: 100%; background: var(--dark3); border: 1px solid #333; border-radius: 10px; padding: 12px 14px; color: var(--white); font-family: 'Barlow', sans-serif; font-size: 15px; outline: none; transition: border-color 0.15s; }
-  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--orange); }
-  .field input::placeholder { color: #444; }
-  .field select option { background: var(--dark2); }
+  .field label { display: block; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .field input, .field select, .field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 15px; outline: none; transition: all 0.15s; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,168,76,0.12); }
+  .field input::placeholder { color: var(--text3); }
+  .field select option { background: var(--surface2); color: var(--text); }
   .input-eye { position: relative; }
   .input-eye input { padding-right: 44px; }
   .input-eye .eye { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--gray2); cursor: pointer; font-size: 18px; }
@@ -197,46 +201,46 @@ const css = `
   .badge-done { background: rgba(99,102,241,0.15); color: #818CF8; border: 1px solid rgba(99,102,241,0.4); }
   .badge-cancel { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
   .badge-admin { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.4); }
-  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--dark); border-top: 1px solid #222; display: flex; z-index: 100; }
-  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 8px; gap: 3px; cursor: pointer; border: none; background: none; color: var(--gray); font-family: 'Barlow', sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; transition: color 0.15s; }
-  .nav-item.active { color: var(--orange); }
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -2px 12px rgba(0,0,0,0.08); }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 8px; gap: 3px; cursor: pointer; border: none; background: none; color: var(--text3); font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; transition: color 0.15s; }
+  .nav-item.active { color: var(--gold); }
   .nav-item span { font-size: 20px; }
-  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #222; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .info-row:last-child { border-bottom: none; }
   .info-label { font-size: 13px; color: var(--gray2); }
   .info-value { font-size: 13px; font-weight: 600; color: var(--white); text-align: right; max-width: 60%; }
   .alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 14px; }
   .alert-error { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
   .alert-success { background: rgba(34,197,94,0.1); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
-  .alert-info { background: rgba(59,130,246,0.1); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
-  .logo-big { font-family: 'Barlow Condensed', sans-serif; font-size: 56px; font-weight: 800; color: var(--orange); letter-spacing: 4px; text-transform: uppercase; }
-  .frete-card { background: var(--dark2); border-radius: 14px; padding: 16px; margin-bottom: 10px; border: 1px solid #272727; cursor: pointer; transition: border-color 0.15s, transform 0.1s; }
-  .frete-card:hover { border-color: var(--orange); transform: translateY(-1px); }
+  .alert-info { background: rgba(201,168,76,0.1); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+  .logo-big { font-family: 'Inter', sans-serif; font-size: 56px; font-weight: 800; color: var(--gold); letter-spacing: 6px; text-transform: uppercase; }
+  .frete-card { background: var(--surface); border-radius: 14px; padding: 16px; margin-bottom: 10px; border: 1px solid var(--border); cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .frete-card:hover { border-color: var(--gold); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(201,168,76,0.15); }
   .frete-card:active { transform: scale(0.98); }
-  .price { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 800; color: var(--orange); }
+  .price { font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 800; color: var(--gold); }
   .route { font-size: 15px; font-weight: 700; margin: 8px 0 4px; }
   .meta { font-size: 12px; color: var(--gray2); display: flex; gap: 12px; flex-wrap: wrap; }
   .loading { text-align: center; padding: 40px; color: var(--gray2); font-size: 14px; }
   .spinner { width: 28px; height: 28px; border: 3px solid #333; border-top-color: var(--orange); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .divider { height: 1px; background: #222; margin: 16px 0; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
   .tipo-tag { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-  .tipo-tag button { padding: 8px 16px; border-radius: 20px; border: 1px solid #333; background: var(--dark3); color: var(--gray2); font-family: 'Barlow', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-  .tipo-tag button.active { background: var(--orange); color: #fff; border-color: var(--orange); }
-  .map-placeholder { background: var(--dark3); border-radius: 12px; height: 160px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--gray2); font-size: 13px; border: 1px dashed #333; margin-bottom: 14px; }
+  .tipo-tag button { padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text3); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .tipo-tag button.active { background: linear-gradient(135deg, #C9A84C, #A8873A); color: #fff; border-color: var(--gold); }
+  .map-placeholder { background: var(--surface2); border-radius: 12px; height: 160px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--text3); font-size: 13px; border: 1px dashed var(--border); margin-bottom: 14px; }
   .star-rating { display: flex; gap: 6px; font-size: 28px; cursor: pointer; }
   .chat-area { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
   .msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
   .msg-me { background: var(--orange); color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
   .msg-other { background: var(--dark3); color: var(--white); align-self: flex-start; border-bottom-left-radius: 2px; }
   .msg-time { font-size: 10px; opacity: 0.5; margin-top: 3px; text-align: right; }
-  .chat-input { display: flex; gap: 8px; padding: 10px 14px; background: var(--dark); border-top: 1px solid #222; }
-  .chat-input input { flex: 1; background: var(--dark3); border: 1px solid #333; border-radius: 20px; padding: 10px 16px; color: var(--white); font-family: 'Barlow', sans-serif; font-size: 14px; outline: none; }
-  .chat-send { width: 40px; height: 40px; border-radius: 50%; background: var(--orange); border: none; color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .chat-input { display: flex; gap: 8px; padding: 10px 14px; background: var(--surface); border-top: 1px solid var(--border); }
+  .chat-input input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 10px 16px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; outline: none; }
+  .chat-send { width: 40px; height: 40px; border-radius: 50%; background: var(--gold); border: none; color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  .stat-card { background: var(--dark2); border-radius: 12px; padding: 14px; text-align: center; border: 1px solid #272727; }
-  .stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 800; color: var(--orange); }
+  .stat-card { background: var(--surface); border-radius: 12px; padding: 14px; text-align: center; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .stat-value { font-family: 'Inter', sans-serif; letter-spacing: -0.5px; font-size: 28px; font-weight: 800; color: var(--orange); }
   .stat-label { font-size: 10px; color: var(--gray2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
   .carga-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .carga-item { background: var(--dark3); border: 1px solid #333; border-radius: 10px; padding: 10px; cursor: pointer; transition: all 0.15s; text-align: center; }
@@ -253,23 +257,23 @@ const css = `
   @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.2)} }
   .toggle { position: relative; width: 48px; height: 26px; }
   .toggle input { opacity: 0; width: 0; height: 0; }
-  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--dark4); border-radius: 26px; transition: 0.3s; }
+  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--border); border-radius: 26px; transition: 0.3s; }
   .toggle-slider:before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
-  .toggle input:checked + .toggle-slider { background: var(--orange); }
+  .toggle input:checked + .toggle-slider { background: var(--gold); }
   .toggle input:checked + .toggle-slider:before { transform: translateX(22px); }
-  .tag-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; background: var(--orange-light); color: var(--orange); font-size: 11px; font-weight: 700; border: 1px solid rgba(249,115,22,0.3); margin: 2px; }
-  .upload-area { border: 2px dashed #333; border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.15s; color: var(--gray2); font-size: 13px; }
-  .upload-area:hover { border-color: var(--orange); color: var(--orange); }
+  .tag-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; background: var(--gold-light); color: var(--gold); font-size: 11px; font-weight: 700; border: 1px solid rgba(201,168,76,0.3); margin: 2px; }
+  .upload-area { border: 2px dashed var(--border); border-radius: 12px; padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.15s; color: var(--text3); font-size: 13px; }
+  .upload-area:hover { border-color: var(--gold); color: var(--gold); }
   .section-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; margin-top: 4px; }
   .km-vazio-bar { background: var(--dark2); border-radius: 12px; padding: 14px; margin-bottom: 10px; border: 1px solid #272727; }
-  .uber-card { background: var(--dark2); border-radius: 16px; margin-bottom: 10px; border: 1px solid #272727; overflow: hidden; cursor: pointer; transition: all 0.15s; }
-  .uber-card:hover { border-color: var(--orange); transform: translateY(-1px); }
+  .uber-card { background: var(--surface); border-radius: 16px; margin-bottom: 10px; border: 1px solid var(--border); overflow: hidden; cursor: pointer; transition: all 0.15s; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .uber-card:hover { border-color: var(--gold); transform: translateY(-1px); }
   .uber-card-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: flex-start; }
-  .uber-card-footer { background: var(--dark3); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #2a2a2a; }
-  .tab-bar { display: flex; gap: 0; margin-bottom: 16px; background: var(--dark2); border-radius: 10px; padding: 3px; }
-  .tab-btn { flex: 1; padding: 8px; border: none; background: none; color: var(--gray2); font-family: 'Barlow', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; border-radius: 8px; transition: all 0.15s; text-transform: uppercase; }
-  .tab-btn.active { background: var(--orange); color: #fff; }
-  .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #1e1e1e; }
+  .uber-card-footer { background: var(--surface2); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); }
+  .tab-bar { display: flex; gap: 0; margin-bottom: 16px; background: var(--surface2); border-radius: 10px; padding: 3px; border: 1px solid var(--border); }
+  .tab-btn { flex: 1; padding: 8px; border: none; background: none; color: var(--text3); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.15s; text-transform: uppercase; }
+  .tab-btn.active { background: linear-gradient(135deg, #C9A84C, #A8873A); color: #fff; }
+  .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
   .admin-row:last-child { border-bottom: none; }
 `;
 
@@ -303,12 +307,12 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
     const centerLng = p.lng || p.origem?.lng || -49.2733;
     const map = L.map(divRef.current, { zoomControl: false, attributionControl: false })
       .setView([centerLat, centerLng], p.zoom);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
 
     // Marcador do motorista (laranja)
     if (p.lat && p.lng) {
       const icon = L.divIcon({
-        html: '<div style="background:#F97316;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(249,115,22,0.8)"></div>',
+        html: '<div style="background:#C9A84C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(201,168,76,0.8)"></div>',
         className: "", iconSize: [14, 14], iconAnchor: [7, 7],
       });
       marcadorRef.current = L.marker([p.lat, p.lng], { icon }).addTo(map);
@@ -393,7 +397,7 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
     else {
       const L = window.L;
       const icon = L.divIcon({
-        html: '<div style="background:#F97316;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(249,115,22,0.8)"></div>',
+        html: '<div style="background:#C9A84C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(201,168,76,0.8)"></div>',
         className: "", iconSize: [14, 14], iconAnchor: [7, 7],
       });
       marcadorRef.current = L.marker([lat, lng], { icon }).addTo(mapRef.current);
@@ -417,14 +421,55 @@ function PasswordInput({ value, onChange, placeholder }) {
 // ─────────────────────────────────────────────
 // SPLASH
 // ─────────────────────────────────────────────
-function SplashScreen({ onNavigate }) {
+// ─────────────────────────────────────────────
+// LOGO COMPONENT
+// ─────────────────────────────────────────────
+function TrukerLogo({ size = "md" }) {
+  const sizes = {
+    sm: { t: 28, box: 52, name: 16, tagline: false },
+    md: { t: 44, box: 80, name: 26, tagline: true },
+    lg: { t: 64, box: 112, name: 38, tagline: true },
+  };
+  const s = sizes[size] || sizes.md;
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", background: "linear-gradient(180deg, #141414 0%, #0A0A0A 100%)" }}>
-      <div style={{ marginBottom: 8, fontSize: 52 }}>🚛</div>
-      <div className="logo-big">TRUKER</div>
-      <p style={{ color: "#555", fontSize: 13, marginTop: 6, marginBottom: 52, textAlign: "center" }}>Plataforma de fretes pesados</p>
-      <button className="btn btn-primary" onClick={() => onNavigate("login")}>Entrar</button>
-      <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => onNavigate("cadastro")}>Criar conta</button>
+    <div style={{ textAlign: "center" }}>
+      <div style={{
+        width: s.box, height: s.box, borderRadius: s.box * 0.22,
+        background: "linear-gradient(145deg, #D4A843, #9A7930, #C9A84C)",
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        marginBottom: 10,
+        boxShadow: "0 4px 20px rgba(168,135,58,0.4), inset 0 1px 0 rgba(255,255,255,0.2)",
+      }}>
+        <span style={{ fontSize: s.t, fontWeight: 800, color: "#1A1209", fontFamily: "Inter, sans-serif", lineHeight: 1, letterSpacing: -2 }}>T</span>
+      </div>
+      <div style={{ fontSize: s.name, fontWeight: 700, letterSpacing: 7, color: "#1A1209", fontFamily: "Inter, sans-serif", textTransform: "uppercase" }}>TRUKER</div>
+      {s.tagline && <div style={{ fontSize: 12, color: "#8A7E6E", marginTop: 5, letterSpacing: 0.5 }}>Fretes pesados, sem km vazio</div>}
+    </div>
+  );
+}
+
+function SplashScreen({ onNavigate }) {
+  const { user } = useAuth();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (user) {
+        if (user.tipo === "admin") onNavigate("admin-dashboard");
+        else if (user.tipo === "motorista") onNavigate("home-motorista");
+        else onNavigate("home-contratante");
+      } else {
+        onNavigate("login");
+      }
+    }, 1800);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", background: "linear-gradient(180deg, #F5F0E8 0%, #EFE9DC 100%)" }}>
+      <TrukerLogo size="lg" />
+      <div style={{ marginTop: 52, display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#C9A84C", opacity: 0.4 }} />
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#C9A84C", opacity: 0.7 }} />
+        <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#C9A84C" }} />
+      </div>
     </div>
   );
 }
@@ -456,8 +501,7 @@ function LoginScreen({ onNavigate }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 24px" }}>
       <div style={{ textAlign: "center", marginBottom: 40 }}>
-        <div style={{ fontSize: 44 }}>🚛</div>
-        <div className="logo-big" style={{ fontSize: 44 }}>TRUKER</div>
+        <TrukerLogo size="md" />
       </div>
       {error && <div className="alert alert-error">{error}</div>}
       <div className="field"><label>Email</label><input type="email" placeholder="seu@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
@@ -644,8 +688,8 @@ function CadastroScreen({ onNavigate }) {
     <div style={{ minHeight: "100vh", padding: "24px" }}>
       <button className="back-btn" style={{ marginBottom: 16 }} onClick={() => step > 1 ? setStep(s => s - 1) : onNavigate("login")}>←</button>
       <div style={{ marginBottom: 24 }}>
-        <div className="logo-big" style={{ fontSize: 32 }}>TRUKER</div>
-        <p style={{ color: "#666", fontSize: 13, marginTop: 4 }}>Criar conta · Passo {step} de {tipo === "motorista" ? 3 : 2}</p>
+        <TrukerLogo size="sm" />
+        <p style={{ color: "var(--text3)", fontSize: 13, marginTop: 8, textAlign: "center" }}>Criar conta · Passo {step} de {tipo === "motorista" ? 3 : 2}</p>
       </div>
       {error && <div className="alert alert-error">{error}</div>}
 
@@ -1387,7 +1431,7 @@ function MotoristaHome({ onNavigate }) {
   const { user, token } = useAuth();
   const [disponiveis, setDisponiveis] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [online, setOnline] = useState(false);
+  const [online, setOnline] = useState(() => { try { return localStorage.getItem("truker_online") === "true"; } catch { return false; } });
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroPeso, setFiltroPeso] = useState("todos");
   const [kmVazio, setKmVazio] = useState(0);
@@ -1416,6 +1460,7 @@ function MotoristaHome({ onNavigate }) {
   // ✅ Toggle online/offline — atualiza no banco
   const toggleOnline = async (val) => {
     setOnline(val);
+    localStorage.setItem("truker_online", val ? "true" : "false");
     try {
       await api("PATCH", "/api/motoristas/online", { online: val }, token);
     } catch (e) {
@@ -2123,6 +2168,8 @@ function Router() {
       if (user.tipo === "admin") setScreen("admin-dashboard");
       else if (user.tipo === "motorista") setScreen("home-motorista");
       else setScreen("home-contratante");
+    } else {
+      setScreen("login");
     }
   }, [user]);
 
