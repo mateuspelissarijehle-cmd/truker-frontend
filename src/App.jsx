@@ -2532,12 +2532,15 @@ function DadosPessoaisContratante({ onNavigate }) {
   const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  useEffect(() => {
-    api("GET", "/api/contratantes/perfil", null, token)
-      .then(d => setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", documento: d.cpf_cnpj || "", nomeEmpresa: d.nome_empresa || "", inscricaoEstadual: d.inscricao_estadual || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "" }))
-      .catch(() => {})
-      .finally(() => setLoadingData(false));
-  }, []);
+  const carregarPerfil = async () => {
+    try {
+      const d = await api("GET", "/api/contratantes/perfil", null, token);
+      setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", documento: d.cpf_cnpj || "", nomeEmpresa: d.nome_empresa || "", inscricaoEstadual: d.inscricao_estadual || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "" });
+    } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
+    finally { setLoadingData(false); }
+  };
+
+  useEffect(() => { carregarPerfil(); }, []);
 
   const fillCep = async (cep) => {
     const clean = cep.replace(/\D/g, "");
@@ -2554,6 +2557,7 @@ function DadosPessoaisContratante({ onNavigate }) {
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
       }, token);
       updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone });
+      await carregarPerfil();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) { setError(e.message); }
