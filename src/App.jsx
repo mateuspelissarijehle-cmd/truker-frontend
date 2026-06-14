@@ -513,11 +513,11 @@ function LoginScreen({ onNavigate }) {
       <div className="field"><label>Email</label><input type="email" placeholder="seu@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
       <div className="field"><label>Senha</label><PasswordInput value={form.senha} onChange={e => setForm({ ...form, senha: e.target.value })} /></div>
       <p style={{ textAlign: "right", marginBottom: 16, fontSize: 13 }}>
-        <span style={{ color: "var(--orange)", cursor: "pointer" }} onClick={() => onNavigate("esqueci-senha")}>Esqueceu a senha?</span>
+        <span style={{ color: "var(--gold)", cursor: "pointer" }} onClick={() => onNavigate("esqueci-senha")}>Esqueceu a senha?</span>
       </p>
       <button className="btn btn-primary" onClick={handle} disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
-      <p style={{ textAlign: "center", marginTop: 20, color: "#666", fontSize: 14 }}>
-        Não tem conta? <span style={{ color: "var(--orange)", cursor: "pointer", fontWeight: 600 }} onClick={() => onNavigate("cadastro")}>Cadastre-se</span>
+      <p style={{ textAlign: "center", marginTop: 20, color: "var(--text3)", fontSize: 14 }}>
+        Não tem conta? <span style={{ color: "var(--gold)", cursor: "pointer", fontWeight: 600 }} onClick={() => onNavigate("cadastro")}>Cadastre-se</span>
       </p>
     </div>
   );
@@ -560,6 +560,7 @@ function EsqueciSenhaScreen({ onNavigate }) {
     try {
       await api("POST", "/api/auth/redefinir-senha", { email, codigo: code, novaSenha });
       setStep(4);
+      setTimeout(() => onNavigate("login"), 3000);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -570,12 +571,14 @@ function EsqueciSenhaScreen({ onNavigate }) {
       <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
       <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Recuperar senha</div>
       {step === 1 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Digite seu email para receber o código de recuperação.</p>}
-      {step === 2 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Código enviado para <strong style={{ color: "var(--orange)" }}>{email}</strong>. Digite abaixo.</p>}
+      {step === 2 && <p style={{ color: "var(--text3)", fontSize: 14, marginBottom: 24 }}>Código enviado para <strong style={{ color: "var(--gold)" }}>{email}</strong>. Digite abaixo.</p>}
       {step === 3 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Defina sua nova senha.</p>}
       {step === 4 && (
-        <div>
-          <div className="alert alert-success">✅ Senha redefinida com sucesso!</div>
-          <button className="btn btn-primary" onClick={() => onNavigate("login")}>Ir para o Login</button>
+        <div style={{ textAlign: "center", paddingTop: 20 }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>Senha redefinida!</div>
+          <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 24 }}>Redirecionando para o login em instantes...</div>
+          <button className="btn btn-primary" onClick={() => onNavigate("login")}>Ir para o Login agora</button>
         </div>
       )}
       {error && <div className="alert alert-error">{error}</div>}
@@ -809,8 +812,8 @@ function CadastroScreen({ onNavigate }) {
         </>
       )}
 
-      <p style={{ textAlign: "center", marginTop: 16, color: "#555", fontSize: 13 }}>
-        Já tem conta? <span style={{ color: "var(--orange)", cursor: "pointer", fontWeight: 600 }} onClick={() => onNavigate("login")}>Entrar</span>
+      <p style={{ textAlign: "center", marginTop: 16, color: "var(--text3)", fontSize: 13 }}>
+        Já tem conta? <span style={{ color: "var(--gold)", cursor: "pointer", fontWeight: 600 }} onClick={() => onNavigate("login")}>Entrar</span>
       </p>
     </div>
   );
