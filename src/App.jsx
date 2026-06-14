@@ -132,6 +132,12 @@ function AuthProvider({ children }) {
     localStorage.setItem("truker_token", tok);
   };
 
+  const updateUserData = (newData) => {
+    const updated = { ...user, ...newData };
+    setUser(updated);
+    localStorage.setItem("truker_user", JSON.stringify(updated));
+  };
+
   const logout = () => {
     setUser(null); setToken(null);
     localStorage.removeItem("truker_user");
@@ -149,7 +155,7 @@ function AuthProvider({ children }) {
     }
   }, [user?.id, token]);
 
-  return <AuthContext.Provider value={{ user, token, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, token, login, logout, updateUserData }}>{children}</AuthContext.Provider>;
 }
 
 // ─────────────────────────────────────────────
@@ -2589,7 +2595,7 @@ function DadosPessoaisContratante({ onNavigate }) {
 // DADOS PESSOAIS — MOTORISTA
 // ─────────────────────────────────────────────
 function DadosPessoaisMotorista({ onNavigate }) {
-  const { user, token, login } = useAuth();
+  const { user, token, updateUserData } = useAuth();
   const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: user?.documento || "", cnh: user?.cnh || "", rntrc: user?.rntrc || "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -2607,8 +2613,7 @@ function DadosPessoaisMotorista({ onNavigate }) {
         nome: form.nome, email: form.email, telefone: form.telefone,
         cnh: form.cnh, rntrc: form.rntrc,
       }, token);
-      // Atualiza dados locais do usuário
-      login({ ...user, nome: form.nome, email: form.email, telefone: form.telefone, cnh: form.cnh, rntrc: form.rntrc }, token);
+      updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone, cnh: form.cnh, rntrc: form.rntrc });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) { setError(e.message); }
@@ -2669,7 +2674,7 @@ function DadosPessoaisMotorista({ onNavigate }) {
 // DADOS DO CAMINHÃO — MOTORISTA
 // ─────────────────────────────────────────────
 function DadosCaminhaoMotorista({ onNavigate }) {
-  const { user, token, login } = useAuth();
+  const { user, token, updateUserData } = useAuth();
   const [form, setForm] = useState({ tipoVeiculo: user?.tipo_veiculo || "", tipoCarreta: "", marca: "", modelo: "", placa: user?.placa_veiculo || user?.placa || "", anoFab: user?.ano_veiculo || "", renavam: "", tara: "", capacidade: user?.capacidade_tons || "" });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -2683,7 +2688,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
         tipoVeiculo: form.tipoVeiculo, placa: form.placa,
         anoFab: form.anoFab, capacidade: form.capacidade,
       }, token);
-      login({ ...user, tipo_veiculo: form.tipoVeiculo, placa_veiculo: form.placa, ano_veiculo: form.anoFab }, token);
+      updateUserData({ tipo_veiculo: form.tipoVeiculo, placa_veiculo: form.placa, ano_veiculo: form.anoFab });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) { setError(e.message); }
@@ -3003,7 +3008,7 @@ function Router() {
     } else {
       setScreen("login");
     }
-  }, [user]);
+  }, [user?.id, user?.tipo]);
 
   const navigate = (to, data = null) => {
     if (to === -1) { setScreen(user?.tipo === "motorista" ? "home-motorista" : user?.tipo === "admin" ? "admin-dashboard" : "home-contratante"); return; }
