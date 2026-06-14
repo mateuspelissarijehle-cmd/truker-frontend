@@ -1951,6 +1951,7 @@ function PerfilMotorista({ onNavigate }) {
   const [novaMeta, setNovaMeta] = useState("800");
   const [ganhos, setGanhos] = useState(null);
   const [loadingGanhos, setLoadingGanhos] = useState(false);
+  const [perfil, setPerfil] = useState(null);
   const [testePushMsg, setTestePushMsg] = useState(null);
 
   const testarPush = async () => {
@@ -1970,6 +1971,13 @@ function PerfilMotorista({ onNavigate }) {
     setTimeout(() => setTestePushMsg(null), 8000);
   };
   const pctMeta = Math.min(100, Math.round((kmVazio / metaKmVazio) * 100));
+
+  // Carrega perfil completo ao montar
+  useEffect(() => {
+    api("GET", "/api/motoristas/perfil", null, token)
+      .then(setPerfil)
+      .catch(() => {});
+  }, []);
 
   // Busca ganhos reais ao entrar na aba
   useEffect(() => {
@@ -2021,10 +2029,12 @@ function PerfilMotorista({ onNavigate }) {
             )}
             <div className="card">
               <div className="card-title">Dados do veículo</div>
-              <div className="info-row"><span className="info-label">Tipo</span><span className="info-value">🚛 {user?.tipo_veiculo || "Truck"}</span></div>
-              <div className="info-row"><span className="info-label">Placa</span><span className="info-value">{user?.placa || "—"}</span></div>
-              <div className="info-row"><span className="info-label">RNTRC</span><span className="info-value">{user?.rntrc || "—"}</span></div>
-              <div className="info-row"><span className="info-label">CNH</span><span className="info-value">{user?.cnh || "—"}</span></div>
+              <div className="info-row"><span className="info-label">Tipo</span><span className="info-value">🚛 {perfil?.tipo_veiculo || user?.tipo_veiculo || "—"}</span></div>
+              <div className="info-row"><span className="info-label">Marca/Modelo</span><span className="info-value">{[perfil?.marca_veiculo, perfil?.modelo_veiculo].filter(Boolean).join(" ") || "—"}</span></div>
+              <div className="info-row"><span className="info-label">Placa</span><span className="info-value">{perfil?.placa_veiculo || "—"}</span></div>
+              <div className="info-row"><span className="info-label">Ano</span><span className="info-value">{perfil?.ano_veiculo || "—"}</span></div>
+              <div className="info-row"><span className="info-label">RNTRC</span><span className="info-value">{perfil?.rntrc || "—"}</span></div>
+              <div className="info-row"><span className="info-label">CNH</span><span className="info-value">{perfil?.cnh_numero || "—"}</span></div>
             </div>
             {[["📦", "Meus Fretes", "meus-fretes-motorista"], ["💬", "Chat", "chat"], ["⭐", "Avaliações", "avaliacoes"]].map(([icon, label, screen]) => (
               <div key={label} className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate(screen)}>
@@ -2062,10 +2072,10 @@ function PerfilMotorista({ onNavigate }) {
           <>
             {loadingGanhos ? <Loading /> : ganhos ? (
               <>
-                <div className="card" style={{ textAlign: "center", borderColor: "rgba(249,115,22,0.3)" }}>
-                  <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>Ganhos este mês</div>
-                  <div style={{ fontSize: 36, fontWeight: 800, color: "var(--orange)" }}>{formatMoney(ganhos.ganhos_mes_atual)}</div>
-                  <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
+                <div className="card" style={{ textAlign: "center", borderColor: "rgba(201,168,76,0.3)" }}>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 4 }}>Ganhos este mês</div>
+                  <div style={{ fontSize: 36, fontWeight: 800, color: "var(--gold)" }}>{formatMoney(ganhos.ganhos_mes_atual)}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
                     {ganhos.fretes_mes_atual} fretes · média {formatMoney(ganhos.media_por_frete)}/frete
                   </div>
                 </div>
@@ -2089,11 +2099,11 @@ function PerfilMotorista({ onNavigate }) {
                   <div className="card-title">Resumo total</div>
                   <div className="info-row"><span className="info-label">Total de fretes</span><span className="info-value">{ganhos.total_fretes}</span></div>
                   <div className="info-row"><span className="info-label">Km carregado total</span><span className="info-value">{formatKm(ganhos.km_carregado)}</span></div>
-                  <div className="info-row"><span className="info-label">Ganhos totais</span><span className="info-value" style={{ color: "var(--orange)", fontWeight: 800 }}>{formatMoney(ganhos.ganhos_total)}</span></div>
+                  <div className="info-row"><span className="info-label">Ganhos totais</span><span className="info-value" style={{ color: "var(--green)", fontWeight: 800 }}>{formatMoney(ganhos.ganhos_total)}</span></div>
                 </div>
               </>
             ) : (
-              <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+              <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
                 <div style={{ fontSize: 36, marginBottom: 10 }}>📊</div>
                 <p style={{ fontWeight: 600 }}>Nenhum dado disponível</p>
                 <p style={{ fontSize: 13, marginTop: 4 }}>Complete seu primeiro frete para ver os ganhos</p>
