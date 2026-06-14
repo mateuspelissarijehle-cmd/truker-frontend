@@ -202,9 +202,9 @@ const css = `
   .badge-cancel { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
   .badge-admin { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.4); }
   .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -2px 12px rgba(0,0,0,0.08); }
-  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 8px; gap: 3px; cursor: pointer; border: none; background: none; color: var(--text3); font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; transition: color 0.15s; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 6px; gap: 3px; cursor: pointer; border: none; background: none; color: var(--text3); font-family: 'Inter', sans-serif; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; transition: color 0.15s; }
   .nav-item.active { color: var(--gold); }
-  .nav-item span { font-size: 20px; }
+  
   .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .info-row:last-child { border-bottom: none; }
   .info-label { font-size: 13px; color: var(--gray2); }
@@ -1034,7 +1034,7 @@ function ContratanteHome({ onNavigate }) {
           </div>
         ))}
       </div>
-      <BottomNavContratante active="home" onNavigate={onNavigate} />
+      <BottomNavContratante active="inicio" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -1326,7 +1326,7 @@ function MeusFretes({ onNavigate }) {
           </div>
         ))}
       </div>
-      <BottomNavContratante active="fretes" onNavigate={onNavigate} />
+      <BottomNavContratante active="atividade" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -1419,7 +1419,7 @@ function PerfilContratante({ onNavigate }) {
         ))}
         <button className="btn btn-danger" style={{ marginTop: 8 }} onClick={logout}>Sair da Conta</button>
       </div>
-      <BottomNavContratante active="perfil" onNavigate={onNavigate} />
+      <BottomNavContratante active="conta" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -1586,7 +1586,7 @@ function MotoristaHome({ onNavigate }) {
           );
         }))}
       </div>
-      <BottomNavMotorista active="home" onNavigate={onNavigate} />
+      <BottomNavMotorista active="inicio" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -1668,7 +1668,7 @@ function MeusFretesMot({ onNavigate }) {
           </div>
         ))}
       </div>
-      <BottomNavMotorista active="fretes" onNavigate={onNavigate} />
+      <BottomNavMotorista active="atividade" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -2026,7 +2026,7 @@ function PerfilMotorista({ onNavigate }) {
           </>
         )}
       </div>
-      <BottomNavMotorista active="perfil" onNavigate={onNavigate} />
+      <BottomNavMotorista active="conta" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -2115,23 +2115,61 @@ function AvaliarScreen({ data, onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
-// BOTTOM NAVS
+// SVG ICONS para Bottom Nav
+// ─────────────────────────────────────────────
+function IconHome({ active }) {
+  const c = active ? "#C9A84C" : "#A09282";
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V9.5Z" fill={c}/></svg>;
+}
+function IconActivity({ active }) {
+  const c = active ? "#C9A84C" : "#A09282";
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="2" rx="1" fill={c}/><rect x="3" y="9" width="14" height="2" rx="1" fill={c}/><rect x="3" y="14" width="18" height="2" rx="1" fill={c}/><rect x="3" y="19" width="10" height="2" rx="1" fill={c}/></svg>;
+}
+function IconAccount({ active }) {
+  const c = active ? "#C9A84C" : "#A09282";
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill={c}/><path d="M4 20C4 16.69 7.58 14 12 14C16.42 14 20 16.69 20 20" stroke={c} strokeWidth="2" strokeLinecap="round"/></svg>;
+}
+function IconOptions({ active }) {
+  const c = active ? "#C9A84C" : "#A09282";
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" fill={c}/><circle cx="12" cy="12" r="2" fill={c}/><circle cx="12" cy="19" r="2" fill={c}/></svg>;
+}
+
+// ─────────────────────────────────────────────
+// BOTTOM NAVS — estilo Uber 4 abas
 // ─────────────────────────────────────────────
 function BottomNavContratante({ active, onNavigate }) {
+  const tabs = [
+    { id: "inicio", label: "Início", screen: "home-contratante", Icon: IconHome },
+    { id: "atividade", label: "Atividade", screen: "meus-fretes", Icon: IconActivity },
+    { id: "conta", label: "Conta", screen: "perfil", Icon: IconAccount },
+    { id: "opcoes", label: "Opções", screen: "opcoes-contratante", Icon: IconOptions },
+  ];
   return (
     <nav className="bottom-nav">
-      {[["home", "🏠", "Home", "home-contratante"], ["fretes", "📦", "Fretes", "meus-fretes"], ["perfil", "👤", "Perfil", "perfil"]].map(([id, icon, label, screen]) => (
-        <button key={id} className={`nav-item ${active === id ? "active" : ""}`} onClick={() => onNavigate(screen)}><span>{icon}</span>{label}</button>
+      {tabs.map(({ id, label, screen, Icon }) => (
+        <button key={id} className={`nav-item ${active === id ? "active" : ""}`} onClick={() => onNavigate(screen)}>
+          <Icon active={active === id} />
+          <span style={{ fontSize: 9 }}>{label}</span>
+        </button>
       ))}
     </nav>
   );
 }
 
 function BottomNavMotorista({ active, onNavigate }) {
+  const tabs = [
+    { id: "inicio", label: "Início", screen: "home-motorista", Icon: IconHome },
+    { id: "atividade", label: "Atividade", screen: "meus-fretes-motorista", Icon: IconActivity },
+    { id: "conta", label: "Conta", screen: "perfil-motorista", Icon: IconAccount },
+    { id: "opcoes", label: "Opções", screen: "opcoes-motorista", Icon: IconOptions },
+  ];
   return (
     <nav className="bottom-nav">
-      {[["home", "🚛", "Fretes", "home-motorista"], ["meus", "📋", "Meus", "meus-fretes-motorista"], ["perfil", "👤", "Perfil", "perfil-motorista"]].map(([id, icon, label, screen]) => (
-        <button key={id} className={`nav-item ${active === id ? "active" : ""}`} onClick={() => onNavigate(screen)}><span>{icon}</span>{label}</button>
+      {tabs.map(({ id, label, screen, Icon }) => (
+        <button key={id} className={`nav-item ${active === id ? "active" : ""}`} onClick={() => onNavigate(screen)}>
+          <Icon active={active === id} />
+          <span style={{ fontSize: 9 }}>{label}</span>
+        </button>
       ))}
     </nav>
   );
@@ -2140,6 +2178,131 @@ function BottomNavMotorista({ active, onNavigate }) {
 // ─────────────────────────────────────────────
 // PLACEHOLDER
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// TELA OPÇÕES — Motorista
+// ─────────────────────────────────────────────
+function OpcoesMotorista({ onNavigate }) {
+  const { user, logout } = useAuth();
+  const items = [
+    { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
+    { icon: "🔒", label: "Privacidade e segurança", sub: "Senha, dados pessoais", screen: null },
+    { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
+    { icon: "💬", label: "Suporte", sub: "Fale com a gente", screen: null },
+    { icon: "⭐", label: "Avalie o TRUKER", sub: "Nos dê sua opinião", screen: null },
+    { icon: "ℹ️", label: "Sobre o app", sub: "Versão 1.0.0", screen: null },
+  ];
+  return (
+    <div className="screen">
+      <div className="header"><h1>Opções</h1></div>
+      <div className="content">
+        <div style={{ textAlign: "center", padding: "20px 0 24px" }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#1A1209" }}>T</span>
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text)" }}>{user?.nome}</div>
+          <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>{user?.email}</div>
+        </div>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          {items.map((item, i) => (
+            <div key={i} onClick={() => item.screen && onNavigate(item.screen)}
+              style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none", cursor: item.screen ? "pointer" : "default" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>{item.sub}</div>
+              </div>
+              {item.screen && <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>}
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-danger" style={{ marginTop: 16 }} onClick={logout}>Sair da Conta</button>
+      </div>
+      <BottomNavMotorista active="opcoes" onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// TELA OPÇÕES — Contratante
+// ─────────────────────────────────────────────
+function OpcoesContratante({ onNavigate }) {
+  const { user, logout } = useAuth();
+  const items = [
+    { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
+    { icon: "🔒", label: "Privacidade e segurança", sub: "Senha, dados pessoais", screen: null },
+    { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
+    { icon: "💬", label: "Suporte", sub: "Fale com a gente", screen: null },
+    { icon: "⭐", label: "Avalie o TRUKER", sub: "Nos dê sua opinião", screen: null },
+    { icon: "ℹ️", label: "Sobre o app", sub: "Versão 1.0.0", screen: null },
+  ];
+  return (
+    <div className="screen">
+      <div className="header"><h1>Opções</h1></div>
+      <div className="content">
+        <div style={{ textAlign: "center", padding: "20px 0 24px" }}>
+          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
+            <span style={{ fontSize: 22, fontWeight: 800, color: "#1A1209" }}>T</span>
+          </div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text)" }}>{user?.nome}</div>
+          <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>{user?.email}</div>
+        </div>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          {items.map((item, i) => (
+            <div key={i} onClick={() => item.screen && onNavigate(item.screen)}
+              style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none", cursor: item.screen ? "pointer" : "default" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>{item.sub}</div>
+              </div>
+              {item.screen && <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>}
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-danger" style={{ marginTop: 16 }} onClick={logout}>Sair da Conta</button>
+      </div>
+      <BottomNavContratante active="opcoes" onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// TERMOS DE USO
+// ─────────────────────────────────────────────
+function TermosScreen({ onNavigate }) {
+  const { user } = useAuth();
+  const isMotorista = user?.tipo === "motorista";
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Termos de Uso</h1></div>
+      <div className="content">
+        <div className="card">
+          <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7 }}>
+            <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 12, color: "var(--text)" }}>Política de Privacidade e Termos de Uso — TRUKER</p>
+            <p style={{ marginBottom: 10 }}><strong>Última atualização:</strong> {new Date().toLocaleDateString("pt-BR")}</p>
+            <p style={{ marginBottom: 14 }}>A TRUKER Plataforma de Fretes Pesados ("TRUKER", "nós") valoriza sua privacidade. Este documento descreve como coletamos, usamos e protegemos suas informações ao usar nosso aplicativo.</p>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>1. Informações que coletamos</p>
+            <p style={{ marginBottom: 14 }}>Coletamos informações que você fornece diretamente (nome, e-mail, CPF/CNPJ, telefone), dados de localização GPS quando o app está em uso, informações do veículo e documentos enviados pelos motoristas, e dados de uso da plataforma.</p>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>2. Como usamos suas informações</p>
+            <p style={{ marginBottom: 14 }}>Utilizamos seus dados para conectar contratantes e motoristas, processar pagamentos, enviar notificações sobre fretes disponíveis, melhorar nossos serviços e cumprir obrigações legais.</p>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>3. Compartilhamento de dados</p>
+            <p style={{ marginBottom: 14 }}>Seus dados são compartilhados apenas entre as partes envolvidas em um frete (contratante e motorista). Não vendemos seus dados a terceiros. Podemos compartilhar dados com autoridades quando exigido por lei.</p>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>4. Localização GPS</p>
+            <p style={{ marginBottom: 14 }}>A localização do motorista é coletada em tempo real durante fretes ativos. O contratante pode visualizar a posição do motorista durante a entrega. Você pode desativar o GPS a qualquer momento nas configurações do dispositivo.</p>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>5. Segurança</p>
+            <p style={{ marginBottom: 14 }}>Utilizamos criptografia e boas práticas de segurança para proteger seus dados. Senhas são armazenadas com hash seguro e tokens JWT com expiração.</p>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>6. Seus direitos</p>
+            <p style={{ marginBottom: 14 }}>Você pode solicitar acesso, correção ou exclusão dos seus dados a qualquer momento pelo suporte. Em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).</p>
+            <p style={{ fontWeight: 700, marginBottom: 6 }}>7. Contato</p>
+            <p>Para dúvidas sobre privacidade: <strong>privacidade@truker.app</strong></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderScreen({ titulo, icon, onNavigate }) {
   return (
     <div className="screen">
@@ -2199,6 +2362,9 @@ function Router() {
     case "perfil-motorista": return <PerfilMotorista {...p} />;
     case "chat": return <ChatScreen data={screenData} {...p} />;
     case "avaliar": return <AvaliarScreen data={screenData} {...p} />;
+    case "opcoes-motorista": return <OpcoesMotorista {...p} />;
+    case "opcoes-contratante": return <OpcoesContratante {...p} />;
+    case "termos": return <TermosScreen {...p} />;
     case "pagamentos": return <PlaceholderScreen titulo="Pagamentos" icon="💳" {...p} />;
     case "avaliacoes": return <PlaceholderScreen titulo="Avaliações" icon="⭐" {...p} />;
     default: return <SplashScreen {...p} />;
