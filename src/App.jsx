@@ -2029,7 +2029,7 @@ function PerfilMotorista({ onNavigate }) {
             )}
             <div className="card">
               <div className="card-title">Dados do veículo</div>
-              <div className="info-row"><span className="info-label">Tipo</span><span className="info-value">🚛 {perfil?.tipo_veiculo || user?.tipo_veiculo || "—"}</span></div>
+              <div className="info-row"><span className="info-label">Tipo</span><span className="info-value">{(() => { const t = TIPOS_VEICULO.find(v => v.id === (perfil?.tipo_veiculo || user?.tipo_veiculo)); return t ? `${t.icon} ${t.label}` : (perfil?.tipo_veiculo || "—"); })()}</span></div>
               <div className="info-row"><span className="info-label">Marca/Modelo</span><span className="info-value">{[perfil?.marca_veiculo, perfil?.modelo_veiculo].filter(Boolean).join(" ") || "—"}</span></div>
               <div className="info-row"><span className="info-label">Placa</span><span className="info-value">{perfil?.placa_veiculo || "—"}</span></div>
               <div className="info-row"><span className="info-label">Ano</span><span className="info-value">{perfil?.ano_veiculo || "—"}</span></div>
