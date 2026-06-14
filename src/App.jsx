@@ -618,11 +618,13 @@ function CadastroScreen({ onNavigate }) {
   const [codigoVerif, setCodigoVerif] = useState("");
   const [reenviando, setReenviando] = useState(false);
   const [reenviadoMsg, setReenviadoMsg] = useState("");
+  const [aceitouTermos, setAceitouTermos] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const toggleCarga = (id) => setForm(f => ({ ...f, tiposCarga: f.tiposCarga.includes(id) ? f.tiposCarga.filter(x => x !== id) : [...f.tiposCarga, id] }));
 
   const finalizar = async () => {
+    if (!aceitouTermos) return setError("Você precisa aceitar os Termos de Uso para continuar");
     setError(""); setLoading(true);
     try {
       const data = await api("POST", "/api/auth/cadastro", { ...form, tipo });
@@ -725,6 +727,21 @@ function CadastroScreen({ onNavigate }) {
               </div>
             ))}
           </div>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 14px", background: "var(--surface2)", borderRadius: 10, border: `1px solid ${aceitouTermos ? "var(--gold)" : "var(--border)"}`, cursor: "pointer", marginBottom: 14, marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={aceitouTermos}
+              onChange={e => setAceitouTermos(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: "var(--gold)", flexShrink: 0, marginTop: 1 }}
+            />
+            <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>
+              Li e aceito os{" "}
+              <span style={{ color: "var(--gold)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }} onClick={e => { e.preventDefault(); onNavigate("termos"); }}>
+                Termos de Uso e Política de Privacidade
+              </span>{" "}
+              da TRUKER
+            </span>
+          </label>
           <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={finalizar} disabled={loading}>{loading ? "Criando conta..." : "Criar Conta"}</button>
         </>
       )}
@@ -767,6 +784,21 @@ function CadastroScreen({ onNavigate }) {
             <div className="upload-area" style={{ marginBottom: 8 }}>🚛 Fotos do caminhão (frente, lateral, traseira)</div>
             <div className="upload-area">📋 Placa ANTT + RNTRC</div>
           </div>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 14px", background: "var(--surface2)", borderRadius: 10, border: `1px solid ${aceitouTermos ? "var(--gold)" : "var(--border)"}`, cursor: "pointer", marginBottom: 4, marginTop: 16 }}>
+            <input
+              type="checkbox"
+              checked={aceitouTermos}
+              onChange={e => setAceitouTermos(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: "var(--gold)", flexShrink: 0, marginTop: 1 }}
+            />
+            <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.5 }}>
+              Li e aceito os{" "}
+              <span style={{ color: "var(--gold)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }} onClick={e => { e.preventDefault(); onNavigate("termos"); }}>
+                Termos de Uso e Política de Privacidade
+              </span>{" "}
+              da TRUKER
+            </span>
+          </label>
           <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={finalizar} disabled={loading}>{loading ? "Criando conta..." : "✅ Finalizar Cadastro"}</button>
         </>
       )}
