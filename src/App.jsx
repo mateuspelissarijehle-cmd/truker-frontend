@@ -2627,18 +2627,28 @@ function DadosPessoaisMotorista({ onNavigate }) {
   const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  useEffect(() => {
-    api("GET", "/api/motoristas/perfil", null, token)
-      .then(d => setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", cpf: d.cpf || "", cnh: d.cnh_numero || "", rntrc: d.rntrc || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "" }))
-      .catch(() => {})
-      .finally(() => setLoadingData(false));
-  }, []);
+  const carregarPerfil = async () => {
+    try {
+      const d = await api("GET", "/api/motoristas/perfil", null, token);
+      setForm({
+        nome: d.nome || "", email: d.email || "", telefone: d.telefone || "",
+        cpf: d.cpf || "", cnh: d.cnh_numero || "", rntrc: d.rntrc || "",
+        cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "",
+        complemento: d.complemento || "", bairro: d.bairro || "",
+        cidade: d.cidade || "", uf: d.uf || "",
+      });
+    } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
+    finally { setLoadingData(false); }
+  };
+
+  useEffect(() => { carregarPerfil(); }, []);
 
   const fillCep = async (cep) => {
     const clean = cep.replace(/\D/g, "");
     if (clean.length !== 8) return;
     try { const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`); const d = await r.json(); if (!d.erro) setForm(f => ({ ...f, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" })); } catch {}
   };
+
   const salvar = async () => {
     setError(""); setLoading(true);
     try {
@@ -2649,6 +2659,8 @@ function DadosPessoaisMotorista({ onNavigate }) {
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
       }, token);
       updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone });
+      // Re-carrega para confirmar os dados salvos
+      await carregarPerfil();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) { setError(e.message); }
@@ -2721,12 +2733,20 @@ function DadosCaminhaoMotorista({ onNavigate }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const tiposCarreta = ["Baú","Grade Baixa","Sider","Tanque","Frigorífico","Graneleiro","Porta Container","Prancha","Munck","Sem carreta"];
 
-  useEffect(() => {
-    api("GET", "/api/motoristas/perfil", null, token)
-      .then(d => setForm({ tipoVeiculo: d.tipo_veiculo || "", tipoCarreta: d.tipo_carreta || "", marca: d.marca_veiculo || "", modelo: d.modelo_veiculo || "", placa: d.placa_veiculo || "", anoFab: d.ano_veiculo || "", renavam: d.renavam || "", tara: d.tara_kg || "", capacidade: d.capacidade_tons || "" }))
-      .catch(() => {})
-      .finally(() => setLoadingData(false));
-  }, []);
+  const carregarPerfil = async () => {
+    try {
+      const d = await api("GET", "/api/motoristas/perfil", null, token);
+      setForm({
+        tipoVeiculo: d.tipo_veiculo || "", tipoCarreta: d.tipo_carreta || "",
+        marca: d.marca_veiculo || "", modelo: d.modelo_veiculo || "",
+        placa: d.placa_veiculo || "", anoFab: d.ano_veiculo || "",
+        renavam: d.renavam || "", tara: d.tara_kg || "", capacidade: d.capacidade_tons || "",
+      });
+    } catch (e) { setError("Erro ao carregar dados: " + e.message); }
+    finally { setLoadingData(false); }
+  };
+
+  useEffect(() => { carregarPerfil(); }, []);
 
   const salvar = async () => {
     setError(""); setLoading(true);
@@ -2737,6 +2757,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
         anoFab: form.anoFab, renavam: form.renavam, tara: form.tara, capacidade: form.capacidade,
       }, token);
       updateUserData({ tipo_veiculo: form.tipoVeiculo, placa_veiculo: form.placa });
+      await carregarPerfil();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) { setError(e.message); }
