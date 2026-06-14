@@ -1331,7 +1331,15 @@ function MeusFretes({ onNavigate }) {
     api("GET", "/api/fretes", null, token).then(setFretes).catch(() => setFretes([])).finally(() => setLoading(false));
   }, []);
 
-  const filtrados = filtro === "todos" ? fretes : fretes.filter(f => f.status === filtro);
+  const filtrados = filtro === "todos" ? fretes : fretes.filter(f => {
+    if (filtro === "andamento") return ["aceito", "em_rota", "coletando"].includes(f.status);
+    if (filtro === "aguardando") return f.status === "aguardando";
+    if (filtro === "concluido") return f.status === "entregue";
+    if (filtro === "cancelado") return f.status === "cancelado";
+    return true;
+  });
+
+  const totalGasto = fretes.filter(f => f.status === "entregue").reduce((a, f) => a + Number(f.valor_antt || 0), 0);
 
   return (
     <div className="screen">
@@ -1340,23 +1348,47 @@ function MeusFretes({ onNavigate }) {
         <h1>Meus Fretes</h1>
       </div>
       <div className="content">
-        <div style={{ display: "flex", gap: 8, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
-          {[["todos", "Todos"], ["aguardando", "Aguardando"], ["aceito", "Aceito"], ["em_rota", "Em Rota"], ["entregue", "Entregue"]].map(([s, l]) => (
-            <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--orange)" : "#333", background: filtro === s ? "var(--orange)" : "var(--dark3)", color: filtro === s ? "#fff" : "#888", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "Barlow, sans-serif" }}>{l}</button>
+        <div className="grid-2" style={{ marginBottom: 14 }}>
+          <div className="stat-card">
+            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total fretes</div>
+            <div className="stat-value" style={{ fontSize: 24 }}>{fretes.length}</div>
+          </div>
+          <div className="stat-card">
+            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total gasto</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--gold)" }}>{formatMoney(totalGasto)}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
+          {[["todos","Todos"],["andamento","Em andamento"],["aguardando","Aguardando"],["concluido","Concluídos"],["cancelado","Cancelados"]].map(([s, l]) => (
+            <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--gold)" : "var(--border)", background: filtro === s ? "var(--gold)" : "var(--surface)", color: filtro === s ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "Inter, sans-serif" }}>{l}</button>
           ))}
         </div>
         {loading ? <Loading /> : filtrados.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete encontrado</div>
-        ) : filtrados.map(f => (
-          <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <StatusBadge status={f.status} />
-              <div className="price">{formatMoney(f.valor_antt || f.valor_final || 0)}</div>
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
+        ) : filtrados.map(f => {
+          const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
+          return (
+            <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <StatusBadge status={f.status} />
+                <div style={{ textAlign: "right" }}>
+                  <div className="price" style={{ fontSize: 18 }}>{formatMoney(f.valor_antt || f.valor_final || 0)}</div>
+                  <div style={{ fontSize: 10, color: "var(--text3)" }}>ANTT</div>
+                </div>
+              </div>
+              <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
+              <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text3)" }}>
+                <span>📅 {data}</span>
+                <span>🚛 {f.motorista_nome || "Aguardando"}</span>
+              </div>
+              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 12, color: "var(--text3)" }}>
+                <span>💰 Motorista: {formatMoney(f.valor_motorista || 0)}</span>
+                <span>📊 Taxa: {formatMoney(f.comissao_truker || 0)}</span>
+              </div>
             </div>
-            <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
-            <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span></div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <BottomNavContratante active="atividade" onNavigate={onNavigate} />
     </div>
@@ -1429,27 +1461,65 @@ function DetalheFrete({ frete, onNavigate }) {
 // ─────────────────────────────────────────────
 function PerfilContratante({ onNavigate }) {
   const { user, logout } = useAuth();
+  const settingsLinks = [
+    { icon: "👤", label: "Dados Pessoais", sub: "Nome, foto, CPF/CNPJ, empresa", screen: "dados-pessoais-contratante" },
+    { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
+    { icon: "🔒", label: "Privacidade e segurança", sub: "Senha, dados pessoais", screen: null },
+    { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
+  ];
+  const accessLinks = [
+    { icon: "📦", label: "Meus Fretes", sub: "Histórico e em andamento", screen: "meus-fretes" },
+    { icon: "💳", label: "Pagamentos", sub: "Formas de pagamento cadastradas", screen: "pagamentos" },
+    { icon: "⭐", label: "Avaliações", sub: "Motoristas avaliados", screen: "avaliacoes" },
+  ];
   return (
     <div className="screen">
-      <div className="header"><h1>Perfil</h1></div>
+      <div className="header"><h1>Conta</h1></div>
       <div className="content">
-        <div style={{ textAlign: "center", padding: "20px 0 28px" }}>
-          <div style={{ width: 68, height: 68, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 28 }}>🏢</div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{user?.nome}</div>
-          <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>{user?.email}</div>
+        <div style={{ textAlign: "center", padding: "20px 0 24px" }}>
+          <div style={{ position: "relative", display: "inline-block", marginBottom: 12 }}>
+            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, border: "3px solid var(--gold)", boxShadow: "0 4px 12px rgba(201,168,76,0.3)" }}>🏢</div>
+            <div onClick={() => onNavigate("dados-pessoais-contratante")} style={{ position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: "50%", background: "var(--gold)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 11, border: "2px solid var(--surface)" }}>✏️</div>
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text)" }}>{user?.nome}</div>
+          <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 4 }}>{user?.email}</div>
           <div style={{ marginTop: 8 }}><span className="badge badge-active">Contratante</span></div>
         </div>
-        <div className="card">
-          <div className="card-title">Informações</div>
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="card-title">Informações de Contato</div>
           <div className="info-row"><span className="info-label">Email</span><span className="info-value">{user?.email}</span></div>
           <div className="info-row"><span className="info-label">Telefone</span><span className="info-value">{user?.telefone || "—"}</span></div>
+          <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "auto" }} onClick={() => onNavigate("dados-pessoais-contratante")}>✏️ Editar perfil</button>
         </div>
-        {[["📦", "Meus Fretes", "meus-fretes"], ["💳", "Pagamentos", "pagamentos"], ["⭐", "Avaliações", "avaliacoes"]].map(([icon, label, screen]) => (
-          <div key={label} className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate(screen)}>
-            <span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontWeight: 600 }}>{label}</span><span style={{ marginLeft: "auto", color: "#555" }}>›</span>
-          </div>
-        ))}
-        <button className="btn btn-danger" style={{ marginTop: 8 }} onClick={logout}>Sair da Conta</button>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Configurações</div>
+        <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 14 }}>
+          {settingsLinks.map((item, i) => (
+            <div key={i} onClick={() => item.screen && onNavigate(item.screen)}
+              style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderBottom: i < settingsLinks.length - 1 ? "1px solid var(--border)" : "none", cursor: item.screen ? "pointer" : "default" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>{item.sub}</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Minha Atividade</div>
+        <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
+          {accessLinks.map((item, i) => (
+            <div key={i} onClick={() => onNavigate(item.screen)}
+              style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderBottom: i < accessLinks.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer" }}>
+              <div style={{ width: 38, height: 38, borderRadius: 10, background: "var(--gold-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>{item.sub}</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+            </div>
+          ))}
+        </div>
+        <button className="btn btn-danger" onClick={logout}>Sair da Conta</button>
       </div>
       <BottomNavContratante active="conta" onNavigate={onNavigate} />
     </div>
@@ -1678,27 +1748,58 @@ function MeusFretesMot({ onNavigate }) {
   const { token } = useAuth();
   const [fretes, setFretes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filtro, setFiltro] = useState("todos");
 
   useEffect(() => {
     api("GET", "/api/fretes", null, token).then(setFretes).catch(() => setFretes([])).finally(() => setLoading(false));
   }, []);
 
+  const filtrados = filtro === "todos" ? fretes : fretes.filter(f => {
+    if (filtro === "andamento") return ["aceito", "em_rota", "coletando"].includes(f.status);
+    if (filtro === "concluido") return f.status === "entregue";
+    return true;
+  });
+
+  const totalGanho = fretes.filter(f => f.status === "entregue").reduce((a, f) => a + Number(f.valor_motorista || 0), 0);
+
   return (
     <div className="screen">
       <div className="header"><h1>Meus Fretes</h1></div>
       <div className="content">
-        {loading ? <Loading /> : fretes.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete aceito ainda</div>
-        ) : fretes.map(f => (
-          <div key={f.id} className="frete-card" onClick={() => onNavigate("em-transito", f)}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <StatusBadge status={f.status} />
-              <div className="price">{formatMoney(f.valor_motorista || f.valor_antt || 0)}</div>
-            </div>
-            <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
-            <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span></div>
+        <div className="grid-2" style={{ marginBottom: 14 }}>
+          <div className="stat-card">
+            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total fretes</div>
+            <div className="stat-value" style={{ fontSize: 24 }}>{fretes.length}</div>
           </div>
-        ))}
+          <div className="stat-card">
+            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total ganho</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--green)" }}>{formatMoney(totalGanho)}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          {[["todos","Todos"],["andamento","Em andamento"],["concluido","Concluídos"]].map(([s, l]) => (
+            <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--gold)" : "var(--border)", background: filtro === s ? "var(--gold)" : "var(--surface)", color: filtro === s ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}>{l}</button>
+          ))}
+        </div>
+        {loading ? <Loading /> : filtrados.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
+        ) : filtrados.map(f => {
+          const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
+          const emAndamento = ["aceito", "em_rota", "coletando"].includes(f.status);
+          return (
+            <div key={f.id} className="frete-card">
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                <StatusBadge status={f.status} />
+                <div style={{ fontWeight: 800, color: "var(--green)", fontSize: 18 }}>{formatMoney(f.valor_motorista || f.valor_antt || 0)}</div>
+              </div>
+              <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
+              <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>📅 {data}</span></div>
+              {emAndamento && (
+                <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("em-transito", f)}>📍 Ver em trânsito</button>
+              )}
+            </div>
+          );
+        })}
       </div>
       <BottomNavMotorista active="atividade" onNavigate={onNavigate} />
     </div>
@@ -1897,7 +1998,7 @@ function PerfilMotorista({ onNavigate }) {
         </div>
 
         <div className="tab-bar" style={{ marginBottom: 14 }}>
-          {[["resumo", "Resumo"], ["ganhos", "Ganhos"], ["km-vazio", "KM Vazio"], ["docs", "Docs"]].map(([id, label]) => (
+          {[["resumo", "Resumo"], ["ganhos", "Ganhos"], ["km-vazio", "KM Vazio"], ["despesas", "Despesas"]].map(([id, label]) => (
             <button key={id} className={`tab-btn ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -1924,7 +2025,28 @@ function PerfilMotorista({ onNavigate }) {
                 <span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontWeight: 600 }}>{label}</span><span style={{ marginLeft: "auto", color: "#555" }}>›</span>
               </div>
             ))}
-            <button className="btn btn-danger" style={{ marginTop: 8 }} onClick={logout}>Sair da Conta</button>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>Minha Conta</div>
+            <div className="card" style={{ padding: 0, overflow: "hidden", marginBottom: 12 }}>
+              {[
+                { icon: "👤", label: "Dados Pessoais", sub: "Nome, foto, CPF, CNH, endereço", screen: "dados-pessoais-motorista" },
+                { icon: "🚛", label: "Meu Caminhão", sub: "Tipo, carreta, placa, documentos", screen: "dados-caminhao" },
+                { icon: "💰", label: "Minhas Finanças", sub: "Despesas, receitas e controle", screen: "financas-motorista" },
+                { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
+                { icon: "🔒", label: "Privacidade", sub: "Senha, dados pessoais", screen: null },
+                { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
+              ].map((item, i) => (
+                <div key={i} onClick={() => item.screen && onNavigate(item.screen)}
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px", borderBottom: i < 5 ? "1px solid var(--border)" : "none", cursor: item.screen ? "pointer" : "default" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: i < 3 ? "var(--gold-light)" : "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{item.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
+                    <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 1 }}>{item.sub}</div>
+                  </div>
+                  <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+                </div>
+              ))}
+            </div>
+            <button className="btn btn-danger" style={{ marginTop: 4 }} onClick={logout}>Sair da Conta</button>
             <button className="btn btn-outline" style={{ marginTop: 8 }} onClick={testarPush}>🔔 Testar Push Notification</button>
             {testePushMsg && <div style={{ marginTop: 10, padding: "10px 14px", background: "rgba(249,115,22,0.1)", border: "1px solid rgba(249,115,22,0.3)", borderRadius: 8, fontSize: 13, color: "#f97316", textAlign: "center" }}>{testePushMsg}</div>}
           </>
@@ -2034,29 +2156,7 @@ function PerfilMotorista({ onNavigate }) {
           </>
         )}
 
-        {tab === "docs" && (
-          <>
-            <div className="card">
-              <div className="card-title">Documentos pessoais</div>
-              {[["📄 CNH", "Aprovado", true], ["🪪 CPF", "Aprovado", true], ["📋 Comprovante endereço", "Pendente", false]].map(([doc, status, ok]) => (
-                <div key={doc} className="info-row">
-                  <span className="info-label">{doc}</span>
-                  <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{status}</span>
-                </div>
-              ))}
-            </div>
-            <div className="card">
-              <div className="card-title">Documentos do veículo</div>
-              {[["🚛 CRLV", "Aprovado", true], ["📋 RNTRC/ANTT", "Aprovado", true], ["📸 Foto placa", "Aprovado", true], ["🔍 Vistoria", "Pendente", false]].map(([doc, status, ok]) => (
-                <div key={doc} className="info-row">
-                  <span className="info-label">{doc}</span>
-                  <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{status}</span>
-                </div>
-              ))}
-            </div>
-            <div className="upload-area" onClick={() => {}}>📤 Enviar documento pendente</div>
-          </>
-        )}
+        {tab === "despesas" && <DespesasTab />}
       </div>
       <BottomNavMotorista active="conta" onNavigate={onNavigate} />
     </div>
@@ -2215,11 +2315,8 @@ function BottomNavMotorista({ active, onNavigate }) {
 // TELA OPÇÕES — Motorista
 // ─────────────────────────────────────────────
 function OpcoesMotorista({ onNavigate }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const items = [
-    { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
-    { icon: "🔒", label: "Privacidade e segurança", sub: "Senha, dados pessoais", screen: null },
-    { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
     { icon: "💬", label: "Suporte", sub: "Fale com a gente", screen: null },
     { icon: "⭐", label: "Avalie o TRUKER", sub: "Nos dê sua opinião", screen: null },
     { icon: "ℹ️", label: "Sobre o app", sub: "Versão 1.0.0", screen: null },
@@ -2248,7 +2345,6 @@ function OpcoesMotorista({ onNavigate }) {
             </div>
           ))}
         </div>
-        <button className="btn btn-danger" style={{ marginTop: 16 }} onClick={logout}>Sair da Conta</button>
       </div>
       <BottomNavMotorista active="opcoes" onNavigate={onNavigate} />
     </div>
@@ -2259,11 +2355,8 @@ function OpcoesMotorista({ onNavigate }) {
 // TELA OPÇÕES — Contratante
 // ─────────────────────────────────────────────
 function OpcoesContratante({ onNavigate }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const items = [
-    { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
-    { icon: "🔒", label: "Privacidade e segurança", sub: "Senha, dados pessoais", screen: null },
-    { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
     { icon: "💬", label: "Suporte", sub: "Fale com a gente", screen: null },
     { icon: "⭐", label: "Avalie o TRUKER", sub: "Nos dê sua opinião", screen: null },
     { icon: "ℹ️", label: "Sobre o app", sub: "Versão 1.0.0", screen: null },
@@ -2292,7 +2385,6 @@ function OpcoesContratante({ onNavigate }) {
             </div>
           ))}
         </div>
-        <button className="btn btn-danger" style={{ marginTop: 16 }} onClick={logout}>Sair da Conta</button>
       </div>
       <BottomNavContratante active="opcoes" onNavigate={onNavigate} />
     </div>
@@ -2335,6 +2427,531 @@ function TermosScreen({ onNavigate }) {
   );
 }
 
+// ─────────────────────────────────────────────
+// COMPONENTE DE DESPESAS (usado na aba Despesas do PerfilMotorista)
+// ─────────────────────────────────────────────
+function DespesasTab() {
+  const { token } = useAuth();
+  const [despesas, setDespesas] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+  const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
+  const tiposDespesa = [
+    { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
+    { id: "pedagio", icon: "🛣️", label: "Pedágio" }, { id: "pneu", icon: "🔄", label: "Pneus" },
+    { id: "seguro", icon: "🛡️", label: "Seguro" }, { id: "multa", icon: "🚨", label: "Multa" },
+    { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
+    { id: "outro", icon: "📦", label: "Outro" },
+  ];
+  const total = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
+  const add = () => {
+    if (!nova.valor) return;
+    setDespesas(d => [...d, { ...nova, id: Date.now() }]);
+    setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+    setShowAdd(false);
+  };
+  const handleNF = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const nome = file.name.toLowerCase();
+    let tipo = "outro";
+    if (/ipiranga|petrobras|shell|posto|diesel|gasolina|combustivel/.test(nome)) tipo = "combustivel";
+    else if (/manutencao|oficina|mecanica|reparo/.test(nome)) tipo = "manutencao";
+    else if (/pedagio|concession|autopista|ecopistas/.test(nome)) tipo = "pedagio";
+    else if (/pneu|borracharia/.test(nome)) tipo = "pneu";
+    setNova(f => ({ ...f, tipo, descricao: file.name.replace(/\.[^.]+$/, "") }));
+  };
+  return (
+    <>
+      <div className="stat-card" style={{ textAlign: "center", marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total de despesas</div>
+        <div style={{ fontSize: 28, fontWeight: 800, color: "var(--red)" }}>{formatMoney(total)}</div>
+      </div>
+      <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => setShowAdd(true)}>+ Registrar Despesa</button>
+      {showAdd && (
+        <div className="card" style={{ borderColor: "var(--gold)", marginBottom: 14 }}>
+          <div className="card-title">Nova Despesa</div>
+          <div className="field">
+            <label>Tipo</label>
+            <select value={nova.tipo} onChange={e => setN("tipo", e.target.value)}>
+              {tiposDespesa.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>Descrição</label><input value={nova.descricao} onChange={e => setN("descricao", e.target.value)} placeholder="Ex: Abastecimento posto BR" /></div>
+          <div className="field"><label>Valor (R$)</label><input type="number" step="0.01" value={nova.valor} onChange={e => setN("valor", e.target.value)} placeholder="0,00" /></div>
+          <div className="field"><label>Data</label><input type="date" value={nova.data} onChange={e => setN("data", e.target.value)} /></div>
+          <label className="upload-area" style={{ display: "block", marginBottom: 12, cursor: "pointer" }}>
+            📄 Anexar NF — tipo detectado automaticamente
+            <input type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleNF} />
+          </label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
+            <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add}>Salvar</button>
+          </div>
+        </div>
+      )}
+      {despesas.length === 0 && !showAdd && (
+        <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
+          <p style={{ fontWeight: 600 }}>Nenhuma despesa registrada</p>
+          <p style={{ fontSize: 13, marginTop: 6 }}>Registre combustível, manutenção e pedágios.</p>
+        </div>
+      )}
+      {despesas.map(d => {
+        const t = tiposDespesa.find(x => x.id === d.tipo) || { icon: "📦", label: d.tipo };
+        return (
+          <div key={d.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(192,57,43,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{t.icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{t.label}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)" }}>{d.descricao || "—"} · {d.data}</div>
+            </div>
+            <div style={{ fontWeight: 700, color: "var(--red)", fontSize: 15 }}>-{formatMoney(d.valor)}</div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────
+// DADOS PESSOAIS — CONTRATANTE
+// ─────────────────────────────────────────────
+function DadosPessoaisContratante({ onNavigate }) {
+  const { user } = useAuth();
+  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", documento: user?.documento || "", nomeEmpresa: user?.nome_empresa || "", inscricaoEstadual: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const fillCep = async (cep) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    try { const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`); const d = await r.json(); if (!d.erro) setForm(f => ({ ...f, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" })); } catch {}
+  };
+  const salvar = async () => {
+    setLoading(true);
+    try { await new Promise(r => setTimeout(r, 800)); setSuccess(true); setTimeout(() => setSuccess(false), 3000); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
+      <div className="content">
+        {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
+        <div className="card" style={{ textAlign: "center", padding: "20px" }}>
+          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 34, border: "3px solid var(--gold)" }}>🏢</div>
+          <button className="btn btn-secondary btn-sm" style={{ width: "auto" }}>📷 Trocar foto / logomarca</button>
+        </div>
+        <div className="card">
+          <div className="card-title">Identificação</div>
+          <div className="field"><label>Nome completo</label><input value={form.nome} onChange={e => set("nome", e.target.value)} placeholder="Seu nome" /></div>
+          <div className="field"><label>CPF ou CNPJ</label><input value={form.documento} onChange={e => set("documento", e.target.value)} placeholder="000.000.000-00 ou 00.000.000/0001-00" /></div>
+          <div className="field"><label>Nome da empresa (opcional)</label><input value={form.nomeEmpresa} onChange={e => set("nomeEmpresa", e.target.value)} placeholder="Empresa LTDA" /></div>
+          <div className="field"><label>Inscrição Estadual (opcional)</label><input value={form.inscricaoEstadual} onChange={e => set("inscricaoEstadual", e.target.value)} placeholder="000.000.000.000" /></div>
+        </div>
+        <div className="card">
+          <div className="card-title">Contato</div>
+          <div className="field"><label>Email</label><input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="seu@email.com" /></div>
+          <div className="field"><label>Telefone / WhatsApp</label><input value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+        </div>
+        <div className="card">
+          <div className="card-title">Endereço</div>
+          <div className="field"><label>CEP</label><input value={form.cep} onChange={e => { const v = maskCep(e.target.value); set("cep", v); if (v.replace(/\D/g,"").length===8) fillCep(v); }} placeholder="00000-000" /></div>
+          <div className="field"><label>Logradouro</label><input value={form.logradouro} onChange={e => set("logradouro", e.target.value)} placeholder="Rua, Avenida..." /></div>
+          <div className="grid-2">
+            <div className="field"><label>Número</label><input value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="123" /></div>
+            <div className="field"><label>Complemento</label><input value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Sala..." /></div>
+          </div>
+          <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
+          <div className="grid-2">
+            <div className="field"><label>Cidade</label><input value={form.cidade} onChange={e => set("cidade", e.target.value)} placeholder="Curitiba" /></div>
+            <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-title">Documentação fiscal e jurídica</div>
+          <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 14 }}>Envie documentos para habilitar contratações de maior valor.</p>
+          {[["📋 Contrato Social / Estatuto", false], ["🏦 Comprovante bancário", false], ["🪪 Doc. do responsável (RG/CNH)", false], ["📄 Procuração (se aplicável)", false]].map(([doc, ok], i) => (
+            <div key={i} className="info-row">
+              <span className="info-label" style={{ fontSize: 13 }}>{doc}</span>
+              <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{ok ? "Aprovado" : "Pendente"}</span>
+            </div>
+          ))}
+          <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
+        </div>
+        <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// DADOS PESSOAIS — MOTORISTA
+// ─────────────────────────────────────────────
+function DadosPessoaisMotorista({ onNavigate }) {
+  const { user } = useAuth();
+  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: user?.documento || "", cnh: user?.cnh || "", rntrc: user?.rntrc || "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const fillCep = async (cep) => {
+    const clean = cep.replace(/\D/g, "");
+    if (clean.length !== 8) return;
+    try { const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`); const d = await r.json(); if (!d.erro) setForm(f => ({ ...f, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" })); } catch {}
+  };
+  const salvar = async () => {
+    setLoading(true);
+    try { await new Promise(r => setTimeout(r, 800)); setSuccess(true); setTimeout(() => setSuccess(false), 3000); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
+      <div className="content">
+        {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
+        <div className="card" style={{ textAlign: "center", padding: "20px" }}>
+          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 34, border: "3px solid var(--gold)" }}>🚛</div>
+          <button className="btn btn-secondary btn-sm" style={{ width: "auto" }}>📷 Trocar foto de perfil</button>
+        </div>
+        <div className="card">
+          <div className="card-title">Identificação</div>
+          <div className="field"><label>Nome completo</label><input value={form.nome} onChange={e => set("nome", e.target.value)} placeholder="Seu nome" /></div>
+          <div className="field"><label>CPF</label><input value={form.cpf} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" /></div>
+          <div className="field"><label>Número CNH</label><input value={form.cnh} onChange={e => set("cnh", e.target.value)} placeholder="00000000000" /></div>
+          <div className="field"><label>RNTRC (ANTT)</label><input value={form.rntrc} onChange={e => set("rntrc", e.target.value)} placeholder="00000000" /></div>
+        </div>
+        <div className="card">
+          <div className="card-title">Contato</div>
+          <div className="field"><label>Email</label><input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="seu@email.com" /></div>
+          <div className="field"><label>Telefone / WhatsApp</label><input value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+        </div>
+        <div className="card">
+          <div className="card-title">Endereço</div>
+          <div className="field"><label>CEP</label><input value={form.cep} onChange={e => { const v = maskCep(e.target.value); set("cep", v); if (v.replace(/\D/g,"").length===8) fillCep(v); }} placeholder="00000-000" /></div>
+          <div className="field"><label>Logradouro</label><input value={form.logradouro} onChange={e => set("logradouro", e.target.value)} placeholder="Rua, Avenida..." /></div>
+          <div className="grid-2">
+            <div className="field"><label>Número</label><input value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="123" /></div>
+            <div className="field"><label>Complemento</label><input value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Apto..." /></div>
+          </div>
+          <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
+          <div className="grid-2">
+            <div className="field"><label>Cidade</label><input value={form.cidade} onChange={e => set("cidade", e.target.value)} placeholder="Curitiba" /></div>
+            <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-title">Documentação</div>
+          {[["📄 CNH (frente e verso)", false], ["🪪 CPF", false], ["📋 Comprovante de endereço", false], ["📝 RNTRC / ANTT", false]].map(([doc, ok], i) => (
+            <div key={i} className="info-row">
+              <span className="info-label" style={{ fontSize: 13 }}>{doc}</span>
+              <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{ok ? "Aprovado" : "Pendente"}</span>
+            </div>
+          ))}
+          <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
+        </div>
+        <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// DADOS DO CAMINHÃO — MOTORISTA
+// ─────────────────────────────────────────────
+function DadosCaminhaoMotorista({ onNavigate }) {
+  const { user } = useAuth();
+  const [form, setForm] = useState({ tipoVeiculo: user?.tipo_veiculo || "", tipoCarreta: "", marca: "", modelo: "", placa: user?.placa || "", anoFab: user?.ano_fab || "", renavam: "", tara: "", capacidade: "" });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const tiposCarreta = ["Baú","Grade Baixa","Sider","Tanque","Frigorífico","Graneleiro","Porta Container","Prancha","Munck","Sem carreta"];
+  const salvar = async () => {
+    setLoading(true);
+    try { await new Promise(r => setTimeout(r, 800)); setSuccess(true); setTimeout(() => setSuccess(false), 3000); }
+    finally { setLoading(false); }
+  };
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Meu Caminhão</h1></div>
+      <div className="content">
+        {success && <div className="alert alert-success">✅ Dados salvos!</div>}
+        <div className="card">
+          <div className="card-title">Tipo do Veículo</div>
+          <div className="field"><label>Tipo de veículo (troca de caminhão)</label>
+            <select value={form.tipoVeiculo} onChange={e => set("tipoVeiculo", e.target.value)}>
+              <option value="">Selecione...</option>
+              {TIPOS_VEICULO.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label} — até {v.cap}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>Tipo de carreta / implemento (troca de carreta)</label>
+            <select value={form.tipoCarreta} onChange={e => set("tipoCarreta", e.target.value)}>
+              <option value="">Selecione...</option>
+              {tiposCarreta.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-title">Dados do Veículo</div>
+          <div className="field"><label>Marca</label><input value={form.marca} onChange={e => set("marca", e.target.value)} placeholder="Scania, Volvo, Mercedes..." /></div>
+          <div className="field"><label>Modelo</label><input value={form.modelo} onChange={e => set("modelo", e.target.value)} placeholder="R450, FH540, Actros..." /></div>
+          <div className="grid-2">
+            <div className="field"><label>Placa</label><input value={form.placa} onChange={e => set("placa", e.target.value.toUpperCase())} placeholder="ABC-1234" /></div>
+            <div className="field"><label>Ano</label><input type="number" value={form.anoFab} onChange={e => set("anoFab", e.target.value)} placeholder="2018" /></div>
+          </div>
+          <div className="grid-2">
+            <div className="field"><label>Tara (kg)</label><input type="number" value={form.tara} onChange={e => set("tara", e.target.value)} placeholder="7500" /></div>
+            <div className="field"><label>Capacidade (t)</label><input type="number" value={form.capacidade} onChange={e => set("capacidade", e.target.value)} placeholder="25" /></div>
+          </div>
+          <div className="field"><label>RENAVAM</label><input value={form.renavam} onChange={e => set("renavam", e.target.value)} placeholder="00000000000" /></div>
+        </div>
+        <div className="card">
+          <div className="card-title">Documentos do Veículo</div>
+          {[["🚛 CRLV / Licenciamento", false], ["📋 RNTRC / ANTT", false], ["📸 Fotos do caminhão (frente/lateral/traseira)", false], ["🔍 Laudo de vistoria", false]].map(([doc, ok], i) => (
+            <div key={i} className="info-row">
+              <span className="info-label" style={{ fontSize: 13 }}>{doc}</span>
+              <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{ok ? "Aprovado" : "Pendente"}</span>
+            </div>
+          ))}
+          <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
+        </div>
+        <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// MINHAS FINANÇAS — MOTORISTA
+// ─────────────────────────────────────────────
+function FinancasMotorista({ onNavigate }) {
+  const { token } = useAuth();
+  const [tab, setTab] = useState("despesas");
+  const [despesas, setDespesas] = useState([]);
+  const [receitas, setReceitas] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+  const [loadingReceitas, setLoadingReceitas] = useState(false);
+  const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
+  const tiposDespesa = [
+    { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
+    { id: "pedagio", icon: "🛣️", label: "Pedágio" }, { id: "pneu", icon: "🔄", label: "Pneus" },
+    { id: "seguro", icon: "🛡️", label: "Seguro" }, { id: "multa", icon: "🚨", label: "Multa" },
+    { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
+    { id: "outro", icon: "📦", label: "Outro" },
+  ];
+  useEffect(() => {
+    if (tab === "receitas" && receitas.length === 0) {
+      setLoadingReceitas(true);
+      api("GET", "/api/motoristas/extrato", null, token).then(d => setReceitas(Array.isArray(d) ? d : [])).catch(() => setReceitas([])).finally(() => setLoadingReceitas(false));
+    }
+  }, [tab]);
+  const totalDespesas = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
+  const totalReceitas = receitas.reduce((a, r) => a + Number(r.valor_motorista || 0), 0);
+  const saldo = totalReceitas - totalDespesas;
+  const add = () => {
+    if (!nova.valor) return;
+    setDespesas(d => [...d, { ...nova, id: Date.now() }]);
+    setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+    setShowAdd(false);
+  };
+  const handleNF = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const nome = file.name.toLowerCase();
+    let tipo = "outro";
+    if (/ipiranga|petrobras|shell|posto|diesel|gasolina/.test(nome)) tipo = "combustivel";
+    else if (/manutencao|oficina|mecanica/.test(nome)) tipo = "manutencao";
+    else if (/pedagio|autopista|ecopistas/.test(nome)) tipo = "pedagio";
+    else if (/pneu|borracharia/.test(nome)) tipo = "pneu";
+    setNova(f => ({ ...f, tipo, descricao: file.name.replace(/\.[^.]+$/, "") }));
+  };
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Minhas Finanças</h1></div>
+      <div className="content">
+        <div className="grid-2" style={{ marginBottom: 10 }}>
+          <div className="stat-card"><div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Receitas</div><div style={{ fontSize: 18, fontWeight: 800, color: "var(--green)" }}>{formatMoney(totalReceitas)}</div></div>
+          <div className="stat-card"><div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Despesas</div><div style={{ fontSize: 18, fontWeight: 800, color: "var(--red)" }}>{formatMoney(totalDespesas)}</div></div>
+        </div>
+        <div className="card" style={{ textAlign: "center", padding: 14, marginBottom: 14, borderColor: saldo >= 0 ? "rgba(45,122,58,0.3)" : "rgba(192,57,43,0.3)" }}>
+          <div style={{ fontSize: 11, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Saldo</div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: saldo >= 0 ? "var(--green)" : "var(--red)" }}>{formatMoney(saldo)}</div>
+        </div>
+        <div className="tab-bar" style={{ marginBottom: 14 }}>
+          {[["despesas","💸 Despesas"],["receitas","💰 Receitas"]].map(([id, label]) => (
+            <button key={id} className={`tab-btn ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
+          ))}
+        </div>
+        {tab === "despesas" && (
+          <>
+            <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => setShowAdd(true)}>+ Adicionar Despesa</button>
+            {showAdd && (
+              <div className="card" style={{ borderColor: "var(--gold)", marginBottom: 14 }}>
+                <div className="card-title">Nova Despesa</div>
+                <div className="field"><label>Tipo</label>
+                  <select value={nova.tipo} onChange={e => setN("tipo", e.target.value)}>
+                    {tiposDespesa.map(t => <option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+                  </select>
+                </div>
+                <div className="field"><label>Descrição</label><input value={nova.descricao} onChange={e => setN("descricao", e.target.value)} placeholder="Ex: Abastecimento posto BR" /></div>
+                <div className="field"><label>Valor (R$)</label><input type="number" step="0.01" value={nova.valor} onChange={e => setN("valor", e.target.value)} placeholder="0,00" /></div>
+                <div className="field"><label>Data</label><input type="date" value={nova.data} onChange={e => setN("data", e.target.value)} /></div>
+                <label className="upload-area" style={{ display: "block", marginBottom: 12, cursor: "pointer" }}>
+                  📄 Anexar NF — tipo detectado automaticamente
+                  <input type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleNF} />
+                </label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
+                  <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add}>Salvar</button>
+                </div>
+              </div>
+            )}
+            {despesas.length === 0 && !showAdd && (
+              <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📋</div>
+                <p style={{ fontWeight: 600 }}>Nenhuma despesa registrada</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>Registre combustível, pedágio, manutenção e mais.</p>
+              </div>
+            )}
+            {despesas.map(d => {
+              const t = tiposDespesa.find(x => x.id === d.tipo) || { icon: "📦", label: d.tipo };
+              return (
+                <div key={d.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(192,57,43,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{t.icon}</div>
+                  <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}>{t.label}</div><div style={{ fontSize: 12, color: "var(--text3)" }}>{d.descricao || "—"} · {d.data}</div></div>
+                  <div style={{ fontWeight: 700, color: "var(--red)", fontSize: 15 }}>-{formatMoney(d.valor)}</div>
+                </div>
+              );
+            })}
+          </>
+        )}
+        {tab === "receitas" && (
+          <>
+            {loadingReceitas ? <Loading /> : receitas.length === 0 ? (
+              <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>💰</div>
+                <p style={{ fontWeight: 600 }}>Nenhuma receita ainda</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>Fretes concluídos entram aqui automaticamente.</p>
+              </div>
+            ) : receitas.map((r, i) => (
+              <div key={i} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(45,122,58,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🚛</div>
+                <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}>{r.origem_cidade || "—"} → {r.dest_cidade || "—"}</div><div style={{ fontSize: 12, color: "var(--text3)" }}>{r.tipo_carga || "—"} · {r.distancia_km || "—"} km</div></div>
+                <div style={{ fontWeight: 700, color: "var(--green)", fontSize: 15 }}>+{formatMoney(r.valor_motorista || 0)}</div>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// PAGAMENTOS — CONTRATANTE
+// ─────────────────────────────────────────────
+function PagamentosScreen({ onNavigate }) {
+  const [formas, setFormas] = useState([]);
+  const [showAdd, setShowAdd] = useState(false);
+  const [tipo, setTipo] = useState("pix");
+  const [form, setForm] = useState({});
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const BANCOS = ["001 - Banco do Brasil","033 - Santander","041 - Banrisul","077 - Banco Inter","104 - Caixa Econômica","208 - BTG Pactual","212 - Banco Original","237 - Bradesco","260 - Nubank","336 - C6 Bank","341 - Itaú","380 - PicPay","422 - Safra","633 - Rendimento","748 - Sicredi","756 - Sicoob"];
+  const tiposForma = [
+    { id: "pix", icon: "📱", label: "Pix", desc: "Transferência instantânea" },
+    { id: "ted", icon: "🏦", label: "TED/DOC", desc: "Transferência bancária" },
+    { id: "cartao_credito", icon: "💳", label: "Cartão Crédito", desc: "Visa, Master, Elo, Amex" },
+    { id: "cartao_debito", icon: "💳", label: "Cartão Débito", desc: "Visa Débito, Master Débito" },
+    { id: "boleto", icon: "📄", label: "Boleto", desc: "Gerado automaticamente" },
+    { id: "carteira", icon: "💰", label: "Carteira Digital", desc: "PicPay, Mercado Pago" },
+  ];
+  const adicionar = () => { setFormas(f => [...f, { tipo, form: { ...form }, id: Date.now() }]); setForm({}); setShowAdd(false); };
+  const remover = (id) => setFormas(f => f.filter(x => x.id !== id));
+  const getIcon = t => ({ pix: "📱", ted: "🏦", cartao_credito: "💳", cartao_debito: "💳", boleto: "📄", carteira: "💰" }[t] || "💳");
+  const getLabel = t => tiposForma.find(x => x.id === t)?.label || t;
+  const getDesc = f => {
+    if (f.tipo === "pix") return `Chave: ${f.form.chave || "—"}`;
+    if (f.tipo === "ted") return `${(f.form.banco || "").split(" - ")[1] || "—"} · Ag: ${f.form.agencia || "—"} · CC: ${f.form.conta || "—"}`;
+    if (f.tipo === "cartao_credito" || f.tipo === "cartao_debito") return `${f.form.bandeira || "—"} ····${(f.form.numero || "").replace(/\s/g,"").slice(-4)}`;
+    if (f.tipo === "carteira") return f.form.carteira || "—";
+    return "Gerado automaticamente no pagamento";
+  };
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Pagamentos</h1></div>
+      <div className="content">
+        <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={() => setShowAdd(true)}>+ Adicionar forma de pagamento</button>
+        {showAdd && (
+          <div className="card" style={{ borderColor: "var(--gold)", marginBottom: 16 }}>
+            <div className="card-title">Nova forma de pagamento</div>
+            <div className="carga-grid" style={{ marginBottom: 14 }}>
+              {tiposForma.map(t => (
+                <div key={t.id} className={`carga-item ${tipo === t.id ? "selected" : ""}`} style={{ padding: "10px 8px" }} onClick={() => { setTipo(t.id); setForm({}); }}>
+                  <div className="ci-icon">{t.icon}</div>
+                  <div className="ci-label" style={{ fontSize: 11 }}>{t.label}</div>
+                  <div className="ci-desc">{t.desc}</div>
+                </div>
+              ))}
+            </div>
+            {tipo === "pix" && (<>
+              <div className="field"><label>Tipo de chave</label><select value={form.tipoChave || ""} onChange={e => set("tipoChave", e.target.value)}><option value="">Selecione...</option><option value="cpf">CPF</option><option value="cnpj">CNPJ</option><option value="telefone">Telefone</option><option value="email">Email</option><option value="aleatoria">Chave aleatória</option></select></div>
+              <div className="field"><label>Chave Pix</label><input value={form.chave || ""} onChange={e => set("chave", e.target.value)} placeholder="Digite a chave" /></div>
+              <div className="field"><label>Nome do titular</label><input value={form.titular || ""} onChange={e => set("titular", e.target.value)} placeholder="Nome como no banco" /></div>
+            </>)}
+            {tipo === "ted" && (<>
+              <div className="field"><label>Banco</label><select value={form.banco || ""} onChange={e => set("banco", e.target.value)}><option value="">Selecione o banco...</option>{BANCOS.map(b => <option key={b} value={b}>{b}</option>)}</select></div>
+              <div className="grid-2">
+                <div className="field"><label>Agência</label><input value={form.agencia || ""} onChange={e => set("agencia", e.target.value)} placeholder="0000-0" /></div>
+                <div className="field"><label>Conta</label><input value={form.conta || ""} onChange={e => set("conta", e.target.value)} placeholder="00000-0" /></div>
+              </div>
+              <div className="field"><label>Tipo de conta</label><select value={form.tipoConta || ""} onChange={e => set("tipoConta", e.target.value)}><option value="">Selecione...</option><option value="corrente">Corrente</option><option value="poupanca">Poupança</option><option value="pagamento">Conta de Pagamento</option></select></div>
+              <div className="field"><label>CPF/CNPJ do titular</label><input value={form.cpf || ""} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" /></div>
+              <div className="field"><label>Nome do titular</label><input value={form.titular || ""} onChange={e => set("titular", e.target.value)} placeholder="Nome completo" /></div>
+            </>)}
+            {(tipo === "cartao_credito" || tipo === "cartao_debito") && (<>
+              <div className="field"><label>Número do cartão</label><input value={form.numero || ""} onChange={e => set("numero", e.target.value.replace(/\D/g,"").replace(/(.{4})/g,"$1 ").trim().slice(0,19))} placeholder="0000 0000 0000 0000" /></div>
+              <div className="field"><label>Nome no cartão</label><input value={form.titular || ""} onChange={e => set("titular", e.target.value.toUpperCase())} placeholder="NOME COMO NO CARTÃO" /></div>
+              <div className="grid-2">
+                <div className="field"><label>Validade</label><input value={form.validade || ""} onChange={e => set("validade", e.target.value.replace(/\D/g,"").replace(/^(\d{2})(\d)/,"$1/$2").slice(0,5))} placeholder="MM/AA" /></div>
+                <div className="field"><label>CVV</label><input type="password" value={form.cvv || ""} onChange={e => set("cvv", e.target.value.slice(0,4))} placeholder="000" /></div>
+              </div>
+              <div className="field"><label>Bandeira</label><select value={form.bandeira || ""} onChange={e => set("bandeira", e.target.value)}><option value="">Selecione...</option>{["Visa","Mastercard","Elo","American Express","Hipercard","Diners"].map(b => <option key={b}>{b}</option>)}</select></div>
+            </>)}
+            {tipo === "boleto" && (<div className="alert alert-info">O boleto é gerado automaticamente no momento do pagamento do frete.</div>)}
+            {tipo === "carteira" && (<>
+              <div className="field"><label>Carteira digital</label><select value={form.carteira || ""} onChange={e => set("carteira", e.target.value)}><option value="">Selecione...</option>{["PicPay","Mercado Pago","PayPal","RecargaPay","AME Digital"].map(c => <option key={c}>{c}</option>)}</select></div>
+              <div className="field"><label>Email / telefone da conta</label><input value={form.conta || ""} onChange={e => set("conta", e.target.value)} placeholder="seu@email.com" /></div>
+            </>)}
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => { setShowAdd(false); setForm({}); }}>Cancelar</button>
+              <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={adicionar}>Adicionar</button>
+            </div>
+          </div>
+        )}
+        {formas.length === 0 && !showAdd && (
+          <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>💳</div>
+            <p style={{ fontWeight: 700, fontSize: 16 }}>Nenhuma forma de pagamento</p>
+            <p style={{ fontSize: 13, marginTop: 6 }}>Adicione Pix, cartão, TED ou boleto para pagar seus fretes.</p>
+          </div>
+        )}
+        {formas.map(f => (
+          <div key={f.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--gold-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{getIcon(f.tipo)}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{getLabel(f.tipo)}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)" }}>{getDesc(f)}</div>
+            </div>
+            <button onClick={() => remover(f.id)} style={{ background: "none", border: "none", color: "var(--red)", fontSize: 18, cursor: "pointer" }}>🗑️</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// PLACEHOLDER
+// ─────────────────────────────────────────────
 function PlaceholderScreen({ titulo, icon, onNavigate }) {
   return (
     <div className="screen">
@@ -2387,17 +3004,21 @@ function Router() {
     case "meus-fretes": return <MeusFretes {...p} />;
     case "detalhe-frete": return <DetalheFrete frete={screenData} {...p} />;
     case "perfil": return <PerfilContratante {...p} />;
+    case "dados-pessoais-contratante": return <DadosPessoaisContratante {...p} />;
+    case "pagamentos": return <PagamentosScreen {...p} />;
     case "home-motorista": return <MotoristaHome {...p} />;
     case "aceitar-frete": return <AceitarFreteScreen frete={screenData} {...p} />;
     case "meus-fretes-motorista": return <MeusFretesMot {...p} />;
     case "em-transito": return <EmTransitoScreen frete={screenData} {...p} />;
     case "perfil-motorista": return <PerfilMotorista {...p} />;
+    case "dados-pessoais-motorista": return <DadosPessoaisMotorista {...p} />;
+    case "dados-caminhao": return <DadosCaminhaoMotorista {...p} />;
+    case "financas-motorista": return <FinancasMotorista {...p} />;
     case "chat": return <ChatScreen data={screenData} {...p} />;
     case "avaliar": return <AvaliarScreen data={screenData} {...p} />;
     case "opcoes-motorista": return <OpcoesMotorista {...p} />;
     case "opcoes-contratante": return <OpcoesContratante {...p} />;
     case "termos": return <TermosScreen {...p} />;
-    case "pagamentos": return <PlaceholderScreen titulo="Pagamentos" icon="💳" {...p} />;
     case "avaliacoes": return <PlaceholderScreen titulo="Avaliações" icon="⭐" {...p} />;
     default: return <SplashScreen {...p} />;
   }
