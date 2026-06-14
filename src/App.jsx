@@ -2551,7 +2551,7 @@ function DadosPessoaisContratante({ onNavigate }) {
     setError(""); setLoading(true);
     try {
       await api("PATCH", "/api/contratantes/perfil", {
-        nome: form.nome, email: form.email, telefone: form.telefone,
+        nome: form.nome, telefone: form.telefone,
         nomeEmpresa: form.nomeEmpresa, inscricaoEstadual: form.inscricaoEstadual,
         cep: form.cep, logradouro: form.logradouro, numero: form.numero,
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
@@ -2657,7 +2657,7 @@ function DadosPessoaisMotorista({ onNavigate }) {
     setError(""); setLoading(true);
     try {
       await api("PATCH", "/api/motoristas/perfil", {
-        nome: form.nome, email: form.email, telefone: form.telefone,
+        nome: form.nome, telefone: form.telefone,
         cnh: form.cnh, rntrc: form.rntrc,
         cep: form.cep, logradouro: form.logradouro, numero: form.numero,
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
