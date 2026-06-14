@@ -2524,26 +2524,49 @@ function DespesasTab() {
 // DADOS PESSOAIS — CONTRATANTE
 // ─────────────────────────────────────────────
 function DadosPessoaisContratante({ onNavigate }) {
-  const { user } = useAuth();
-  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", documento: user?.documento || "", nomeEmpresa: user?.nome_empresa || "", inscricaoEstadual: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
+  const { user, token, updateUserData } = useAuth();
+  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", documento: "", nomeEmpresa: "", inscricaoEstadual: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    api("GET", "/api/contratantes/perfil", null, token)
+      .then(d => setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", documento: d.cpf_cnpj || "", nomeEmpresa: d.nome_empresa || "", inscricaoEstadual: d.inscricao_estadual || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "" }))
+      .catch(() => {})
+      .finally(() => setLoadingData(false));
+  }, []);
+
   const fillCep = async (cep) => {
     const clean = cep.replace(/\D/g, "");
     if (clean.length !== 8) return;
     try { const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`); const d = await r.json(); if (!d.erro) setForm(f => ({ ...f, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" })); } catch {}
   };
   const salvar = async () => {
-    setLoading(true);
-    try { await new Promise(r => setTimeout(r, 800)); setSuccess(true); setTimeout(() => setSuccess(false), 3000); }
+    setError(""); setLoading(true);
+    try {
+      await api("PATCH", "/api/contratantes/perfil", {
+        nome: form.nome, email: form.email, telefone: form.telefone,
+        nomeEmpresa: form.nomeEmpresa, inscricaoEstadual: form.inscricaoEstadual,
+        cep: form.cep, logradouro: form.logradouro, numero: form.numero,
+        complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
+      }, token);
+      updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
   return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
       <div className="content">
+        {loadingData && <Loading />}
+        {!loadingData && <>
         {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
+        {error && <div className="alert alert-error">{error}</div>}
         <div className="card" style={{ textAlign: "center", padding: "20px" }}>
           <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 34, border: "3px solid var(--gold)" }}>🏢</div>
           <button className="btn btn-secondary btn-sm" style={{ width: "auto" }}>📷 Trocar foto / logomarca</button>
@@ -2586,6 +2609,7 @@ function DadosPessoaisContratante({ onNavigate }) {
           <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
         </div>
         <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+        </>}
       </div>
     </div>
   );
@@ -2596,11 +2620,20 @@ function DadosPessoaisContratante({ onNavigate }) {
 // ─────────────────────────────────────────────
 function DadosPessoaisMotorista({ onNavigate }) {
   const { user, token, updateUserData } = useAuth();
-  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: user?.documento || "", cnh: user?.cnh || "", rntrc: user?.rntrc || "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
+  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: "", cnh: "", rntrc: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    api("GET", "/api/motoristas/perfil", null, token)
+      .then(d => setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", cpf: d.cpf || "", cnh: d.cnh_numero || "", rntrc: d.rntrc || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "" }))
+      .catch(() => {})
+      .finally(() => setLoadingData(false));
+  }, []);
+
   const fillCep = async (cep) => {
     const clean = cep.replace(/\D/g, "");
     if (clean.length !== 8) return;
@@ -2612,8 +2645,10 @@ function DadosPessoaisMotorista({ onNavigate }) {
       await api("PATCH", "/api/motoristas/perfil", {
         nome: form.nome, email: form.email, telefone: form.telefone,
         cnh: form.cnh, rntrc: form.rntrc,
+        cep: form.cep, logradouro: form.logradouro, numero: form.numero,
+        complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
       }, token);
-      updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone, cnh: form.cnh, rntrc: form.rntrc });
+      updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) { setError(e.message); }
@@ -2623,6 +2658,8 @@ function DadosPessoaisMotorista({ onNavigate }) {
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
       <div className="content">
+        {loadingData && <Loading />}
+        {!loadingData && <>
         {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
         {error && <div className="alert alert-error">{error}</div>}
         <div className="card" style={{ textAlign: "center", padding: "20px" }}>
@@ -2665,6 +2702,7 @@ function DadosPessoaisMotorista({ onNavigate }) {
           <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
         </div>
         <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+        </>}
       </div>
     </div>
   );
@@ -2675,20 +2713,30 @@ function DadosPessoaisMotorista({ onNavigate }) {
 // ─────────────────────────────────────────────
 function DadosCaminhaoMotorista({ onNavigate }) {
   const { user, token, updateUserData } = useAuth();
-  const [form, setForm] = useState({ tipoVeiculo: user?.tipo_veiculo || "", tipoCarreta: "", marca: "", modelo: "", placa: user?.placa_veiculo || user?.placa || "", anoFab: user?.ano_veiculo || "", renavam: "", tara: "", capacidade: user?.capacidade_tons || "" });
+  const [form, setForm] = useState({ tipoVeiculo: "", tipoCarreta: "", marca: "", modelo: "", placa: "", anoFab: "", renavam: "", tara: "", capacidade: "" });
   const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const tiposCarreta = ["Baú","Grade Baixa","Sider","Tanque","Frigorífico","Graneleiro","Porta Container","Prancha","Munck","Sem carreta"];
+
+  useEffect(() => {
+    api("GET", "/api/motoristas/perfil", null, token)
+      .then(d => setForm({ tipoVeiculo: d.tipo_veiculo || "", tipoCarreta: d.tipo_carreta || "", marca: d.marca_veiculo || "", modelo: d.modelo_veiculo || "", placa: d.placa_veiculo || "", anoFab: d.ano_veiculo || "", renavam: d.renavam || "", tara: d.tara_kg || "", capacidade: d.capacidade_tons || "" }))
+      .catch(() => {})
+      .finally(() => setLoadingData(false));
+  }, []);
+
   const salvar = async () => {
     setError(""); setLoading(true);
     try {
       await api("PATCH", "/api/motoristas/veiculo", {
-        tipoVeiculo: form.tipoVeiculo, placa: form.placa,
-        anoFab: form.anoFab, capacidade: form.capacidade,
+        tipoVeiculo: form.tipoVeiculo, tipoCarreta: form.tipoCarreta,
+        marca: form.marca, modelo: form.modelo, placa: form.placa,
+        anoFab: form.anoFab, renavam: form.renavam, tara: form.tara, capacidade: form.capacidade,
       }, token);
-      updateUserData({ tipo_veiculo: form.tipoVeiculo, placa_veiculo: form.placa, ano_veiculo: form.anoFab });
+      updateUserData({ tipo_veiculo: form.tipoVeiculo, placa_veiculo: form.placa });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) { setError(e.message); }
@@ -2698,6 +2746,8 @@ function DadosCaminhaoMotorista({ onNavigate }) {
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Meu Caminhão</h1></div>
       <div className="content">
+        {loadingData && <Loading />}
+        {!loadingData && <>
         {success && <div className="alert alert-success">✅ Dados salvos!</div>}
         {error && <div className="alert alert-error">{error}</div>}
         <div className="card">
@@ -2740,6 +2790,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
           <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
         </div>
         <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+        </>}
       </div>
     </div>
   );
