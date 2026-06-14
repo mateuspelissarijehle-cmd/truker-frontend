@@ -2589,10 +2589,11 @@ function DadosPessoaisContratante({ onNavigate }) {
 // DADOS PESSOAIS — MOTORISTA
 // ─────────────────────────────────────────────
 function DadosPessoaisMotorista({ onNavigate }) {
-  const { user } = useAuth();
+  const { user, token, login } = useAuth();
   const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: user?.documento || "", cnh: user?.cnh || "", rntrc: user?.rntrc || "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const fillCep = async (cep) => {
     const clean = cep.replace(/\D/g, "");
@@ -2600,8 +2601,17 @@ function DadosPessoaisMotorista({ onNavigate }) {
     try { const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`); const d = await r.json(); if (!d.erro) setForm(f => ({ ...f, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" })); } catch {}
   };
   const salvar = async () => {
-    setLoading(true);
-    try { await new Promise(r => setTimeout(r, 800)); setSuccess(true); setTimeout(() => setSuccess(false), 3000); }
+    setError(""); setLoading(true);
+    try {
+      await api("PATCH", "/api/motoristas/perfil", {
+        nome: form.nome, email: form.email, telefone: form.telefone,
+        cnh: form.cnh, rntrc: form.rntrc,
+      }, token);
+      // Atualiza dados locais do usuário
+      login({ ...user, nome: form.nome, email: form.email, telefone: form.telefone, cnh: form.cnh, rntrc: form.rntrc }, token);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
   return (
@@ -2609,13 +2619,13 @@ function DadosPessoaisMotorista({ onNavigate }) {
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
       <div className="content">
         {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
+        {error && <div className="alert alert-error">{error}</div>}
         <div className="card" style={{ textAlign: "center", padding: "20px" }}>
           <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 34, border: "3px solid var(--gold)" }}>🚛</div>
           <button className="btn btn-secondary btn-sm" style={{ width: "auto" }}>📷 Trocar foto de perfil</button>
         </div>
         <div className="card">
           <div className="card-title">Identificação</div>
-          <div className="field"><label>Nome completo</label><input value={form.nome} onChange={e => set("nome", e.target.value)} placeholder="Seu nome" /></div>
           <div className="field"><label>CPF</label><input value={form.cpf} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" /></div>
           <div className="field"><label>Número CNH</label><input value={form.cnh} onChange={e => set("cnh", e.target.value)} placeholder="00000000000" /></div>
           <div className="field"><label>RNTRC (ANTT)</label><input value={form.rntrc} onChange={e => set("rntrc", e.target.value)} placeholder="00000000" /></div>
@@ -2659,15 +2669,24 @@ function DadosPessoaisMotorista({ onNavigate }) {
 // DADOS DO CAMINHÃO — MOTORISTA
 // ─────────────────────────────────────────────
 function DadosCaminhaoMotorista({ onNavigate }) {
-  const { user } = useAuth();
-  const [form, setForm] = useState({ tipoVeiculo: user?.tipo_veiculo || "", tipoCarreta: "", marca: "", modelo: "", placa: user?.placa || "", anoFab: user?.ano_fab || "", renavam: "", tara: "", capacidade: "" });
+  const { user, token, login } = useAuth();
+  const [form, setForm] = useState({ tipoVeiculo: user?.tipo_veiculo || "", tipoCarreta: "", marca: "", modelo: "", placa: user?.placa_veiculo || user?.placa || "", anoFab: user?.ano_veiculo || "", renavam: "", tara: "", capacidade: user?.capacidade_tons || "" });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const tiposCarreta = ["Baú","Grade Baixa","Sider","Tanque","Frigorífico","Graneleiro","Porta Container","Prancha","Munck","Sem carreta"];
   const salvar = async () => {
-    setLoading(true);
-    try { await new Promise(r => setTimeout(r, 800)); setSuccess(true); setTimeout(() => setSuccess(false), 3000); }
+    setError(""); setLoading(true);
+    try {
+      await api("PATCH", "/api/motoristas/veiculo", {
+        tipoVeiculo: form.tipoVeiculo, placa: form.placa,
+        anoFab: form.anoFab, capacidade: form.capacidade,
+      }, token);
+      login({ ...user, tipo_veiculo: form.tipoVeiculo, placa_veiculo: form.placa, ano_veiculo: form.anoFab }, token);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
   return (
@@ -2675,6 +2694,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Meu Caminhão</h1></div>
       <div className="content">
         {success && <div className="alert alert-success">✅ Dados salvos!</div>}
+        {error && <div className="alert alert-error">{error}</div>}
         <div className="card">
           <div className="card-title">Tipo do Veículo</div>
           <div className="field"><label>Tipo de veículo (troca de caminhão)</label>
