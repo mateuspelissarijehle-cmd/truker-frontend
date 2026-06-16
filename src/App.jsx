@@ -2186,39 +2186,82 @@ function PerfilMotorista({ onNavigate }) {
 // CHAT
 // ─────────────────────────────────────────────
 function ChatScreen({ data, onNavigate }) {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const frete = data?.frete;
-  const [msgs, setMsgs] = useState([
-    { id: 1, texto: "Olá! Tudo certo com o frete?", de: "outro", hora: "14:20" },
-    { id: 2, texto: "Sim! Estou a caminho.", de: "eu", hora: "14:21" },
-  ]);
+  const freteId = frete?.id;
+  const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [enviando, setEnviando] = useState(false);
   const bottomRef = useRef(null);
+  const intervalRef = useRef(null);
+
+  const carregarMsgs = async () => {
+    if (!freteId) return;
+    try {
+      const data = await api("GET", `/api/chat/${freteId}`, null, token);
+      if (Array.isArray(data)) setMsgs(data);
+    } catch {}
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    carregarMsgs();
+    intervalRef.current = setInterval(carregarMsgs, 5000);
+    return () => clearInterval(intervalRef.current);
+  }, [freteId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
-  const send = () => {
-    if (!text.trim()) return;
-    const now = new Date();
-    setMsgs(m => [...m, { id: Date.now(), texto: text, de: "eu", hora: `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}` }]);
+  const send = async () => {
+    if (!text.trim() || !freteId || enviando) return;
+    const texto = text.trim();
     setText("");
+    setEnviando(true);
+    // Otimista: adiciona localmente
+    setMsgs(m => [...m, { id: Date.now(), mensagem: texto, e_meu: true, nome: user?.nome, criado_em: new Date().toISOString() }]);
+    try { await api("POST", `/api/chat/${freteId}`, { mensagem: texto }, token); }
+    catch {}
+    finally { setEnviando(false); }
+  };
+
+  const formatHora = (dt) => {
+    if (!dt) return "";
+    const d = new Date(dt);
+    return `${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}`;
   };
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Chat</h1></div>
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
+        <h1>Chat{frete ? ` — ${frete.origem_cidade || "Frete"}` : ""}</h1>
+      </div>
       <div className="chat-area">
-        {msgs.map(m => (
-          <div key={m.id} style={{ alignSelf: m.de === "eu" ? "flex-end" : "flex-start" }}>
-            <div className={`msg ${m.de === "eu" ? "msg-me" : "msg-other"}`}>{m.texto}</div>
-            <div className="msg-time">{m.hora}</div>
+        {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text3)" }}>Carregando...</div>}
+        {!loading && msgs.length === 0 && (
+          <div style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
+            <div style={{ fontSize: 40, marginBottom: 8 }}>💬</div>
+            <p>Nenhuma mensagem ainda. Inicie a conversa!</p>
+          </div>
+        )}
+        {msgs.map((m, i) => (
+          <div key={m.id || i} style={{ alignSelf: m.e_meu ? "flex-end" : "flex-start", maxWidth: "80%" }}>
+            {!m.e_meu && <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 2, paddingLeft: 4 }}>{m.nome}</div>}
+            <div className={`msg ${m.e_meu ? "msg-me" : "msg-other"}`}>{m.mensagem}</div>
+            <div className="msg-time" style={{ textAlign: m.e_meu ? "right" : "left" }}>{formatHora(m.criado_em)}</div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
       <div className="chat-input">
-        <input placeholder="Digite uma mensagem..." value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} />
-        <button className="chat-send" onClick={send}>➤</button>
+        <input
+          placeholder="Digite uma mensagem..."
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && send()}
+        />
+        <button className="chat-send" onClick={send} disabled={enviando}>➤</button>
       </div>
     </div>
   );
@@ -3064,6 +3107,104 @@ function PagamentosScreen({ onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
+// AVALIAÇÕES — lista de avaliações recebidas/dadas
+// ─────────────────────────────────────────────
+function AvaliacoesScreen({ onNavigate }) {
+  const { user, token } = useAuth();
+  const [avaliacoes, setAvaliacoes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [media, setMedia] = useState(0);
+  const isMot = user?.tipo === "motorista";
+
+  useEffect(() => {
+    const rota = isMot ? "/api/motoristas/avaliacoes" : "/api/contratantes/historico";
+    api("GET", rota, null, token)
+      .then(d => {
+        if (isMot) {
+          setAvaliacoes(Array.isArray(d) ? d : []);
+          if (d?.length) setMedia((d.reduce((a, x) => a + Number(x.nota), 0) / d.length).toFixed(1));
+        } else {
+          // contratante: filtra fretes entregues que tem info de avaliação
+          const entregues = (Array.isArray(d) ? d : []).filter(f => f.status === "entregue");
+          setAvaliacoes(entregues);
+        }
+      })
+      .catch(() => setAvaliacoes([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const Estrelas = ({ nota }) => (
+    <div style={{ display: "flex", gap: 2 }}>
+      {[1,2,3,4,5].map(n => (
+        <span key={n} style={{ fontSize: 16, color: n <= nota ? "#C9A84C" : "var(--border)" }}>★</span>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="screen">
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
+        <h1>Avaliações</h1>
+      </div>
+      <div className="content">
+        {isMot && avaliacoes.length > 0 && (
+          <div className="card" style={{ textAlign: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 48, fontWeight: 900, color: "var(--gold)" }}>{media}</div>
+            <Estrelas nota={Math.round(media)} />
+            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 6 }}>{avaliacoes.length} avaliação{avaliacoes.length !== 1 ? "ões" : ""} recebida{avaliacoes.length !== 1 ? "s" : ""}</div>
+          </div>
+        )}
+        {loading ? <Loading /> : avaliacoes.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>⭐</div>
+            <p style={{ fontWeight: 700, fontSize: 16 }}>
+              {isMot ? "Nenhuma avaliação recebida" : "Nenhum frete concluído"}
+            </p>
+            <p style={{ fontSize: 13, marginTop: 6 }}>
+              {isMot ? "As avaliações dos contratantes aparecerão aqui após cada entrega." : "Complete fretes para ver o histórico aqui."}
+            </p>
+          </div>
+        ) : isMot ? (
+          avaliacoes.map((a, i) => (
+            <div key={a.id || i} className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{a.avaliador_nome || "Contratante"}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
+                    {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "—"}
+                  </div>
+                </div>
+                <Estrelas nota={Number(a.nota)} />
+              </div>
+              {a.comentario && (
+                <div style={{ fontSize: 13, color: "var(--text2)", fontStyle: "italic", borderLeft: "3px solid var(--gold)", paddingLeft: 10, marginTop: 8 }}>
+                  "{a.comentario}"
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          avaliacoes.map((f, i) => (
+            <div key={f.id || i} className="card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{f.motorista_nome || "Motorista"}</div>
+                <span className="badge badge-done">Entregue</span>
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text3)" }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+                {f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—"}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────
 // PLACEHOLDER
 // ─────────────────────────────────────────────
 function PlaceholderScreen({ titulo, icon, onNavigate }) {
@@ -3071,10 +3212,10 @@ function PlaceholderScreen({ titulo, icon, onNavigate }) {
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>{titulo}</h1></div>
       <div className="content">
-        <div className="card" style={{ textAlign: "center", padding: 40, color: "#555" }}>
+        <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>{icon}</div>
           <p style={{ fontWeight: 600 }}>Em breve</p>
-          <p style={{ fontSize: 13, marginTop: 6, color: "#444" }}>Esta funcionalidade será disponibilizada em breve.</p>
+          <p style={{ fontSize: 13, marginTop: 6 }}>Esta funcionalidade será disponibilizada em breve.</p>
         </div>
       </div>
     </div>
@@ -3133,7 +3274,7 @@ function Router() {
     case "opcoes-motorista": return <OpcoesMotorista {...p} />;
     case "opcoes-contratante": return <OpcoesContratante {...p} />;
     case "termos": return <TermosScreen {...p} />;
-    case "avaliacoes": return <PlaceholderScreen titulo="Avaliações" icon="⭐" {...p} />;
+    case "avaliacoes": return <AvaliacoesScreen {...p} />;
     default: return <SplashScreen {...p} />;
   }
 }
