@@ -235,7 +235,7 @@ const css = `
   .tipo-tag button.active { background: linear-gradient(135deg, #C9A84C, #A8873A); color: #fff; border-color: var(--gold); }
   .map-placeholder { background: var(--surface2); border-radius: 12px; height: 160px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--text3); font-size: 13px; border: 1px dashed var(--border); margin-bottom: 14px; }
   .star-rating { display: flex; gap: 6px; font-size: 28px; cursor: pointer; }
-  .chat-area { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .chat-area { flex: 1; overflow-y: auto; padding: 14px; padding-top: 18px; display: flex; flex-direction: column; gap: 10px; }
   .msg { max-width: 80%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.4; }
   .msg-me { background: var(--orange); color: #fff; align-self: flex-end; border-bottom-right-radius: 2px; }
   .msg-other { background: var(--dark3); color: var(--white); align-self: flex-start; border-bottom-left-radius: 2px; }
@@ -2270,7 +2270,7 @@ function ChatScreen({ data, onNavigate }) {
           disabled={!freteId}
         />
         <button className="chat-send" onClick={send} disabled={enviando || !freteId}>
-          {enviando ? "..." : "&#10148;"}
+          {enviando ? "•••" : "➤"}
         </button>
       </div>
     </div>

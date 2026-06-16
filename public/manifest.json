@@ -4,8 +4,8 @@
   "description": "Plataforma de fretes pesados",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#f97316",
+  "background_color": "#F5F0E8",
+  "theme_color": "#C9A84C",
   "orientation": "portrait",
   "icons": [
     {
