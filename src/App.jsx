@@ -1459,6 +1459,11 @@ function DetalheFrete({ frete, onNavigate }) {
           </div>
         )}
         {frete.status === "entregue" && <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => onNavigate("avaliar", { frete })}>⭐ Avaliar Motorista</button>}
+        {frete.status === "aguardando" && (
+          <button className="btn btn-primary" style={{ marginBottom: 10, background: "linear-gradient(135deg, #00b37e, #00a572)" }} onClick={() => onNavigate("pagamento", { freteId: frete.id, valor: frete.valor_antt || frete.valor_final || 0 })}>
+            📱 Pagar via Pix — {formatMoney(frete.valor_antt || 0)}
+          </button>
+        )}
         {["aguardando", "aceito"].includes(frete.status) && <button className="btn btn-danger" onClick={cancelar} disabled={loading}>{loading ? "Cancelando..." : "Cancelar Frete"}</button>}
       </div>
     </div>
@@ -3216,6 +3221,107 @@ function AvaliacoesScreen({ onNavigate }) {
 
 
 // ─────────────────────────────────────────────
+// PAGAMENTO PIX — MercadoPago
+// ─────────────────────────────────────────────
+function PagamentoScreen({ data, onNavigate }) {
+  const { token } = useAuth();
+  const freteId = data?.freteId;
+  const valorInicial = data?.valor || 0;
+  const [qrCode, setQrCode] = useState(null);
+  const [pixKey, setPixKey] = useState(null);
+  const [paymentId, setPaymentId] = useState(null);
+  const [status, setStatus] = useState("criando");
+  const [valor, setValor] = useState(valorInicial);
+  const [copiado, setCopiado] = useState(false);
+  const [erro, setErro] = useState("");
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    if (!freteId) { setErro("Frete não identificado"); setStatus("erro"); return; }
+    api("POST", `/api/pagamentos/criar-pix/${freteId}`, {}, token)
+      .then(d => {
+        setQrCode(d.qr_code);
+        setPixKey(d.pix_key);
+        setPaymentId(d.payment_id);
+        setValor(d.valor || valorInicial);
+        setStatus(d.status === "approved" ? "approved" : "pending");
+        if (d.status !== "approved" && d.payment_id) {
+          intervalRef.current = setInterval(async () => {
+            try {
+              const s = await api("GET", `/api/pagamentos/status/${d.payment_id}`, null, token);
+              if (s.status === "approved") { setStatus("approved"); clearInterval(intervalRef.current); }
+            } catch {}
+          }, 5000);
+        }
+      })
+      .catch(e => { setErro(e.message); setStatus("erro"); });
+    return () => clearInterval(intervalRef.current);
+  }, [freteId]);
+
+  const copiar = () => {
+    if (!pixKey) return;
+    try {
+      navigator.clipboard.writeText(pixKey);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2500);
+    } catch {}
+  };
+
+  if (status === "approved") return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate("meus-fretes")}>←</button><h1>Pagamento</h1></div>
+      <div className="content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+        <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
+        <div style={{ fontSize: 26, fontWeight: 800, color: "var(--green)", marginBottom: 8 }}>Pago!</div>
+        <div style={{ color: "var(--text3)", marginBottom: 32, textAlign: "center" }}>Pagamento confirmado pelo MercadoPago.<br/>Aguardando motorista disponível.</div>
+        <button className="btn btn-primary" onClick={() => onNavigate("meus-fretes")}>Ver Meus Fretes</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Pagar via Pix</h1></div>
+      <div className="content">
+        {status === "criando" && <Loading />}
+        {erro && <div className="alert alert-error">{erro}</div>}
+        {status === "pending" && qrCode && (
+          <>
+            <div className="card" style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>Valor a pagar</div>
+              <div style={{ fontSize: 40, fontWeight: 900, color: "var(--gold)", marginBottom: 20 }}>{formatMoney(valor)}</div>
+              <img src={`data:image/png;base64,${qrCode}`} alt="QR Code Pix" style={{ width: 220, height: 220, margin: "0 auto 16px", display: "block", borderRadius: 12, border: "2px solid var(--border)" }} />
+              <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 14 }}>Escaneie com o app do seu banco ou copie a chave</p>
+              <button className="btn btn-primary" onClick={copiar}>
+                {copiado ? "✅ Copiado!" : "📋 Copiar Chave Pix"}
+              </button>
+            </div>
+            <div className="card" style={{ borderLeft: "4px solid var(--gold)" }}>
+              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14 }}>Como pagar:</div>
+              <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.8 }}>
+                1. Abra o app do seu banco<br/>
+                2. Escolha <strong>Pix → Pagar</strong><br/>
+                3. Leia o QR Code ou cole a chave copiada<br/>
+                4. Confirme o pagamento de <strong>{formatMoney(valor)}</strong><br/>
+                5. Esta tela confirma automaticamente ✓
+              </div>
+            </div>
+            <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "var(--text3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", opacity: 0.7 }} />
+              Aguardando confirmação do pagamento...
+            </div>
+            <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "var(--text3)" }}>
+              Powered by MercadoPago · Ambiente de testes
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ─────────────────────────────────────────────
 // PLACEHOLDER
 // ─────────────────────────────────────────────
 function PlaceholderScreen({ titulo, icon, onNavigate }) {
@@ -3285,6 +3391,7 @@ function Router() {
     case "opcoes-motorista": return <OpcoesMotorista {...p} />;
     case "opcoes-contratante": return <OpcoesContratante {...p} />;
     case "termos": return <TermosScreen {...p} />;
+    case "pagamento": return <PagamentoScreen data={screenData} {...p} />;
     case "avaliacoes": return <AvaliacoesScreen {...p} />;
     default: return <SplashScreen {...p} />;
   }
