@@ -2243,6 +2243,7 @@ function ChatScreen({ data, onNavigate }) {
         <h1>Chat{frete ? ` — ${frete.origem_cidade || "Frete"}` : ""}</h1>
       </div>
       <div className="chat-area">
+        <div style={{ flex: 1, minHeight: 8 }} />
         {loading && <div style={{ textAlign: "center", padding: 20, color: "var(--text3)" }}>Carregando...</div>}
         {!loading && msgs.length === 0 && (
           <div style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
