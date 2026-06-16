@@ -2193,15 +2193,17 @@ function ChatScreen({ data, onNavigate }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [enviando, setEnviando] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState("");
+  const [erroLoad, setErroLoad] = useState("");
   const bottomRef = useRef(null);
   const intervalRef = useRef(null);
 
   const carregarMsgs = async () => {
-    if (!freteId) return;
+    if (!freteId) { setLoading(false); return; }
     try {
-      const data = await api("GET", `/api/chat/${freteId}`, null, token);
-      if (Array.isArray(data)) setMsgs(data);
-    } catch {}
+      const res = await api("GET", `/api/chat/${freteId}`, null, token);
+      if (Array.isArray(res)) { setMsgs(res); setErroLoad(""); }
+    } catch(e) { setErroLoad(e.message); }
     finally { setLoading(false); }
   };
 
@@ -2214,14 +2216,17 @@ function ChatScreen({ data, onNavigate }) {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   const send = async () => {
-    if (!text.trim() || !freteId || enviando) return;
+    if (!text.trim() || enviando) return;
+    if (!freteId) { setErroEnvio("Abra o chat a partir de um frete ativo"); return; }
     const texto = text.trim();
-    setText("");
-    setEnviando(true);
-    // Otimista: adiciona localmente
-    setMsgs(m => [...m, { id: Date.now(), mensagem: texto, e_meu: true, nome: user?.nome, criado_em: new Date().toISOString() }]);
-    try { await api("POST", `/api/chat/${freteId}`, { mensagem: texto }, token); }
-    catch {}
+    setText(""); setErroEnvio(""); setEnviando(true);
+    try {
+      await api("POST", `/api/chat/${freteId}`, { mensagem: texto }, token);
+      await carregarMsgs();
+    } catch(e) {
+      setErroEnvio("Erro ao enviar: " + e.message);
+      setText(texto);
+    }
     finally { setEnviando(false); }
   };
 
@@ -2254,14 +2259,19 @@ function ChatScreen({ data, onNavigate }) {
         ))}
         <div ref={bottomRef} />
       </div>
+      {erroLoad && <div style={{ background: "rgba(192,57,43,0.08)", color: "var(--red)", padding: "8px 14px", fontSize: 12, borderTop: "1px solid rgba(192,57,43,0.2)" }}>&#9888; {erroLoad}</div>}
+      {erroEnvio && <div style={{ background: "rgba(192,57,43,0.08)", color: "var(--red)", padding: "6px 14px", fontSize: 12 }}>{erroEnvio}</div>}
       <div className="chat-input">
         <input
-          placeholder="Digite uma mensagem..."
+          placeholder={freteId ? "Digite uma mensagem..." : "Abra por um frete ativo"}
           value={text}
           onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === "Enter" && send()}
+          disabled={!freteId}
         />
-        <button className="chat-send" onClick={send} disabled={enviando}>➤</button>
+        <button className="chat-send" onClick={send} disabled={enviando || !freteId}>
+          {enviando ? "..." : "&#10148;"}
+        </button>
       </div>
     </div>
   );
