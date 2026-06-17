@@ -1596,17 +1596,40 @@ function MotoristaHome({ onNavigate }) {
   const [metaKmVazio, setMetaKmVazio] = useState(800);
   const [posicaoAtual, setPosicaoAtual] = useState(null);
   const [fretesAtivos, setFretesAtivos] = useState([]);
+  const posicaoRef = useRef(null);
 
   // GPS para mostrar no mapa
   useEffect(() => {
     if (!navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
-      pos => setPosicaoAtual({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      pos => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setPosicaoAtual(coords);
+        posicaoRef.current = coords;
+      },
       err => console.error("GPS home:", err),
       { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 }
     );
     return () => navigator.geolocation.clearWatch(id);
   }, []);
+
+  // Envia posição para o backend a cada 30s para todos os fretes ativos
+  useEffect(() => {
+    if (fretesAtivos.length === 0 || !token) return;
+    const interval = setInterval(async () => {
+      if (!posicaoRef.current) return;
+      try {
+        for (const f of fretesAtivos) {
+          await api("PATCH", "/api/motoristas/localizacao", {
+            lat: posicaoRef.current.lat,
+            lng: posicaoRef.current.lng,
+            freteId: f.id,
+          }, token);
+        }
+      } catch (e) { console.error("GPS send home:", e.message); }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fretesAtivos.length, token]);
 
   // Carrega fretes disponíveis quando fica online
   useEffect(() => {
@@ -1911,55 +1934,13 @@ function MeusFretesMot({ onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
-// EM TRÂNSITO
-// ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-// EM TRÂNSITO — ✅ GPS real a cada 30s
+// EM TRÂNSITO — sem mapa próprio (mapa fica na aba Início)
 // ─────────────────────────────────────────────
 function EmTransitoScreen({ frete, onNavigate }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showFreteRetorno, setShowFreteRetorno] = useState(false);
-  const [posicao, setPosicao] = useState(null);
-  const [gpsStatus, setGpsStatus] = useState("aguardando"); // aguardando | ativo | erro
-  const posicaoRef = useRef(null);
-  const watchIdRef = useRef(null);
-  const intervalRef = useRef(null);
-
-  // Inicia GPS ao montar a tela
-  useEffect(() => {
-    if (!frete) return;
-    if (!navigator.geolocation) { setGpsStatus("erro"); return; }
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        posicaoRef.current = coords;
-        setPosicao(coords);
-        setGpsStatus("ativo");
-      },
-      (err) => { console.error("GPS:", err.message); setGpsStatus("erro"); },
-      { enableHighAccuracy: true, maximumAge: 15000, timeout: 20000 }
-    );
-
-    // Envia posição para o backend a cada 30 segundos
-    intervalRef.current = setInterval(async () => {
-      if (!posicaoRef.current) return;
-      try {
-        await api("PATCH", "/api/motoristas/localizacao", {
-          lat: posicaoRef.current.lat,
-          lng: posicaoRef.current.lng,
-          freteId: frete.id,
-        }, token);
-      } catch (e) { console.error("Erro GPS send:", e.message); }
-    }, 30000);
-
-    return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [frete?.id]);
 
   if (!frete) return <Loading />;
 
@@ -1968,7 +1949,7 @@ function EmTransitoScreen({ frete, onNavigate }) {
     try {
       await api("PATCH", `/api/fretes/${frete.id}/status`, { status }, token);
       if (status === "entregue") setShowFreteRetorno(true);
-      else onNavigate("meus-fretes-motorista");
+      else onNavigate("home-motorista");
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -1978,12 +1959,12 @@ function EmTransitoScreen({ frete, onNavigate }) {
     { id: "r2", origem: frete.dest_cidade || "SP", destino: "Campinas, SP", distancia: 100, valor: "R$ 980,00", tipo: "Graneleiro" },
   ];
 
-  const gpsIcon = gpsStatus === "ativo" ? "📍" : gpsStatus === "erro" ? "❌" : "🔍";
-  const gpsLabel = gpsStatus === "ativo" ? "GPS ativo — rastreando" : gpsStatus === "erro" ? "GPS indisponível" : "Obtendo localização...";
-
   return (
     <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate("meus-fretes-motorista")}>←</button><h1>Frete Ativo</h1></div>
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button>
+        <h1>Frete Ativo</h1>
+      </div>
       <div className="content">
         {error && <div className="alert alert-error">{error}</div>}
         {showFreteRetorno && (
@@ -2000,29 +1981,38 @@ function EmTransitoScreen({ frete, onNavigate }) {
             ))}
           </div>
         )}
-        <StatusBadge status={frete.status} />
-        <div className="card" style={{ marginTop: 12 }}>
-          <div style={{ position: "relative" }}>
-            <MapaLeaflet
-              lat={posicao?.lat}
-              lng={posicao?.lng}
-              height={220}
-              origem={frete.origem_lat ? { lat: parseFloat(frete.origem_lat), lng: parseFloat(frete.origem_lng), label: frete.origem_cidade } : null}
-              destino={frete.dest_lat ? { lat: parseFloat(frete.dest_lat), lng: parseFloat(frete.dest_lng), label: frete.dest_cidade } : null}
-            />
-            <div style={{ position: "absolute", top: 8, left: 8, zIndex: 10, background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "4px 10px", display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 10 }}>{gpsIcon}</span>
-              <span style={{ fontSize: 10, color: gpsStatus === "ativo" ? "var(--green)" : gpsStatus === "erro" ? "var(--red)" : "#888", fontWeight: 700 }}>{gpsLabel}</span>
-            </div>
-            {posicao && (
-              <div style={{ position: "absolute", bottom: 8, right: 8, zIndex: 10, background: "rgba(0,0,0,0.7)", borderRadius: 8, padding: "3px 8px" }}>
-                <span style={{ fontSize: 9, color: "var(--green)" }}>● {posicao.lat.toFixed(4)}, {posicao.lng.toFixed(4)}</span>
-              </div>
-            )}
-          </div>
-          <div className="info-row"><span className="info-label">Distância total</span><span className="info-value">{frete.distancia_km} km</span></div>
-          <div className="info-row"><span className="info-label">Seu valor</span><span className="info-value" style={{ color: "var(--orange)" }}>{formatMoney(frete.valor_motorista || 0)}</span></div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <StatusBadge status={frete.status} />
+          <span style={{ fontWeight: 800, fontSize: 20, color: "var(--green)" }}>{formatMoney(frete.valor_motorista || 0)}</span>
         </div>
+
+        {/* Rota resumida — mapa centralizado na aba Início */}
+        <div className="card">
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Rota</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--green)", border: "2px solid white", boxShadow: "0 0 0 2px var(--green)" }} />
+                  <div style={{ width: 2, height: 24, background: "var(--border)" }} />
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--red)", border: "2px solid white", boxShadow: "0 0 0 2px var(--red)" }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>{frete.origem_cidade || frete.origem_endereco || "—"}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{frete.dest_cidade || frete.dest_endereco || "—"}</div>
+                </div>
+              </div>
+            </div>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("home-motorista")} style={{ flexShrink: 0 }}>
+              🗺️ Ver no Mapa
+            </button>
+          </div>
+          <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
+          <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{frete.tipo_carga}</span></div>
+          <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
+        </div>
+
         <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat com Contratante</button>
         {frete.status === "aceito" && frete.status_pagamento === "approved" && (
           <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("coletando")} disabled={loading}>🚛 Iniciar Coleta</button>
