@@ -1965,7 +1965,10 @@ function EmTransitoScreen({ frete, onNavigate }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showFreteRetorno, setShowFreteRetorno] = useState(false);
+  const [freteStatus, setFreteStatus] = useState(frete?.status);
+  const [confirmStep, setConfirmStep] = useState(null);
+  const [codigoDigitado, setCodigoDigitado] = useState("");
+  const [entregueOk, setEntregueOk] = useState(false);
 
   if (!frete) return <Loading />;
 
@@ -1973,8 +1976,29 @@ function EmTransitoScreen({ frete, onNavigate }) {
     setLoading(true);
     try {
       await api("PATCH", `/api/fretes/${frete.id}/status`, { status }, token);
-      if (status === "entregue") setShowFreteRetorno(true);
-      else onNavigate("home-motorista");
+      setFreteStatus(status);
+      if (status !== "entregue") onNavigate("home-motorista");
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const solicitarCodigo = async () => {
+    setLoading(true); setError("");
+    try {
+      await api("POST", `/api/fretes/${frete.id}/solicitar-codigo-entrega`, {}, token);
+      setConfirmStep("aguardando");
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const confirmarComCodigo = async () => {
+    if (codigoDigitado.length !== 6) return setError("Digite o código de 6 dígitos");
+    setLoading(true); setError("");
+    try {
+      await api("POST", `/api/fretes/${frete.id}/confirmar-entrega`, { codigo: codigoDigitado }, token);
+      setEntregueOk(true);
+      setFreteStatus("entregue");
+      setTimeout(() => onNavigate("home-motorista"), 3000);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -1984,6 +2008,29 @@ function EmTransitoScreen({ frete, onNavigate }) {
     { id: "r2", origem: frete.dest_cidade || "SP", destino: "Campinas, SP", distancia: 100, valor: "R$ 980,00", tipo: "Graneleiro" },
   ];
 
+  if (entregueOk) return (
+    <div className="screen">
+      <div className="header"><h1>Frete Ativo</h1></div>
+      <div className="content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+        <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
+        <div style={{ fontSize: 24, fontWeight: 800, color: "var(--green)", marginBottom: 8 }}>Entrega confirmada!</div>
+        <div style={{ color: "var(--text3)", textAlign: "center", marginBottom: 24 }}>Frete concluído com sucesso.<br/>Redirecionando...</div>
+        <div style={{ width: "100%" }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 8 }}>🎯 Fretes de retorno disponíveis:</div>
+          {fretesRetorno.map(fr => (
+            <div key={fr.id} className="frete-card" onClick={() => onNavigate("aceitar-frete", fr)}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>{fr.origem} → {fr.destino}</span>
+                <span style={{ color: "var(--gold)", fontWeight: 800 }}>{fr.valor}</span>
+              </div>
+              <div className="meta" style={{ marginTop: 4 }}><span>📦 {fr.tipo}</span><span>📏 {fr.distancia} km</span></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="screen">
       <div className="header">
@@ -1992,27 +2039,10 @@ function EmTransitoScreen({ frete, onNavigate }) {
       </div>
       <div className="content">
         {error && <div className="alert alert-error">{error}</div>}
-        {showFreteRetorno && (
-          <div className="alert alert-info">
-            🎯 Descarga quase concluída! Fretes de retorno disponíveis:
-            {fretesRetorno.map(fr => (
-              <div key={fr.id} className="frete-card" style={{ marginTop: 8 }} onClick={() => onNavigate("aceitar-frete", fr)}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700 }}>{fr.origem} → {fr.destino}</span>
-                  <span style={{ color: "var(--orange)", fontWeight: 800 }}>{fr.valor}</span>
-                </div>
-                <div className="meta" style={{ marginTop: 4 }}><span>📦 {fr.tipo}</span><span>📏 {fr.distancia} km</span></div>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <StatusBadge status={frete.status} />
+          <StatusBadge status={freteStatus} />
           <span style={{ fontWeight: 800, fontSize: 20, color: "var(--green)" }}>{formatMoney(frete.valor_motorista || 0)}</span>
         </div>
-
-        {/* Rota resumida — mapa centralizado na aba Início */}
         <div className="card">
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div style={{ flex: 1 }}>
@@ -2029,36 +2059,60 @@ function EmTransitoScreen({ frete, onNavigate }) {
                 </div>
               </div>
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("home-motorista")} style={{ flexShrink: 0 }}>
-              🗺️ Ver no Mapa
-            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("home-motorista")} style={{ flexShrink: 0 }}>🗺️ Ver no Mapa</button>
           </div>
           <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
         </div>
-
         <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat com Contratante</button>
-        {frete.status === "aceito" && frete.status_pagamento === "approved" && (
+        {freteStatus === "aceito" && frete.status_pagamento === "approved" && (
           <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("coletando")} disabled={loading}>🚛 Iniciar Coleta</button>
         )}
-        {frete.status === "aceito" && frete.status_pagamento !== "approved" && (
-          <div className="alert alert-info" style={{ textAlign: "center", marginBottom: 10 }}>
-            ⏳ Aguardando pagamento do contratante para liberar a coleta
+        {freteStatus === "aceito" && frete.status_pagamento !== "approved" && (
+          <div className="alert alert-info" style={{ textAlign: "center", marginBottom: 10 }}>⏳ Aguardando pagamento do contratante para liberar a coleta</div>
+        )}
+        {freteStatus === "coletando" && (
+          <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("em_rota")} disabled={loading}>🛣️ Em Rota</button>
+        )}
+        {freteStatus === "em_rota" && !confirmStep && (
+          <button className="btn btn-success" onClick={() => setConfirmStep("solicitando")} disabled={loading}>✅ Confirmar Entrega</button>
+        )}
+        {freteStatus === "em_rota" && confirmStep === "solicitando" && (
+          <div className="card" style={{ borderLeft: "4px solid var(--green)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Confirmação de entrega</div>
+            <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16, lineHeight: 1.6 }}>
+              Um código de 6 dígitos será enviado por email ao contratante. Peça o código a ele para confirmar o recebimento da carga.
+            </p>
+            <button className="btn btn-primary" onClick={solicitarCodigo} disabled={loading} style={{ marginBottom: 8 }}>
+              {loading ? "Enviando..." : "📧 Enviar código para o contratante"}
+            </button>
+            <button className="btn btn-secondary" onClick={() => setConfirmStep(null)}>Cancelar</button>
           </div>
         )}
-        {frete.status === "coletando" && <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("em_rota")} disabled={loading}>🛣️ Em Rota</button>}
-        {frete.status === "em_rota" && (
-          <>
-            <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => setShowFreteRetorno(true)}>🔔 Descarga quase acabando</button>
-            <button className="btn btn-success" onClick={() => atualizarStatus("entregue")} disabled={loading}>✅ Confirmar Entrega</button>
-          </>
+        {freteStatus === "em_rota" && confirmStep === "aguardando" && (
+          <div className="card" style={{ borderLeft: "4px solid var(--green)" }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>✉️ Código enviado!</div>
+            <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>O contratante recebeu o código por email. Digite abaixo:</p>
+            <div className="field">
+              <label>Código de confirmação</label>
+              <input type="text" inputMode="numeric" maxLength={6}
+                value={codigoDigitado}
+                onChange={e => setCodigoDigitado(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                style={{ fontSize: 32, letterSpacing: 14, textAlign: "center", fontFamily: "monospace" }}
+              />
+            </div>
+            <button className="btn btn-success" onClick={confirmarComCodigo} disabled={loading || codigoDigitado.length !== 6} style={{ marginBottom: 8 }}>
+              {loading ? "Confirmando..." : "✅ Confirmar Entrega"}
+            </button>
+            <button className="btn btn-secondary btn-sm" style={{ marginTop: 4 }} onClick={solicitarCodigo} disabled={loading}>🔄 Reenviar código</button>
+          </div>
         )}
       </div>
     </div>
   );
 }
-
 // ─────────────────────────────────────────────
 // PERFIL MOTORISTA — ✅ ganhos reais da API
 // ─────────────────────────────────────────────
