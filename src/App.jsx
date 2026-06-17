@@ -298,12 +298,12 @@ function Loading() { return <div className="loading"><div className="spinner" />
 // ─────────────────────────────────────────────
 // MAPA LEAFLET + OPENSTREETMAP (gratuito)
 // ─────────────────────────────────────────────
-function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null }) {
+function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null, rotas = [] }) {
   const divRef = useRef(null);
   const mapRef = useRef(null);
   const marcadorRef = useRef(null);
-  const propsRef = useRef({ lat, lng, zoom, origem, destino });
-  propsRef.current = { lat, lng, zoom, origem, destino };
+  const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas });
+  propsRef.current = { lat, lng, zoom, origem, destino, rotas };
 
   const initMap = () => {
     if (!divRef.current || mapRef.current) return;
@@ -357,11 +357,15 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
     if (p.lat && p.lng) pontos.push([p.lat, p.lng]);
     if (p.origem?.lat) pontos.push([p.origem.lat, p.origem.lng]);
     if (p.destino?.lat) pontos.push([p.destino.lat, p.destino.lng]);
+    (p.rotas || []).forEach(r => {
+      if (r.origem?.lat) pontos.push([r.origem.lat, r.origem.lng]);
+      if (r.destino?.lat) pontos.push([r.destino.lat, r.destino.lng]);
+    });
     if (pontos.length > 1) map.fitBounds(L.latLngBounds(pontos), { padding: [35, 35] });
 
     mapRef.current = map;
 
-    // Rota real via OSRM (gratuito, sem API key)
+    // Rota principal via OSRM (gratuito, sem API key)
     const start = p.lat && p.lng ? `${p.lng},${p.lat}` : p.origem?.lng ? `${p.origem.lng},${p.origem.lat}` : null;
     const end = p.destino?.lat ? `${p.destino.lng},${p.destino.lat}` : p.origem?.lat ? `${p.origem.lng},${p.origem.lat}` : null;
     if (start && end && start !== end) {
@@ -376,6 +380,41 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
         })
         .catch(() => {});
     }
+
+    // Múltiplas rotas de fretes ativos (cada uma com cor e número)
+    const coresRotas = ["#C9A84C", "#2D7A3A", "#2563EB", "#9333EA", "#EF4444"];
+    (p.rotas || []).forEach((rota, idx) => {
+      const cor = coresRotas[idx % coresRotas.length];
+      const num = idx + 1;
+      if (rota.origem?.lat && rota.origem?.lng) {
+        const icon = L.divIcon({
+          html: `<div style="background:${cor};color:#fff;padding:3px 8px;border-radius:6px;font-size:9px;font-weight:800;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.4)">${num}📍 ${rota.origem.label||"Coleta"}</div>`,
+          className: "", iconAnchor: [0, 12],
+        });
+        L.marker([rota.origem.lat, rota.origem.lng], { icon }).addTo(map);
+      }
+      if (rota.destino?.lat && rota.destino?.lng) {
+        const icon = L.divIcon({
+          html: `<div style="background:${cor};color:#fff;padding:3px 8px;border-radius:6px;font-size:9px;font-weight:800;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.4)">${num}🏁 ${rota.destino.label||"Entrega"}</div>`,
+          className: "", iconAnchor: [0, 12],
+        });
+        L.marker([rota.destino.lat, rota.destino.lng], { icon }).addTo(map);
+      }
+      if (rota.origem?.lat && rota.destino?.lat) {
+        const s = `${rota.origem.lng},${rota.origem.lat}`;
+        const e = `${rota.destino.lng},${rota.destino.lat}`;
+        fetch(`https://router.project-osrm.org/route/v1/driving/${s};${e}?overview=full&geometries=geojson`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.routes?.[0]?.geometry && mapRef.current) {
+              window.L.geoJSON(data.routes[0].geometry, {
+                style: { color: cor, weight: 3, opacity: 0.85 }
+              }).addTo(mapRef.current);
+            }
+          })
+          .catch(() => {});
+      }
+    });
   };
 
   useEffect(() => {
@@ -1459,10 +1498,13 @@ function DetalheFrete({ frete, onNavigate }) {
           </div>
         )}
         {frete.status === "entregue" && <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => onNavigate("avaliar", { frete })}>⭐ Avaliar Motorista</button>}
-        {frete.status === "aguardando" && (
+        {(frete.status === "aguardando" || (frete.status === "aceito" && frete.status_pagamento !== "approved")) && (
           <button className="btn btn-primary" style={{ marginBottom: 10, background: "linear-gradient(135deg, #00b37e, #00a572)" }} onClick={() => onNavigate("pagamento", { freteId: frete.id, valor: frete.valor_antt || frete.valor_final || 0 })}>
             📱 Pagar via Pix — {formatMoney(frete.valor_antt || 0)}
           </button>
+        )}
+        {frete.status === "aceito" && frete.status_pagamento === "approved" && (
+          <div className="alert alert-success" style={{ marginBottom: 10 }}>✅ Pagamento confirmado — aguardando início da coleta</div>
         )}
         {["aguardando", "aceito"].includes(frete.status) && <button className="btn btn-danger" onClick={cancelar} disabled={loading}>{loading ? "Cancelando..." : "Cancelar Frete"}</button>}
       </div>
@@ -1553,6 +1595,7 @@ function MotoristaHome({ onNavigate }) {
   const [kmVazio, setKmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
   const [posicaoAtual, setPosicaoAtual] = useState(null);
+  const [fretesAtivos, setFretesAtivos] = useState([]);
 
   // GPS para mostrar no mapa
   useEffect(() => {
@@ -1572,6 +1615,13 @@ function MotoristaHome({ onNavigate }) {
     api("GET", "/api/fretes/disponiveis", null, token)
       .then(setDisponiveis).catch(() => setDisponiveis([])).finally(() => setLoading(false));
   }, [online]);
+
+  // Carrega fretes ativos do motorista (aceito/coletando/em_rota)
+  useEffect(() => {
+    api("GET", "/api/fretes", null, token)
+      .then(todos => setFretesAtivos(todos.filter(f => ["aceito", "coletando", "em_rota"].includes(f.status))))
+      .catch(() => setFretesAtivos([]));
+  }, [token]);
 
   // ✅ Toggle online/offline — atualiza no banco
   const toggleOnline = async (val) => {
@@ -1598,6 +1648,20 @@ function MotoristaHome({ onNavigate }) {
   const marcadoresFretes = disponiveis
     .filter(f => f.origem_lat && f.origem_lng)
     .map(f => ({ lat: parseFloat(f.origem_lat), lng: parseFloat(f.origem_lng), label: f.origem_cidade || "Frete" }));
+
+  // Rotas otimizadas: ordenar por proximidade do motorista (greedy)
+  const rotasAtivas = [...fretesAtivos]
+    .filter(f => f.origem_lat && f.dest_lat)
+    .sort((a, b) => {
+      if (!posicaoAtual) return 0;
+      const dA = Math.pow(parseFloat(a.origem_lat) - posicaoAtual.lat, 2) + Math.pow(parseFloat(a.origem_lng) - posicaoAtual.lng, 2);
+      const dB = Math.pow(parseFloat(b.origem_lat) - posicaoAtual.lat, 2) + Math.pow(parseFloat(b.origem_lng) - posicaoAtual.lng, 2);
+      return dA - dB;
+    })
+    .map(f => ({
+      origem: { lat: parseFloat(f.origem_lat), lng: parseFloat(f.origem_lng), label: f.origem_cidade || "Coleta" },
+      destino: { lat: parseFloat(f.dest_lat), lng: parseFloat(f.dest_lng), label: f.dest_cidade || "Entrega" },
+    }));
 
   return (
     <div className="screen">
@@ -1635,10 +1699,36 @@ function MotoristaHome({ onNavigate }) {
         <MapaLeaflet
           lat={posicaoAtual?.lat}
           lng={posicaoAtual?.lng}
-          height={180}
-          marcadores={marcadoresFretes}
+          height={rotasAtivas.length > 0 ? 220 : 180}
+          marcadores={rotasAtivas.length === 0 ? marcadoresFretes : []}
+          rotas={rotasAtivas}
         />
 
+        {fretesAtivos.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+              🚛 Fretes em andamento ({fretesAtivos.length})
+            </div>
+            {fretesAtivos.map((f, idx) => {
+              const cores = ["#C9A84C", "#2D7A3A", "#2563EB", "#9333EA", "#EF4444"];
+              const cor = cores[idx % cores.length];
+              return (
+                <div key={f.id} style={{ background: "var(--surface)", borderRadius: 12, padding: "12px 14px", marginBottom: 8, border: `2px solid ${cor}`, cursor: "pointer" }}
+                  onClick={() => onNavigate("em-transito", f)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 20, height: 20, borderRadius: "50%", background: cor, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800 }}>{idx + 1}</div>
+                      <StatusBadge status={f.status} />
+                    </div>
+                    <span style={{ color: "var(--green)", fontWeight: 800, fontSize: 14 }}>{formatMoney(f.valor_motorista || 0)}</span>
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
+                  <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📏 {f.distancia_km} km · 📦 {f.tipo_carga}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 11, color: "#555", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Tipo de frete</div>
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
@@ -1719,7 +1809,7 @@ function AceitarFreteScreen({ frete, onNavigate }) {
 
   const aceitar = async () => {
     setLoading(true); setError("");
-    try { await api("PATCH", `/api/fretes/${frete.id}/aceitar`, {}, token); onNavigate("meus-fretes-motorista"); }
+    try { await api("PATCH", `/api/fretes/${frete.id}/aceitar`, {}, token); onNavigate("home-motorista"); }
     catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -1934,7 +2024,14 @@ function EmTransitoScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Seu valor</span><span className="info-value" style={{ color: "var(--orange)" }}>{formatMoney(frete.valor_motorista || 0)}</span></div>
         </div>
         <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat com Contratante</button>
-        {frete.status === "aceito" && <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("coletando")} disabled={loading}>🚛 Iniciar Coleta</button>}
+        {frete.status === "aceito" && frete.status_pagamento === "approved" && (
+          <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("coletando")} disabled={loading}>🚛 Iniciar Coleta</button>
+        )}
+        {frete.status === "aceito" && frete.status_pagamento !== "approved" && (
+          <div className="alert alert-info" style={{ textAlign: "center", marginBottom: 10 }}>
+            ⏳ Aguardando pagamento do contratante para liberar a coleta
+          </div>
+        )}
         {frete.status === "coletando" && <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("em_rota")} disabled={loading}>🛣️ Em Rota</button>}
         {frete.status === "em_rota" && (
           <>
