@@ -1674,7 +1674,7 @@ function MotoristaHome({ onNavigate }) {
 
   // Rotas otimizadas: ordenar por proximidade do motorista (greedy)
   const rotasAtivas = [...fretesAtivos]
-    .filter(f => f.origem_lat && f.dest_lat)
+    .filter(f => f.origem_lat && (f.dest_lat || f.destino_lat))
     .sort((a, b) => {
       if (!posicaoAtual) return 0;
       const dA = Math.pow(parseFloat(a.origem_lat) - posicaoAtual.lat, 2) + Math.pow(parseFloat(a.origem_lng) - posicaoAtual.lng, 2);
@@ -1683,7 +1683,7 @@ function MotoristaHome({ onNavigate }) {
     })
     .map(f => ({
       origem: { lat: parseFloat(f.origem_lat), lng: parseFloat(f.origem_lng), label: f.origem_cidade || "Coleta" },
-      destino: { lat: parseFloat(f.dest_lat), lng: parseFloat(f.dest_lng), label: f.dest_cidade || "Entrega" },
+      destino: { lat: parseFloat(f.dest_lat || f.destino_lat), lng: parseFloat(f.dest_lng || f.destino_lng), label: f.dest_cidade || f.destino_cidade || "Entrega" },
     }));
 
   return (
@@ -1720,6 +1720,7 @@ function MotoristaHome({ onNavigate }) {
         </div>
 
         <MapaLeaflet
+          key={`home-map-${rotasAtivas.length}-${posicaoAtual ? 1 : 0}`}
           lat={posicaoAtual?.lat}
           lng={posicaoAtual?.lng}
           height={rotasAtivas.length > 0 ? 220 : 180}
