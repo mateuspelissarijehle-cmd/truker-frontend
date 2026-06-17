@@ -1594,6 +1594,17 @@ function MotoristaHome({ onNavigate }) {
   const [filtroPeso, setFiltroPeso] = useState("todos");
   const [kmVazio, setKmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
+  const [ganhosDia, setGanhosDia] = useState(null);
+
+  // Busca km vazio real do dia
+  useEffect(() => {
+    api("GET", "/api/motoristas/ganhos", null, token)
+      .then(d => {
+        setGanhosDia(d);
+        setKmVazio(parseFloat(d.km_vazio_hoje || 0));
+      })
+      .catch(() => {});
+  }, [token]);
   const [posicaoAtual, setPosicaoAtual] = useState(null);
   const [fretesAtivos, setFretesAtivos] = useState([]);
   const posicaoRef = useRef(null);
@@ -1833,8 +1844,21 @@ function AceitarFreteScreen({ frete, onNavigate }) {
 
   const aceitar = async () => {
     setLoading(true); setError("");
-    try { await api("PATCH", `/api/fretes/${frete.id}/aceitar`, {}, token); onNavigate("home-motorista"); }
-    catch (e) { setError(e.message); }
+    try {
+      // Captura posição GPS para calcular km vazio
+      let lat = null, lng = null;
+      if (navigator.geolocation) {
+        try {
+          const pos = await new Promise((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
+          );
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch {} // GPS indisponível — aceita sem km_vazio
+      }
+      await api("PATCH", `/api/fretes/${frete.id}/aceitar`, { lat, lng }, token);
+      onNavigate("home-motorista");
+    } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
 
@@ -2120,7 +2144,7 @@ function PerfilMotorista({ onNavigate }) {
                 <div className="stat-card"><div className="stat-value">{ganhos?.total_fretes ?? "—"}</div><div className="stat-label">Fretes feitos</div></div>
                 <div className="stat-card"><div className="stat-value">{ganhos ? Number(ganhos.avaliacao_media).toFixed(1) : "—"}</div><div className="stat-label">Avaliação</div></div>
                 <div className="stat-card"><div className="stat-value">{ganhos ? formatKm(ganhos.km_carregado) : "—"}</div><div className="stat-label">Km carregado</div></div>
-                <div className="stat-card"><div className="stat-value">{formatKm(kmVazio)}</div><div className="stat-label">Km vazio</div></div>
+                <div className="stat-card"><div className="stat-value">{ganhos ? formatKm(ganhos.km_vazio_total || 0) : "—"}</div><div className="stat-label">Km vazio total</div></div>
               </div>
             )}
             <div className="card">
