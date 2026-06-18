@@ -1968,6 +1968,7 @@ function EmTransitoScreen({ frete, onNavigate }) {
   const [freteStatus, setFreteStatus] = useState(frete?.status);
   const [confirmStep, setConfirmStep] = useState(null);
   const [codigoDigitado, setCodigoDigitado] = useState("");
+  const [codigoTeste, setCodigoTeste] = useState(null);
   const [entregueOk, setEntregueOk] = useState(false);
 
   if (!frete) return <Loading />;
@@ -1985,8 +1986,9 @@ function EmTransitoScreen({ frete, onNavigate }) {
   const solicitarCodigo = async () => {
     setLoading(true); setError("");
     try {
-      await api("POST", `/api/fretes/${frete.id}/solicitar-codigo-entrega`, {}, token);
+      const resp = await api("POST", `/api/fretes/${frete.id}/solicitar-codigo-entrega`, {}, token);
       setConfirmStep("aguardando");
+      if (resp.codigo_teste) setCodigoTeste(resp.codigo_teste);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
@@ -2092,8 +2094,16 @@ function EmTransitoScreen({ frete, onNavigate }) {
         )}
         {freteStatus === "em_rota" && confirmStep === "aguardando" && (
           <div className="card" style={{ borderLeft: "4px solid var(--green)" }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>✉️ Código enviado!</div>
-            <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>O contratante recebeu o código por email. Digite abaixo:</p>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>✉️ Código gerado!</div>
+            <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 12 }}>
+              {codigoTeste ? "Email indisponível no modo teste. Use o código abaixo:" : "O contratante recebeu o código por email. Digite abaixo:"}
+            </p>
+            {codigoTeste && (
+              <div style={{ background: "rgba(201,168,76,0.1)", border: "1px dashed var(--gold)", borderRadius: 10, padding: "14px 12px", marginBottom: 14, textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🧪 Modo teste — mostre ao contratante</div>
+                <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: 14, color: "var(--text)", fontFamily: "monospace" }}>{codigoTeste}</div>
+              </div>
+            )}
             <div className="field">
               <label>Código de confirmação</label>
               <input type="text" inputMode="numeric" maxLength={6}
