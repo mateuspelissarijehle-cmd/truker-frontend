@@ -2703,6 +2703,7 @@ function DespesasTab() {
   const { token } = useAuth();
   const [despesas, setDespesas] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
   const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
   const tiposDespesa = [
@@ -2712,13 +2713,33 @@ function DespesasTab() {
     { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
     { id: "outro", icon: "📦", label: "Outro" },
   ];
+
+  useEffect(() => {
+    api("GET", "/api/motoristas/despesas", null, token)
+      .then(setDespesas).catch(() => {});
+  }, [token]);
+
   const total = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
-  const add = () => {
+
+  const add = async () => {
     if (!nova.valor) return;
-    setDespesas(d => [...d, { ...nova, id: Date.now() }]);
-    setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
-    setShowAdd(false);
+    setLoading(true);
+    try {
+      const salva = await api("POST", "/api/motoristas/despesas", nova, token);
+      setDespesas(d => [salva, ...d]);
+      setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+      setShowAdd(false);
+    } catch (e) { alert("Erro ao salvar: " + e.message); }
+    finally { setLoading(false); }
   };
+
+  const remover = async (id) => {
+    try {
+      await api("DELETE", `/api/motoristas/despesas/${id}`, null, token);
+      setDespesas(d => d.filter(x => x.id !== id));
+    } catch (e) { alert("Erro ao remover: " + e.message); }
+  };
+
   const handleNF = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -2730,6 +2751,7 @@ function DespesasTab() {
     else if (/pneu|borracharia/.test(nome)) tipo = "pneu";
     setNova(f => ({ ...f, tipo, descricao: file.name.replace(/\.[^.]+$/, "") }));
   };
+
   return (
     <>
       <div className="stat-card" style={{ textAlign: "center", marginBottom: 14 }}>
@@ -2755,7 +2777,7 @@ function DespesasTab() {
           </label>
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
-            <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add}>Salvar</button>
+            <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add} disabled={loading}>{loading ? "Salvando..." : "Salvar"}</button>
           </div>
         </div>
       )}
@@ -2773,9 +2795,10 @@ function DespesasTab() {
             <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(192,57,43,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{t.icon}</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: 14 }}>{t.label}</div>
-              <div style={{ fontSize: 12, color: "var(--text3)" }}>{d.descricao || "—"} · {d.data}</div>
+              <div style={{ fontSize: 12, color: "var(--text3)" }}>{d.descricao || "—"} · {d.data?.slice(0,10)}</div>
             </div>
             <div style={{ fontWeight: 700, color: "var(--red)", fontSize: 15 }}>-{formatMoney(d.valor)}</div>
+            <button onClick={() => remover(d.id)} style={{ background: "none", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 16, padding: 4 }}>🗑️</button>
           </div>
         );
       })}
@@ -3093,6 +3116,7 @@ function FinancasMotorista({ onNavigate }) {
   const [despesas, setDespesas] = useState([]);
   const [receitas, setReceitas] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
+  const [loadingAdd, setLoadingAdd] = useState(false);
   const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
   const [loadingReceitas, setLoadingReceitas] = useState(false);
   const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
@@ -3103,20 +3127,41 @@ function FinancasMotorista({ onNavigate }) {
     { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
     { id: "outro", icon: "📦", label: "Outro" },
   ];
+
+  // Carrega despesas do banco ao montar
+  useEffect(() => {
+    api("GET", "/api/motoristas/despesas", null, token)
+      .then(setDespesas).catch(() => {});
+  }, [token]);
+
   useEffect(() => {
     if (tab === "receitas" && receitas.length === 0) {
       setLoadingReceitas(true);
       api("GET", "/api/motoristas/extrato", null, token).then(d => setReceitas(Array.isArray(d) ? d : [])).catch(() => setReceitas([])).finally(() => setLoadingReceitas(false));
     }
   }, [tab]);
+
   const totalDespesas = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
   const totalReceitas = receitas.reduce((a, r) => a + Number(r.valor_motorista || 0), 0);
   const saldo = totalReceitas - totalDespesas;
-  const add = () => {
+
+  const add = async () => {
     if (!nova.valor) return;
-    setDespesas(d => [...d, { ...nova, id: Date.now() }]);
-    setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
-    setShowAdd(false);
+    setLoadingAdd(true);
+    try {
+      const salva = await api("POST", "/api/motoristas/despesas", nova, token);
+      setDespesas(d => [salva, ...d]);
+      setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+      setShowAdd(false);
+    } catch (e) { alert("Erro ao salvar: " + e.message); }
+    finally { setLoadingAdd(false); }
+  };
+
+  const remover = async (id) => {
+    try {
+      await api("DELETE", `/api/motoristas/despesas/${id}`, null, token);
+      setDespesas(d => d.filter(x => x.id !== id));
+    } catch (e) { alert("Erro ao remover: " + e.message); }
   };
   const handleNF = (e) => {
     const file = e.target.files[0]; if (!file) return;
@@ -3165,7 +3210,7 @@ function FinancasMotorista({ onNavigate }) {
                 </label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
-                  <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add}>Salvar</button>
+                  <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add} disabled={loadingAdd}>{loadingAdd ? "Salvando..." : "Salvar"}</button>
                 </div>
               </div>
             )}
@@ -3181,8 +3226,9 @@ function FinancasMotorista({ onNavigate }) {
               return (
                 <div key={d.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(192,57,43,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{t.icon}</div>
-                  <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}>{t.label}</div><div style={{ fontSize: 12, color: "var(--text3)" }}>{d.descricao || "—"} · {d.data}</div></div>
+                  <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}>{t.label}</div><div style={{ fontSize: 12, color: "var(--text3)" }}>{d.descricao || "—"} · {d.data?.slice(0,10)}</div></div>
                   <div style={{ fontWeight: 700, color: "var(--red)", fontSize: 15 }}>-{formatMoney(d.valor)}</div>
+                  <button onClick={() => remover(d.id)} style={{ background: "none", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 16, padding: 4 }}>🗑️</button>
                 </div>
               );
             })}
