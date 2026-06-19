@@ -572,12 +572,14 @@ function EsqueciSenhaScreen({ onNavigate }) {
   const [novaSenha, setNovaSenha] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [codigoTeste, setCodigoTeste] = useState(null);
 
   const enviarCodigo = async () => {
     if (!email) return setError("Digite seu email");
     setError(""); setLoading(true);
     try {
-      await api("POST", "/api/auth/esqueci-senha", { email });
+      const resp = await api("POST", "/api/auth/esqueci-senha", { email });
+      if (resp.codigo_teste) setCodigoTeste(resp.codigo_teste);
       setStep(2);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -611,6 +613,12 @@ function EsqueciSenhaScreen({ onNavigate }) {
       <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Recuperar senha</div>
       {step === 1 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Digite seu email para receber o código de recuperação.</p>}
       {step === 2 && <p style={{ color: "var(--text3)", fontSize: 14, marginBottom: 24 }}>Código enviado para <strong style={{ color: "var(--gold)" }}>{email}</strong>. Digite abaixo.</p>}
+      {step === 2 && codigoTeste && (
+        <div style={{ background: "rgba(201,168,76,0.1)", border: "1px dashed var(--gold)", borderRadius: 10, padding: "14px 12px", marginBottom: 14, textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🧪 Modo teste — email indisponível</div>
+          <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: 14, color: "var(--text)", fontFamily: "monospace" }}>{codigoTeste}</div>
+        </div>
+      )}
       {step === 3 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Defina sua nova senha.</p>}
       {step === 4 && (
         <div style={{ textAlign: "center", paddingTop: 20 }}>
@@ -676,7 +684,7 @@ function CadastroScreen({ onNavigate }) {
     setError(""); setLoading(true);
     try {
       const data = await api("POST", "/api/auth/cadastro", { ...form, tipo });
-      setPendingUser({ usuario: data.usuario, token: data.token });
+      setPendingUser({ usuario: data.usuario, token: data.token, codigo_teste: data.codigo_teste || null });
       setStep(99);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -695,8 +703,9 @@ function CadastroScreen({ onNavigate }) {
   const reenviarCodigo = async () => {
     setReenviando(true); setReenviadoMsg("");
     try {
-      await api("POST", "/api/auth/reenviar-codigo", { usuarioId: pendingUser.usuario.id });
+      const resp = await api("POST", "/api/auth/reenviar-codigo", { usuarioId: pendingUser.usuario.id });
       setReenviadoMsg("Novo código enviado!");
+      if (resp.codigo_teste) setPendingUser(u => ({ ...u, codigo_teste: resp.codigo_teste }));
     } catch (e) { setReenviadoMsg("Erro ao reenviar."); }
     finally { setReenviando(false); }
   };
@@ -714,6 +723,12 @@ function CadastroScreen({ onNavigate }) {
         </div>
         {error && <div className="alert alert-error">{error}</div>}
         {reenviadoMsg && <div className="alert alert-success">✅ {reenviadoMsg}</div>}
+        {pendingUser.codigo_teste && (
+          <div style={{ background: "rgba(201,168,76,0.1)", border: "1px dashed var(--gold)", borderRadius: 10, padding: "14px 12px", marginBottom: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🧪 Modo teste — email indisponível</div>
+            <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: 14, color: "var(--text)", fontFamily: "monospace" }}>{pendingUser.codigo_teste}</div>
+          </div>
+        )}
         <div className="field">
           <label>Código de verificação</label>
           <input
