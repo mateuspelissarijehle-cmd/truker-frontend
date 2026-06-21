@@ -2682,6 +2682,52 @@ function EmTransitoScreen({ frete, onNavigate }) {
   const [codigoDigitado, setCodigoDigitado] = useState("");
   const [codigoTeste, setCodigoTeste] = useState(null);
   const [entregueOk, setEntregueOk] = useState(false);
+  const [extrato, setExtrato] = useState(null);
+  const [loadingExtrato, setLoadingExtrato] = useState(true);
+  const [showAddDespesa, setShowAddDespesa] = useState(false);
+  const [novaDespesa, setNovaDespesa] = useState({ tipo: "pedagio", descricao: "", valor: "" });
+  const [salvandoDespesa, setSalvandoDespesa] = useState(false);
+
+  const tiposDespesaFrete = [
+    { id: "pedagio", icon: "🛣️", label: "Pedágio" },
+    { id: "alimentacao", icon: "🍽️", label: "Alimentação" },
+    { id: "hospedagem", icon: "🏨", label: "Pernoite" },
+    { id: "outro", icon: "📦", label: "Outro" },
+  ];
+
+  const carregarExtrato = () => {
+    if (!frete?.id) return;
+    setLoadingExtrato(true);
+    api("GET", `/api/fretes/${frete.id}/extrato`, null, token)
+      .then(setExtrato)
+      .catch(() => setExtrato(null))
+      .finally(() => setLoadingExtrato(false));
+  };
+
+  useEffect(() => { carregarExtrato(); }, [frete?.id]);
+
+  const adicionarDespesa = async () => {
+    if (!novaDespesa.valor) return;
+    setSalvandoDespesa(true);
+    try {
+      await api("POST", "/api/motoristas/despesas", {
+        ...novaDespesa,
+        data: new Date().toISOString().slice(0, 10),
+        freteId: frete.id,
+      }, token);
+      setNovaDespesa({ tipo: "pedagio", descricao: "", valor: "" });
+      setShowAddDespesa(false);
+      carregarExtrato();
+    } catch (e) { setError(e.message); }
+    finally { setSalvandoDespesa(false); }
+  };
+
+  const removerDespesa = async (id) => {
+    try {
+      await api("DELETE", `/api/motoristas/despesas/${id}`, null, token);
+      carregarExtrato();
+    } catch (e) { setError(e.message); }
+  };
 
   if (!frete) return <Loading />;
 
@@ -2778,6 +2824,76 @@ function EmTransitoScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">💰 Extrato Financeiro do Frete</div>
+          {loadingExtrato && <Loading />}
+          {!loadingExtrato && !extrato && (
+            <p style={{ fontSize: 13, color: "#666" }}>Não foi possível carregar o extrato agora.</p>
+          )}
+          {!loadingExtrato && extrato && (
+            <>
+              <div className="info-row"><span className="info-label">Valor a receber</span><span className="info-value" style={{ color: "var(--green)", fontWeight: 800 }}>{formatMoney(extrato.valorReceber)}</span></div>
+              <div className="divider" />
+              <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Custos estimados (dados oficiais ANTT)</div>
+              <div className="info-row"><span className="info-label">⛽ Combustível</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(extrato.custosAutomaticos.combustivel)}</span></div>
+              <div className="info-row"><span className="info-label">🔧 Desgaste do veículo</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(extrato.custosAutomaticos.desgaste)}</span></div>
+
+              {extrato.despesasManuais.length > 0 && (
+                <>
+                  <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, margin: "10px 0 6px" }}>Despesas lançadas por você</div>
+                  {extrato.despesasManuais.map(d => {
+                    const tipoObj = tiposDespesaFrete.find(t => t.id === d.tipo) || { icon: "📦", label: d.tipo };
+                    return (
+                      <div key={d.id} className="info-row">
+                        <span className="info-label">{tipoObj.icon} {tipoObj.label}{d.descricao ? ` — ${d.descricao}` : ""}</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(d.valor)}</span>
+                          <span onClick={() => removerDespesa(d.id)} style={{ cursor: "pointer", color: "var(--text3)", fontSize: 13 }}>✕</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              <div className="divider" />
+              <div className="info-row"><span className="info-label">Total de custos</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(extrato.totalCustos)}</span></div>
+              <div className="info-row"><span className="info-label" style={{ fontWeight: 800 }}>Valor líquido estimado</span><span className="info-value" style={{ color: extrato.valorLiquido >= 0 ? "var(--green)" : "var(--red)", fontWeight: 800, fontSize: 16 }}>{formatMoney(extrato.valorLiquido)}</span></div>
+
+              {!showAddDespesa ? (
+                <button className="btn btn-secondary btn-sm" style={{ marginTop: 12 }} onClick={() => setShowAddDespesa(true)}>+ Lançar despesa deste frete</button>
+              ) : (
+                <div style={{ marginTop: 12, padding: 12, background: "var(--surface2)", borderRadius: 10 }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
+                    {tiposDespesaFrete.map(t => (
+                      <button key={t.id} onClick={() => setNovaDespesa(d => ({ ...d, tipo: t.id }))}
+                        style={{ padding: "6px 10px", borderRadius: 16, border: "1px solid", borderColor: novaDespesa.tipo === t.id ? "var(--gold)" : "var(--border)", background: novaDespesa.tipo === t.id ? "var(--gold)" : "var(--surface)", color: novaDespesa.tipo === t.id ? "#fff" : "var(--text2)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                        {t.icon} {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="field">
+                    <label>Valor (R$)</label>
+                    <input type="number" step="0.01" value={novaDespesa.valor} onChange={e => setNovaDespesa(d => ({ ...d, valor: e.target.value }))} placeholder="0,00" />
+                  </div>
+                  <div className="field">
+                    <label>Descrição (opcional)</label>
+                    <input value={novaDespesa.descricao} onChange={e => setNovaDespesa(d => ({ ...d, descricao: e.target.value }))} placeholder="Ex: Posto BR km 120" />
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn btn-primary btn-sm" onClick={adicionarDespesa} disabled={salvandoDespesa}>{salvandoDespesa ? "Salvando..." : "Salvar"}</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setShowAddDespesa(false)}>Cancelar</button>
+                  </div>
+                </div>
+              )}
+
+              <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 10 }}>
+                Combustível e desgaste são estimativas com base nos coeficientes oficiais da ANTT por eixo do veículo. Pedágio, alimentação e pernoite refletem exatamente o que você lançar aqui.
+              </p>
+            </>
+          )}
         </div>
         <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat com Contratante</button>
         {freteStatus === "aceito" && frete.status_pagamento === "approved" && (
