@@ -1100,6 +1100,8 @@ function AdminUsuarios({ onNavigate }) {
   const [msg, setMsg] = useState("");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [novoPerfilVeiculo, setNovoPerfilVeiculo] = useState("truck");
+  const [novoPerfilPlaca, setNovoPerfilPlaca] = useState("");
 
   const buscar = async () => {
     setLoadingBusca(true);
@@ -1196,6 +1198,19 @@ function AdminUsuarios({ onNavigate }) {
       await api("DELETE", `/api/admin/usuarios/${selecionado}`, null, token);
       fechar();
       buscar();
+    } catch (e) { setErro(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const criarPerfilMotorista = async () => {
+    setSalvando(true); setMsg(""); setErro("");
+    try {
+      await api("POST", `/api/admin/usuarios/${selecionado}/criar-perfil-motorista`, {
+        tipoVeiculo: novoPerfilVeiculo,
+        placaVeiculo: novoPerfilPlaca || null,
+      }, token);
+      setMsg("✅ Perfil de motorista criado com sucesso");
+      await abrirUsuario(selecionado); // recarrega para mostrar os novos cards
     } catch (e) { setErro(e.message); }
     finally { setSalvando(false); }
   };
@@ -1316,6 +1331,29 @@ function AdminUsuarios({ onNavigate }) {
                     {salvando ? "Salvando..." : "Definir Nova Senha"}
                   </button>
                 </div>
+
+                {form.tipo === "motorista" && !detalhe.motorista && (
+                  <div className="card" style={{ borderColor: "var(--red)", borderWidth: 2 }}>
+                    <div className="card-title">⚠️ Perfil de Motorista Ausente</div>
+                    <p style={{ fontSize: 13, color: "#666", marginBottom: 12 }}>
+                      Este usuário é do tipo motorista, mas não tem um perfil correspondente na tabela de motoristas.
+                      Isso impede aceitar fretes, propor valores e aparecer como online. Crie o perfil para corrigir.
+                    </p>
+                    <div className="field">
+                      <label>Tipo de veículo</label>
+                      <select value={novoPerfilVeiculo} onChange={e => setNovoPerfilVeiculo(e.target.value)}>
+                        {TIPOS_VEICULO.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Placa (opcional)</label>
+                      <input value={novoPerfilPlaca} onChange={e => setNovoPerfilPlaca(e.target.value)} placeholder="ABC1D23" />
+                    </div>
+                    <button className="btn btn-primary" onClick={criarPerfilMotorista} disabled={salvando}>
+                      {salvando ? "Criando..." : "🔧 Criar Perfil de Motorista"}
+                    </button>
+                  </div>
+                )}
 
                 {detalhe.motorista && (
                   <div className="card">
