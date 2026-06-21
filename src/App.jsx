@@ -2360,6 +2360,11 @@ function MotoristaHome({ onNavigate }) {
                 <div style={{ textAlign: "right" }}>
                   <div className="price">{formatMoney(f.valor_motorista || 0)}</div>
                   <div style={{ fontSize: 11, color: "#555" }}>motorista</div>
+                  {f.valorLiquidoEstimado != null && (
+                    <div style={{ fontSize: 11, color: f.valorLiquidoEstimado >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700, marginTop: 2 }}>
+                      ≈ {formatMoney(f.valorLiquidoEstimado)} líquido
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="uber-card-footer">
@@ -2460,6 +2465,25 @@ function AceitarFreteScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
           <div className="info-row"><span className="info-label">Veículo necessário</span><span className="info-value">{frete.tipo_veiculo}</span></div>
         </div>
+
+        {frete.custosEstimados && (
+          <div className="card">
+            <div className="card-title">💰 Estimativa antes de decidir</div>
+            <div className="info-row"><span className="info-label">⛽ Combustível estimado</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(frete.custosEstimados.combustivel)}</span></div>
+            <div className="info-row"><span className="info-label">🔧 Desgaste estimado</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(frete.custosEstimados.desgaste)}</span></div>
+            <div className="divider" />
+            <div className="info-row">
+              <span className="info-label" style={{ fontWeight: 700 }}>Líquido estimado (valor publicado)</span>
+              <span className="info-value" style={{ color: frete.valorLiquidoEstimado >= 0 ? "var(--green)" : "var(--red)", fontWeight: 800, fontSize: 16 }}>
+                {formatMoney(frete.valorLiquidoEstimado)}
+              </span>
+            </div>
+            <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 8 }}>
+              Combustível e desgaste calculados com base nos coeficientes oficiais da ANTT para o veículo do seu perfil. Pedágio, alimentação e pernoite não estão incluídos aqui — você lança o valor real durante a viagem.
+            </p>
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
           {frete.precisa_munck && <span className="tag-chip">🏗️ Precisa Munck</span>}
           {frete.precisa_empilhadeira && <span className="tag-chip">🏭 Empilhadeira no pátio</span>}
@@ -2483,6 +2507,16 @@ function AceitarFreteScreen({ frete, onNavigate }) {
               <label>Valor proposto (total do frete, R$)</label>
               <input type="number" step="0.01" placeholder={String(frete.valor_final || frete.valor_antt || "")} value={valorProposta} onChange={e => setValorProposta(e.target.value)} />
             </div>
+            {frete.totalCustosEstimados != null && valorProposta && !isNaN(parseFloat(String(valorProposta).replace(",", "."))) && (() => {
+              const valorTotal = parseFloat(String(valorProposta).replace(",", "."));
+              const seuTake = valorTotal * 0.90; // 90% após comissão da plataforma (10%)
+              const liquidoProposta = seuTake - frete.totalCustosEstimados;
+              return (
+                <div className="alert alert-info" style={{ fontSize: 12 }}>
+                  Se aceito: você recebe ≈ {formatMoney(seuTake)} (após comissão) − {formatMoney(frete.totalCustosEstimados)} (combustível+desgaste) = <strong>{formatMoney(liquidoProposta)} líquido estimado</strong>
+                </div>
+              );
+            })()}
             <button className="btn btn-primary" onClick={enviarProposta} disabled={loading} style={{ marginBottom: 10 }}>{loading ? "Enviando..." : "📨 Enviar Proposta"}</button>
             <button className="btn btn-secondary" onClick={() => setPropondoValor(false)}>Cancelar</button>
           </div>
@@ -3610,6 +3644,9 @@ function DespesasTab() {
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, fontSize: 14 }}>{t.label}</div>
               <div style={{ fontSize: 12, color: "var(--text3)" }}>{d.descricao || "—"} · {d.data?.slice(0,10)}</div>
+              {d.origem_cidade && (
+                <div style={{ fontSize: 11, color: "var(--gold)", marginTop: 2, fontWeight: 600 }}>🚛 {d.origem_cidade} → {d.dest_cidade}</div>
+              )}
             </div>
             <div style={{ fontWeight: 700, color: "var(--red)", fontSize: 15 }}>-{formatMoney(d.valor)}</div>
             <button onClick={() => remover(d.id)} style={{ background: "none", border: "none", color: "var(--text3)", cursor: "pointer", fontSize: 16, padding: 4 }}>🗑️</button>
