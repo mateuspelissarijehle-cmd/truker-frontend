@@ -166,6 +166,11 @@ function AuthProvider({ children }) {
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Corrige frestas (seams) entre os tiles do mapa Leaflet — bug conhecido de
+     arredondamento de subpixel ao usar fitBounds/zoom. Tiles levemente maiores
+     cobrem a fresta; fundo claro evita que ela apareça escura quando visível. */
+  .leaflet-tile { width: 257px !important; height: 257px !important; }
+  .leaflet-container { background: #EFE9DC !important; }
   :root {
     --orange: #C9A84C; --orange-dark: #A8873A; --orange-light: rgba(201,168,76,0.12);
     --gold: #C9A84C; --gold-dark: #A8873A; --gold-light: rgba(201,168,76,0.12);
@@ -452,7 +457,7 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
   }, [lat, lng]);
 
   return (
-    <div ref={divRef} style={{ width: "100%", height: `${height}px`, borderRadius: 12, overflow: "hidden", position: "relative", zIndex: 1, background: "#1C1C1C" }} />
+    <div ref={divRef} style={{ width: "100%", height: `${height}px`, borderRadius: 12, overflow: "hidden", position: "relative", zIndex: 1, background: "#EFE9DC" }} />
   );
 }
 function PasswordInput({ value, onChange, placeholder }) {
