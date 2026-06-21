@@ -6,6 +6,7 @@ import { useState, useEffect, createContext, useContext, useRef } from "react";
 const API_BASE = "https://truker-app-production.up.railway.app";
 const ADMIN_EMAIL = "admin@truker.app";
 const ADMIN_SENHA = "truker2024";
+const ADMIN_TOKEN = "08c427d2ef6a13f5ef4371b164e337902a766b4e66c57342ab899711e6d7e071";
 const VAPID_PUBLIC_KEY = "BPXxf7PJkl_WSVBkmMFljhbNEZfZs61C7aPrPkL48U_Nk7T4OYOny6vPSJX6ny03qzdO4LvuvSP5sCg9u5JAFLg";
 
 // ─── Registrar Service Worker e assinar push ──────────────────
@@ -532,7 +533,7 @@ function LoginScreen({ onNavigate }) {
     setError("");
     if (!form.email || !form.senha) return setError("Preencha todos os campos");
     if (form.email === ADMIN_EMAIL && form.senha === ADMIN_SENHA) {
-      login({ nome: "Admin Master", email: ADMIN_EMAIL, tipo: "admin" }, "admin-token-truker-2024");
+      login({ nome: "Admin Master", email: ADMIN_EMAIL, tipo: "admin" }, ADMIN_TOKEN);
       return;
     }
     setLoading(true);
@@ -883,7 +884,7 @@ function AdminLoginScreen({ onNavigate }) {
 
   const handle = () => {
     if (form.email === ADMIN_EMAIL && form.senha === ADMIN_SENHA) {
-      login({ nome: "Admin Master", email: ADMIN_EMAIL, tipo: "admin" }, "admin-token-truker-2024");
+      login({ nome: "Admin Master", email: ADMIN_EMAIL, tipo: "admin" }, ADMIN_TOKEN);
     } else {
       setError("Credenciais incorretas");
     }
@@ -948,6 +949,10 @@ function AdminDashboard({ onNavigate }) {
             <button key={id} className={`tab-btn ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
+
+        <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-usuarios")}>
+          🔧 Gerenciar Usuários (Master)
+        </button>
 
         {loadingStats && <Loading />}
 
@@ -1072,6 +1077,299 @@ function AdminDashboard({ onNavigate }) {
         )}
 
         <button className="btn btn-danger" style={{ marginTop: 8 }} onClick={logout}>Sair do Admin</button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ADMIN — GESTÃO MASTER DE USUÁRIOS
+// ─────────────────────────────────────────────
+function AdminUsuarios({ onNavigate }) {
+  const { token } = useAuth();
+  const [busca, setBusca] = useState("");
+  const [resultados, setResultados] = useState([]);
+  const [loadingBusca, setLoadingBusca] = useState(false);
+  const [selecionado, setSelecionado] = useState(null);
+  const [detalhe, setDetalhe] = useState(null);
+  const [loadingDetalhe, setLoadingDetalhe] = useState(false);
+  const [form, setForm] = useState({});
+  const [formVeiculo, setFormVeiculo] = useState({});
+  const [novaSenha, setNovaSenha] = useState("");
+  const [msg, setMsg] = useState("");
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  const buscar = async () => {
+    setLoadingBusca(true);
+    setErro("");
+    try {
+      const data = await api("GET", `/api/admin/usuarios?busca=${encodeURIComponent(busca)}`, null, token);
+      setResultados(data);
+    } catch (e) { setErro(e.message); }
+    finally { setLoadingBusca(false); }
+  };
+
+  useEffect(() => { buscar(); }, []);
+
+  const abrirUsuario = async (id) => {
+    setSelecionado(id);
+    setLoadingDetalhe(true);
+    setMsg(""); setErro(""); setNovaSenha("");
+    try {
+      const data = await api("GET", `/api/admin/usuarios/${id}`, null, token);
+      setDetalhe(data);
+      setForm(data.usuario || {});
+      setFormVeiculo(data.motorista || {});
+    } catch (e) { setErro(e.message); }
+    finally { setLoadingDetalhe(false); }
+  };
+
+  const fechar = () => {
+    setSelecionado(null); setDetalhe(null); setForm({}); setFormVeiculo({});
+    setNovaSenha(""); setMsg(""); setErro("");
+  };
+
+  const salvarDados = async () => {
+    setSalvando(true); setMsg(""); setErro("");
+    try {
+      const { id, criado_em, ...campos } = form;
+      const data = await api("PATCH", `/api/admin/usuarios/${selecionado}`, campos, token);
+      setForm(data.usuario);
+      setMsg("✅ Dados cadastrais atualizados");
+      buscar();
+    } catch (e) { setErro(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const salvarVeiculo = async () => {
+    if (!detalhe?.motorista) return;
+    setSalvando(true); setMsg(""); setErro("");
+    try {
+      const { id, online, status, ...campos } = formVeiculo;
+      const data = await api("PATCH", `/api/admin/motoristas/${detalhe.motorista.id}`, campos, token);
+      setFormVeiculo(data.motorista);
+      setMsg("✅ Dados do veículo atualizados");
+    } catch (e) { setErro(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const trocarSenha = async () => {
+    if (!novaSenha || novaSenha.length < 6) return setErro("A senha deve ter pelo menos 6 caracteres");
+    setSalvando(true); setMsg(""); setErro("");
+    try {
+      await api("PATCH", `/api/admin/usuarios/${selecionado}/senha`, { novaSenha }, token);
+      setMsg("✅ Senha redefinida com sucesso");
+      setNovaSenha("");
+    } catch (e) { setErro(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const forcarOffline = async () => {
+    if (!detalhe?.motorista) return;
+    setSalvando(true); setMsg(""); setErro("");
+    try {
+      await api("PATCH", `/api/admin/motoristas/${detalhe.motorista.id}/status`, { online: false }, token);
+      setFormVeiculo({ ...formVeiculo, online: false });
+      setMsg("✅ Motorista forçado para offline");
+    } catch (e) { setErro(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const alternarStatus = async () => {
+    if (!detalhe?.motorista) return;
+    const novoStatus = formVeiculo.status === "bloqueado" ? "ativo" : "bloqueado";
+    setSalvando(true); setMsg(""); setErro("");
+    try {
+      await api("PATCH", `/api/admin/motoristas/${detalhe.motorista.id}/status`, { status: novoStatus }, token);
+      setFormVeiculo({ ...formVeiculo, status: novoStatus });
+      setMsg(novoStatus === "bloqueado" ? "🚫 Motorista bloqueado" : "✅ Motorista desbloqueado");
+    } catch (e) { setErro(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const excluirUsuario = async () => {
+    if (!window.confirm(`Excluir permanentemente "${form.nome}"? Esta ação não pode ser desfeita.`)) return;
+    setSalvando(true); setMsg(""); setErro("");
+    try {
+      await api("DELETE", `/api/admin/usuarios/${selecionado}`, null, token);
+      fechar();
+      buscar();
+    } catch (e) { setErro(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const campo = (label, key, tipo = "text") => (
+    <div className="field">
+      <label>{label}</label>
+      <input
+        type={tipo}
+        value={form[key] || ""}
+        onChange={e => setForm({ ...form, [key]: e.target.value })}
+      />
+    </div>
+  );
+
+  const campoVeiculo = (label, key, tipo = "text") => (
+    <div className="field">
+      <label>{label}</label>
+      <input
+        type={tipo}
+        value={formVeiculo[key] || ""}
+        onChange={e => setFormVeiculo({ ...formVeiculo, [key]: e.target.value })}
+      />
+    </div>
+  );
+
+  return (
+    <div className="screen">
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate("admin-dashboard")}>← Voltar</button>
+        <h1>Gestão Master de Usuários</h1>
+        <div className="badge badge-admin" style={{ marginLeft: "auto" }}>ADMIN</div>
+      </div>
+      <div className="content">
+        {!selecionado && (
+          <>
+            <div className="card">
+              <div className="card-title">Buscar usuário</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  style={{ flex: 1, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", color: "var(--text)", fontSize: 15 }}
+                  placeholder="Nome, email ou CPF/CNPJ"
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && buscar()}
+                />
+                <button className="btn btn-primary" style={{ width: "auto", padding: "0 20px" }} onClick={buscar} disabled={loadingBusca}>
+                  {loadingBusca ? "..." : "🔍"}
+                </button>
+              </div>
+            </div>
+
+            {erro && <div className="alert alert-error">{erro}</div>}
+
+            {loadingBusca && <Loading />}
+
+            {!loadingBusca && resultados.length === 0 && (
+              <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>Nenhum usuário encontrado</div>
+            )}
+
+            {!loadingBusca && resultados.map(u => (
+              <div key={u.id} className="card" style={{ cursor: "pointer" }} onClick={() => abrirUsuario(u.id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>
+                      {u.motorista_id && (u.online ? <span className="online-dot" /> : <span className="offline-dot" />)}
+                      {u.nome}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#666" }}>{u.email}</div>
+                    <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{u.telefone || "sem telefone"} {u.cidade ? `· ${u.cidade}/${u.uf}` : ""}</div>
+                  </div>
+                  <span className={`badge ${u.tipo === "motorista" ? "badge-active" : "badge-pending"}`}>{u.tipo}</span>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+
+        {selecionado && (
+          <>
+            <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={fechar}>← Voltar à busca</button>
+
+            {loadingDetalhe && <Loading />}
+
+            {!loadingDetalhe && detalhe && (
+              <>
+                {msg && <div className="alert alert-success">{msg}</div>}
+                {erro && <div className="alert alert-error">{erro}</div>}
+
+                <div className="card">
+                  <div className="card-title">Dados Cadastrais</div>
+                  {campo("Nome", "nome")}
+                  {campo("Email", "email", "email")}
+                  {campo("Telefone", "telefone")}
+                  {campo("CPF/CNPJ", "cpf_cnpj")}
+                  {campo("CEP", "cep")}
+                  {campo("Logradouro", "logradouro")}
+                  {campo("Número", "numero")}
+                  {campo("Complemento", "complemento")}
+                  {campo("Bairro", "bairro")}
+                  {campo("Cidade", "cidade")}
+                  {campo("UF", "uf")}
+                  {form.tipo === "contratante" && (
+                    <>
+                      {campo("Nome da empresa", "nome_empresa")}
+                      {campo("Inscrição Estadual", "inscricao_estadual")}
+                    </>
+                  )}
+                  <button className="btn btn-primary" onClick={salvarDados} disabled={salvando}>
+                    {salvando ? "Salvando..." : "💾 Salvar Dados Cadastrais"}
+                  </button>
+                </div>
+
+                <div className="card">
+                  <div className="card-title">🔑 Redefinir Senha</div>
+                  <PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Nova senha (mín. 6 caracteres)" />
+                  <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={trocarSenha} disabled={salvando}>
+                    {salvando ? "Salvando..." : "Definir Nova Senha"}
+                  </button>
+                </div>
+
+                {detalhe.motorista && (
+                  <div className="card">
+                    <div className="card-title">Dados do Veículo / CNH</div>
+                    {campoVeiculo("Número CNH", "cnh_numero")}
+                    {campoVeiculo("Categoria CNH", "cnh_categoria")}
+                    {campoVeiculo("Validade CNH", "cnh_validade", "date")}
+                    {campoVeiculo("RNTRC", "rntrc")}
+                    {campoVeiculo("Tipo de veículo", "tipo_veiculo")}
+                    {campoVeiculo("Tipo de carreta", "tipo_carreta")}
+                    {campoVeiculo("Marca", "marca_veiculo")}
+                    {campoVeiculo("Modelo", "modelo_veiculo")}
+                    {campoVeiculo("Placa", "placa_veiculo")}
+                    {campoVeiculo("Ano", "ano_veiculo", "number")}
+                    {campoVeiculo("Renavam", "renavam")}
+                    {campoVeiculo("Tara (kg)", "tara_kg", "number")}
+                    {campoVeiculo("Capacidade (t)", "capacidade_tons", "number")}
+                    <button className="btn btn-primary" onClick={salvarVeiculo} disabled={salvando}>
+                      {salvando ? "Salvando..." : "💾 Salvar Dados do Veículo"}
+                    </button>
+                  </div>
+                )}
+
+                {detalhe.motorista && (
+                  <div className="card">
+                    <div className="card-title">Status do Motorista</div>
+                    <div className="info-row">
+                      <span className="info-label">Online agora</span>
+                      <span className="info-value">{formVeiculo.online ? "🟢 Online" : "⚪ Offline"}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="info-label">Status</span>
+                      <span className="info-value">{formVeiculo.status === "bloqueado" ? "🚫 Bloqueado" : "✅ Ativo"}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      {formVeiculo.online && (
+                        <button className="btn btn-secondary" onClick={forcarOffline} disabled={salvando}>Forçar Offline</button>
+                      )}
+                      <button className="btn btn-secondary" onClick={alternarStatus} disabled={salvando}>
+                        {formVeiculo.status === "bloqueado" ? "Desbloquear" : "Bloquear"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="card">
+                  <div className="card-title">⚠️ Zona de Risco</div>
+                  <button className="btn btn-danger" onClick={excluirUsuario} disabled={salvando}>
+                    🗑️ Excluir Usuário Permanentemente
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -3625,6 +3923,7 @@ function Router() {
     case "login-admin": return <AdminLoginScreen {...p} />;
     case "esqueci-senha": return <EsqueciSenhaScreen {...p} />;
     case "admin-dashboard": return <AdminDashboard {...p} />;
+    case "admin-usuarios": return <AdminUsuarios {...p} />;
     case "home-contratante": return <ContratanteHome {...p} />;
     case "solicitar-frete": return <SolicitarFreteScreen {...p} />;
     case "meus-fretes": return <MeusFretes {...p} />;
