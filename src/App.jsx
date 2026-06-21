@@ -106,14 +106,15 @@ const TIPOS_FRETE = [
   { id: "internacional", label: "Internacional", icon: "🌎", desc: "Cruzando fronteiras" },
 ];
 
-// Mapeamento frontend → backend (ANTT só aceita categorias básicas)
+// Mapeamento frontend → categoria oficial ANTT (Tabela A, Resolução 5.867/2020 + Portaria SUROC 4/2026)
+// Categorias disponíveis: geral, frigorificado, perigoso, granel_liquido, granel_solido, neogranel, conteinerizado, granel_pressurizado
 const CARGA_BACKEND_MAP = {
-  carga_seca: "geral", graneleiro: "geral", refrigerada: "frigorificado",
+  carga_seca: "geral", graneleiro: "granel_solido", refrigerada: "frigorificado",
   frigorifico: "frigorificado", mudanca: "geral", carga_viva: "geral",
-  liquidos: "geral", inflamavel: "perigoso", perigosa: "perigoso",
+  liquidos: "granel_liquido", inflamavel: "perigoso", perigosa: "perigoso",
   farmaceutico: "geral", eletronicos: "geral", alimentos: "geral",
-  bebidas: "geral", construcao: "geral", maquinario: "geral",
-  superdimensionado: "geral", residuos: "geral", veiculos: "geral",
+  bebidas: "geral", construcao: "granel_solido", maquinario: "geral",
+  superdimensionado: "geral", residuos: "granel_solido", veiculos: "geral",
   classificados: "geral", madeira: "geral",
 };
 
@@ -1033,7 +1034,7 @@ function AdminDashboard({ onNavigate }) {
               <div key={f.id} className="card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                   <StatusFreteTag status={f.status} />
-                  <span className="price" style={{ fontSize: 16 }}>{formatMoney(f.valor_antt)}</span>
+                  <span className="price" style={{ fontSize: 16 }}>{formatMoney(f.valor_final || f.valor_antt)}</span>
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{f.origem_cidade} → {f.dest_cidade}</div>
                 <div style={{ fontSize: 12, color: "#666" }}>
@@ -1420,7 +1421,7 @@ function ContratanteHome({ onNavigate }) {
           <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <StatusBadge status={f.status} />
-              <div className="price">{formatMoney(f.valor_antt || f.valor_final || f.valor_motorista || 0)}</div>
+              <div className="price">{formatMoney(f.valor_final || f.valor_antt || f.valor_motorista || 0)}</div>
             </div>
             <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
             <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
@@ -1453,6 +1454,7 @@ function SolicitarFreteScreen({ onNavigate }) {
     destBairro:"", destCidade:"", destUF:"",
   });
   const [calc, setCalc] = useState(null);
+  const [valorEditavel, setValorEditavel] = useState("");
   const [loading, setLoading] = useState(false);
   const [calcLoading, setCalcLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1507,7 +1509,9 @@ function SolicitarFreteScreen({ onNavigate }) {
     const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
     try {
       const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(origem)}&destino=${encodeURIComponent(dest)}&peso=${(Number(form.pesoKg)||1000)/1000}&veiculo=${form.tipoVeiculo}&carga=${cargaBackend}`, null, token);
-      setCalc({ distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracao, valor: data.frete?.valorAntt || data.frete?.valorFinal });
+      const pisoMinimo = data.frete?.pisoMinimo || data.frete?.valorAntt || 0;
+      setCalc({ distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracao, pisoMinimo });
+      setValorEditavel(pisoMinimo.toFixed(2));
       setStep(3);
     } catch (e) { setError(e.message); }
     finally { setCalcLoading(false); }
@@ -1515,6 +1519,10 @@ function SolicitarFreteScreen({ onNavigate }) {
 
   const solicitar = async () => {
     if (!calc) return;
+    const valorNum = parseFloat(String(valorEditavel).replace(",", "."));
+    if (!valorNum || valorNum < calc.pisoMinimo) {
+      return setError(`O valor não pode ser menor que o piso mínimo ANTT (${formatMoney(calc.pisoMinimo)})`);
+    }
     setLoading(true); setError("");
     const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
     try {
@@ -1523,7 +1531,7 @@ function SolicitarFreteScreen({ onNavigate }) {
         pesoTons: (Number(form.pesoKg)||1000)/1000,
         origemEndereco: composeAddr("origem", addr), origemCidade: addr.origemCidade, origemEstado: addr.origemUF,
         destEndereco: composeAddr("dest", addr), destCidade: addr.destCidade, destEstado: addr.destUF,
-        distanciaKm: calc?.distancia_km, valorAntt: calc?.valor,
+        valorProposto: valorNum,
       }, token);
       setSuccess(true);
       setTimeout(() => onNavigate("meus-fretes"), 2000);
@@ -1666,11 +1674,32 @@ function SolicitarFreteScreen({ onNavigate }) {
               <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{form.pesoKg} kg</span></div>
               <div className="divider" />
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Valor estimado (tabela ANTT)</div>
-                <div className="price" style={{ fontSize: 36 }}>{formatMoney(calc.valor)}</div>
+                <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Piso mínimo legal (Tabela ANTT)</div>
+                <div className="price" style={{ fontSize: 28, color: "var(--text3)" }}>{formatMoney(calc.pisoMinimo)}</div>
               </div>
             </div>
-            <button className="btn btn-primary" onClick={solicitar} disabled={loading} style={{ marginBottom: 10 }}>{loading ? "Publicando frete..." : "🚛 Publicar Frete"}</button>
+            <div className="card">
+              <div className="card-title">💰 Defina o valor do frete</div>
+              <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+                Você pode oferecer o piso mínimo ou um valor maior para atrair motoristas mais rápido. O valor não pode ficar abaixo do piso legal.
+              </p>
+              <div className="field">
+                <label>Valor do frete (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min={calc.pisoMinimo}
+                  value={valorEditavel}
+                  onChange={e => setValorEditavel(e.target.value)}
+                />
+              </div>
+              {parseFloat(String(valorEditavel).replace(",", ".")) < calc.pisoMinimo && (
+                <div className="alert alert-error" style={{ marginBottom: 0 }}>
+                  ⚠️ Valor abaixo do piso mínimo ANTT ({formatMoney(calc.pisoMinimo)})
+                </div>
+              )}
+            </div>
+            <button className="btn btn-primary" onClick={solicitar} disabled={loading || parseFloat(String(valorEditavel).replace(",", ".")) < calc.pisoMinimo} style={{ marginBottom: 10 }}>{loading ? "Publicando frete..." : "🚛 Publicar Frete"}</button>
             <button className="btn btn-secondary" onClick={() => setStep(2)}>← Editar</button>
           </>
         )}
@@ -1700,7 +1729,7 @@ function MeusFretes({ onNavigate }) {
     return true;
   });
 
-  const totalGasto = fretes.filter(f => f.status === "entregue").reduce((a, f) => a + Number(f.valor_antt || 0), 0);
+  const totalGasto = fretes.filter(f => f.status === "entregue").reduce((a, f) => a + Number(f.valor_final || f.valor_antt || 0), 0);
 
   return (
     <div className="screen">
@@ -1733,8 +1762,8 @@ function MeusFretes({ onNavigate }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                 <StatusBadge status={f.status} />
                 <div style={{ textAlign: "right" }}>
-                  <div className="price" style={{ fontSize: 18 }}>{formatMoney(f.valor_antt || f.valor_final || 0)}</div>
-                  <div style={{ fontSize: 10, color: "var(--text3)" }}>ANTT</div>
+                  <div className="price" style={{ fontSize: 18 }}>{formatMoney(f.valor_final || f.valor_antt || 0)}</div>
+                  <div style={{ fontSize: 10, color: "var(--text3)" }}>valor do frete</div>
                 </div>
               </div>
               <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
@@ -1780,7 +1809,7 @@ function DetalheFrete({ frete, onNavigate }) {
         {error && <div className="alert alert-error">{error}</div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <StatusBadge status={frete.status} />
-          <div className="price">{formatMoney(frete.valor_antt || frete.valor_final || 0)}</div>
+          <div className="price">{formatMoney(frete.valor_final || frete.valor_antt || 0)}</div>
         </div>
         <div className="card">
           <div className="card-title">Rota</div>
@@ -1811,15 +1840,158 @@ function DetalheFrete({ frete, onNavigate }) {
           </div>
         )}
         {frete.status === "entregue" && <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => onNavigate("avaliar", { frete })}>⭐ Avaliar Motorista</button>}
+        {frete.status === "aguardando" && (
+          <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => onNavigate("propostas-recebidas", frete)}>📨 Ver Propostas Recebidas</button>
+        )}
         {(frete.status === "aguardando" || (frete.status === "aceito" && frete.status_pagamento !== "approved")) && (
-          <button className="btn btn-primary" style={{ marginBottom: 10, background: "linear-gradient(135deg, #00b37e, #00a572)" }} onClick={() => onNavigate("pagamento", { freteId: frete.id, valor: frete.valor_antt || frete.valor_final || 0 })}>
-            📱 Pagar via Pix — {formatMoney(frete.valor_antt || 0)}
+          <button className="btn btn-primary" style={{ marginBottom: 10, background: "linear-gradient(135deg, #00b37e, #00a572)" }} onClick={() => onNavigate("pagamento", { freteId: frete.id, valor: frete.valor_final || frete.valor_antt || 0 })}>
+            📱 Pagar via Pix — {formatMoney(frete.valor_final || frete.valor_antt || 0)}
           </button>
         )}
         {frete.status === "aceito" && frete.status_pagamento === "approved" && (
           <div className="alert alert-success" style={{ marginBottom: 10 }}>✅ Pagamento confirmado — aguardando início da coleta</div>
         )}
         {["aguardando", "aceito"].includes(frete.status) && <button className="btn btn-danger" onClick={cancelar} disabled={loading}>{loading ? "Cancelando..." : "Cancelar Frete"}</button>}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// PROPOSTAS RECEBIDAS (Contratante)
+// ─────────────────────────────────────────────
+function PropostasRecebidasScreen({ frete, onNavigate }) {
+  const { token } = useAuth();
+  const [propostas, setPropostas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+  const [contraproporId, setContraproporId] = useState(null);
+  const [novoValor, setNovoValor] = useState("");
+  const [acao, setAcao] = useState(null); // id da proposta com ação em andamento
+
+  const carregar = () => {
+    if (!frete?.id) return;
+    setLoading(true);
+    api("GET", `/api/fretes/${frete.id}/propostas`, null, token)
+      .then(setPropostas)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { carregar(); }, [frete?.id]);
+
+  if (!frete) return <Loading />;
+
+  const aceitar = async (propostaId) => {
+    setAcao(propostaId); setError(""); setMsg("");
+    try {
+      await api("PATCH", `/api/fretes/propostas/${propostaId}/aceitar`, null, token);
+      setMsg("✅ Proposta aceita! O frete foi atribuído a este motorista.");
+      setTimeout(() => onNavigate("detalhe-frete", { ...frete, status: "aceito" }), 1500);
+    } catch (e) { setError(e.message); }
+    finally { setAcao(null); }
+  };
+
+  const recusar = async (propostaId) => {
+    setAcao(propostaId); setError(""); setMsg("");
+    try {
+      await api("PATCH", `/api/fretes/propostas/${propostaId}/recusar`, null, token);
+      setMsg("Proposta recusada.");
+      carregar();
+    } catch (e) { setError(e.message); }
+    finally { setAcao(null); }
+  };
+
+  const enviarContraproposta = async (propostaId) => {
+    const valor = parseFloat(String(novoValor).replace(",", "."));
+    if (!valor || valor <= 0) return setError("Informe um valor válido");
+    setAcao(propostaId); setError(""); setMsg("");
+    try {
+      await api("PATCH", `/api/fretes/propostas/${propostaId}/contrapropor`, { novoValor: valor }, token);
+      setMsg("✅ Contraproposta enviada! Aguardando resposta do motorista.");
+      setContraproporId(null); setNovoValor("");
+      carregar();
+    } catch (e) { setError(e.message); }
+    finally { setAcao(null); }
+  };
+
+  return (
+    <div className="screen">
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate("detalhe-frete", frete)}>←</button>
+        <h1>Propostas Recebidas</h1>
+      </div>
+      <div className="content">
+        {error && <div className="alert alert-error">{error}</div>}
+        {msg && <div className="alert alert-success">{msg}</div>}
+
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="info-row"><span className="info-label">Frete</span><span className="info-value" style={{ fontSize: 12 }}>{frete.origem_cidade} → {frete.dest_cidade}</span></div>
+          <div className="info-row"><span className="info-label">Valor publicado</span><span className="info-value">{formatMoney(frete.valor_final || frete.valor_antt || 0)}</span></div>
+        </div>
+
+        {loading && <Loading />}
+
+        {!loading && propostas.length === 0 && (
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
+            <p style={{ fontWeight: 600 }}>Nenhuma proposta recebida ainda</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Motoristas podem aceitar pelo valor publicado ou enviar uma proposta diferente</p>
+          </div>
+        )}
+
+        {!loading && propostas.map(p => (
+          <div key={p.id} className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>{p.motorista_nome}</div>
+                <div style={{ fontSize: 12, color: "#666" }}>{p.tipo_veiculo} · {p.placa_veiculo || "—"} · ⭐ {Number(p.avaliacao_media).toFixed(1)}</div>
+              </div>
+              <span className={`badge ${p.rodada === 2 ? "badge-pending" : "badge-active"}`}>
+                {p.rodada === 2 ? "Aguardando motorista" : "Proposta do motorista"}
+              </span>
+            </div>
+
+            <div className="divider" />
+
+            <div className="info-row">
+              <span className="info-label">Valor proposto pelo motorista</span>
+              <span className="info-value price" style={{ fontSize: 18 }}>{formatMoney(p.valor_motorista)}</span>
+            </div>
+            {p.rodada === 2 && (
+              <div className="info-row">
+                <span className="info-label">Sua contraproposta</span>
+                <span className="info-value" style={{ color: "var(--gold)" }}>{formatMoney(p.valor_contratante)}</span>
+              </div>
+            )}
+
+            {p.rodada === 1 && contraproporId !== p.id && (
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-primary btn-sm" onClick={() => aceitar(p.id)} disabled={acao === p.id}>✅ Aceitar</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => setContraproporId(p.id)} disabled={acao === p.id}>💬 Contrapropor</button>
+                <button className="btn btn-danger btn-sm" onClick={() => recusar(p.id)} disabled={acao === p.id}>✕ Recusar</button>
+              </div>
+            )}
+
+            {p.rodada === 1 && contraproporId === p.id && (
+              <div style={{ marginTop: 12 }}>
+                <div className="field">
+                  <label>Sua contraproposta (R$)</label>
+                  <input type="number" step="0.01" placeholder={String(p.valor_motorista)} value={novoValor} onChange={e => setNovoValor(e.target.value)} />
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="btn btn-primary btn-sm" onClick={() => enviarContraproposta(p.id)} disabled={acao === p.id}>Enviar</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => { setContraproporId(null); setNovoValor(""); }}>Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {p.rodada === 2 && (
+              <p style={{ fontSize: 12, color: "#666", marginTop: 10 }}>Aguardando o motorista aceitar ou recusar sua contraproposta de {formatMoney(p.valor_contratante)}.</p>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1920,7 +2092,15 @@ function MotoristaHome({ onNavigate }) {
   }, [token]);
   const [posicaoAtual, setPosicaoAtual] = useState(null);
   const [fretesAtivos, setFretesAtivos] = useState([]);
+  const [propostasPendentes, setPropostasPendentes] = useState(0);
   const posicaoRef = useRef(null);
+
+  // Verifica se há contrapropostas do contratante aguardando resposta do motorista
+  useEffect(() => {
+    api("GET", "/api/fretes/propostas/minhas", null, token)
+      .then(lista => setPropostasPendentes(lista.filter(p => p.status === "pendente" && p.rodada === 2).length))
+      .catch(() => {});
+  }, [token]);
 
   // GPS para mostrar no mapa
   useEffect(() => {
@@ -2029,6 +2209,18 @@ function MotoristaHome({ onNavigate }) {
         </div>
       </div>
       <div className="content">
+        {propostasPendentes > 0 && (
+          <div className="card" style={{ borderColor: "var(--gold)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("minhas-propostas")}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 24 }}>📨</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Você tem {propostasPendentes} contraproposta{propostasPendentes > 1 ? "s" : ""} para responder</div>
+                <div style={{ fontSize: 12, color: "#666" }}>Toque para ver e decidir</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+            </div>
+          </div>
+        )}
         <div className="km-vazio-bar">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>📊 KM VAZIO HOJE</span>
@@ -2152,28 +2344,63 @@ function AceitarFreteScreen({ frete, onNavigate }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [propondoValor, setPropondoValor] = useState(false);
+  const [valorProposta, setValorProposta] = useState("");
+  const [propostaEnviada, setPropostaEnviada] = useState(false);
   if (!frete) return <Loading />;
   const cargaObj = TIPOS_CARGA.find(c => c.id === frete.tipo_carga);
+
+  const capturarGPS = async () => {
+    let lat = null, lng = null;
+    if (navigator.geolocation) {
+      try {
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
+        );
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch {} // GPS indisponível
+    }
+    return { lat, lng };
+  };
 
   const aceitar = async () => {
     setLoading(true); setError("");
     try {
-      // Captura posição GPS para calcular km vazio
-      let lat = null, lng = null;
-      if (navigator.geolocation) {
-        try {
-          const pos = await new Promise((resolve, reject) =>
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
-          );
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
-        } catch {} // GPS indisponível — aceita sem km_vazio
-      }
+      const { lat, lng } = await capturarGPS();
       await api("PATCH", `/api/fretes/${frete.id}/aceitar`, { lat, lng }, token);
       onNavigate("home-motorista");
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
+
+  const enviarProposta = async () => {
+    const valor = parseFloat(String(valorProposta).replace(",", "."));
+    if (!valor || valor <= 0) return setError("Informe um valor válido");
+    setLoading(true); setError("");
+    try {
+      const { lat, lng } = await capturarGPS();
+      await api("POST", `/api/fretes/${frete.id}/propor`, { valorProposto: valor, lat, lng }, token);
+      setPropostaEnviada(true);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  if (propostaEnviada) {
+    return (
+      <div className="screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button><h1>Proposta Enviada</h1></div>
+        <div className="content">
+          <div className="alert alert-success">✅ Sua proposta de {formatMoney(parseFloat(String(valorProposta).replace(",", ".")))} foi enviada ao contratante.</div>
+          <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
+            Acompanhe a resposta em <strong>Minhas Propostas</strong>. O contratante pode aceitar, recusar ou enviar uma contraproposta.
+          </p>
+          <button className="btn btn-primary" onClick={() => onNavigate("minhas-propostas")}>Ver Minhas Propostas</button>
+          <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => onNavigate("home-motorista")}>Voltar ao início</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="screen">
@@ -2182,8 +2409,8 @@ function AceitarFreteScreen({ frete, onNavigate }) {
         {error && <div className="alert alert-error">{error}</div>}
         <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
           <div className="price" style={{ fontSize: 42 }}>{formatMoney(frete.valor_motorista || 0)}</div>
-          <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>Seu valor como motorista</div>
-          <div style={{ fontSize: 12, color: "#444", marginTop: 2 }}>Plataforma: {formatMoney(frete.comissao_truker || 0)} · Total: {formatMoney(frete.valor_antt || frete.valor_final || 0)}</div>
+          <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>Seu valor como motorista (valor publicado)</div>
+          <div style={{ fontSize: 12, color: "#444", marginTop: 2 }}>Plataforma: {formatMoney(frete.comissao_truker || 0)} · Total: {formatMoney(frete.valor_final || frete.valor_antt || 0)}</div>
         </div>
         <div className="card">
           <div className="map-placeholder">
@@ -2199,9 +2426,143 @@ function AceitarFreteScreen({ frete, onNavigate }) {
           {frete.precisa_munck && <span className="tag-chip">🏗️ Precisa Munck</span>}
           {frete.precisa_empilhadeira && <span className="tag-chip">🏭 Empilhadeira no pátio</span>}
         </div>
-        <button className="btn btn-primary" onClick={aceitar} disabled={loading} style={{ marginBottom: 10 }}>{loading ? "Aceitando..." : "✅ Aceitar Frete"}</button>
-        <button className="btn btn-secondary" onClick={() => onNavigate("home-motorista")}>Voltar</button>
+
+        {!propondoValor && (
+          <>
+            <button className="btn btn-primary" onClick={aceitar} disabled={loading} style={{ marginBottom: 10 }}>{loading ? "Aceitando..." : "✅ Aceitar pelo valor publicado"}</button>
+            <button className="btn btn-secondary" onClick={() => setPropondoValor(true)} style={{ marginBottom: 10 }}>💬 Propor outro valor</button>
+            <button className="btn btn-secondary" onClick={() => onNavigate("home-motorista")}>Voltar</button>
+          </>
+        )}
+
+        {propondoValor && (
+          <div className="card">
+            <div className="card-title">Sua proposta de valor</div>
+            <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+              O contratante publicou {formatMoney(frete.valor_final || frete.valor_antt || 0)} pelo frete inteiro. Proponha o valor total que você gostaria de receber pela plataforma negociar (sujeito ao piso mínimo ANTT).
+            </p>
+            <div className="field">
+              <label>Valor proposto (total do frete, R$)</label>
+              <input type="number" step="0.01" placeholder={String(frete.valor_final || frete.valor_antt || "")} value={valorProposta} onChange={e => setValorProposta(e.target.value)} />
+            </div>
+            <button className="btn btn-primary" onClick={enviarProposta} disabled={loading} style={{ marginBottom: 10 }}>{loading ? "Enviando..." : "📨 Enviar Proposta"}</button>
+            <button className="btn btn-secondary" onClick={() => setPropondoValor(false)}>Cancelar</button>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// MINHAS PROPOSTAS (Motorista)
+// ─────────────────────────────────────────────
+function MinhasPropostasScreen({ onNavigate }) {
+  const { token } = useAuth();
+  const [propostas, setPropostas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+  const [acao, setAcao] = useState(null);
+
+  const carregar = () => {
+    setLoading(true);
+    api("GET", "/api/fretes/propostas/minhas", null, token)
+      .then(setPropostas)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { carregar(); }, []);
+
+  const aceitar = async (propostaId) => {
+    setAcao(propostaId); setError(""); setMsg("");
+    try {
+      await api("PATCH", `/api/fretes/propostas/${propostaId}/aceitar`, null, token);
+      setMsg("✅ Contraproposta aceita! O frete foi atribuído a você.");
+      setTimeout(() => onNavigate("home-motorista"), 1500);
+    } catch (e) { setError(e.message); }
+    finally { setAcao(null); }
+  };
+
+  const recusar = async (propostaId) => {
+    setAcao(propostaId); setError(""); setMsg("");
+    try {
+      await api("PATCH", `/api/fretes/propostas/${propostaId}/recusar`, null, token);
+      setMsg("Contraproposta recusada.");
+      carregar();
+    } catch (e) { setError(e.message); }
+    finally { setAcao(null); }
+  };
+
+  const StatusProposta = ({ p }) => {
+    const map = {
+      pendente: p.rodada === 2 ? ["badge-pending", "Contraproposta recebida"] : ["badge-active", "Aguardando contratante"],
+      aceita:   ["badge-done", "Aceita"],
+      recusada: ["badge-cancel", "Recusada"],
+      expirada: ["", "Encerrada"],
+    };
+    const [cls, label] = map[p.status] || ["", p.status];
+    return <span className={`badge ${cls}`} style={!cls ? { background: "#222", color: "#666", border: "1px solid #333" } : {}}>{label}</span>;
+  };
+
+  return (
+    <div className="screen">
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button>
+        <h1>Minhas Propostas</h1>
+      </div>
+      <div className="content">
+        {error && <div className="alert alert-error">{error}</div>}
+        {msg && <div className="alert alert-success">{msg}</div>}
+
+        {loading && <Loading />}
+
+        {!loading && propostas.length === 0 && (
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>📨</div>
+            <p style={{ fontWeight: 600 }}>Nenhuma proposta enviada ainda</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Proponha valores nos fretes disponíveis para negociar com contratantes</p>
+          </div>
+        )}
+
+        {!loading && propostas.map(p => (
+          <div key={p.id} className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.origem_cidade} → {p.dest_cidade}</div>
+                <div style={{ fontSize: 12, color: "#666" }}>Contratante: {p.contratante_nome}</div>
+              </div>
+              <StatusProposta p={p} />
+            </div>
+
+            <div className="divider" />
+
+            <div className="info-row">
+              <span className="info-label">Sua proposta</span>
+              <span className="info-value">{formatMoney(p.valor_motorista)}</span>
+            </div>
+            {p.valor_contratante && (
+              <div className="info-row">
+                <span className="info-label">Contraproposta do contratante</span>
+                <span className="info-value price" style={{ fontSize: 18 }}>{formatMoney(p.valor_contratante)}</span>
+              </div>
+            )}
+
+            {p.status === "pendente" && p.rodada === 2 && (
+              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                <button className="btn btn-primary btn-sm" onClick={() => aceitar(p.id)} disabled={acao === p.id}>✅ Aceitar</button>
+                <button className="btn btn-danger btn-sm" onClick={() => recusar(p.id)} disabled={acao === p.id}>✕ Recusar</button>
+              </div>
+            )}
+
+            {p.status === "pendente" && p.rodada === 1 && (
+              <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>Aguardando resposta do contratante...</p>
+            )}
+          </div>
+        ))}
+      </div>
+      <BottomNavMotorista active="inicio" onNavigate={onNavigate} />
     </div>
   );
 }
@@ -2884,6 +3245,7 @@ function BottomNavMotorista({ active, onNavigate }) {
 function OpcoesMotorista({ onNavigate }) {
   const { user } = useAuth();
   const items = [
+    { icon: "📨", label: "Minhas Propostas", sub: "Acompanhe negociações de valor", screen: "minhas-propostas" },
     { icon: "💬", label: "Suporte", sub: "Fale com a gente", screen: null },
     { icon: "⭐", label: "Avalie o TRUKER", sub: "Nos dê sua opinião", screen: null },
     { icon: "ℹ️", label: "Sobre o app", sub: "Versão 1.0.0", screen: null },
@@ -3928,11 +4290,13 @@ function Router() {
     case "solicitar-frete": return <SolicitarFreteScreen {...p} />;
     case "meus-fretes": return <MeusFretes {...p} />;
     case "detalhe-frete": return <DetalheFrete frete={screenData} {...p} />;
+    case "propostas-recebidas": return <PropostasRecebidasScreen frete={screenData} {...p} />;
     case "perfil": return <PerfilContratante {...p} />;
     case "dados-pessoais-contratante": return <DadosPessoaisContratante {...p} />;
     case "pagamentos": return <PagamentosScreen {...p} />;
     case "home-motorista": return <MotoristaHome {...p} />;
     case "aceitar-frete": return <AceitarFreteScreen frete={screenData} {...p} />;
+    case "minhas-propostas": return <MinhasPropostasScreen {...p} />;
     case "meus-fretes-motorista": return <MeusFretesMot {...p} />;
     case "em-transito": return <EmTransitoScreen frete={screenData} {...p} />;
     case "perfil-motorista": return <PerfilMotorista {...p} />;
