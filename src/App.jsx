@@ -3550,6 +3550,7 @@ function TermosScreen({ onNavigate }) {
 function DespesasTab() {
   const { token } = useAuth();
   const [despesas, setDespesas] = useState([]);
+  const [resumoCustos, setResumoCustos] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
@@ -3562,12 +3563,18 @@ function DespesasTab() {
     { id: "outro", icon: "📦", label: "Outro" },
   ];
 
+  const carregarResumoCustos = () => {
+    api("GET", "/api/motoristas/custos-resumo", null, token)
+      .then(setResumoCustos).catch(() => setResumoCustos(null));
+  };
+
   useEffect(() => {
     api("GET", "/api/motoristas/despesas", null, token)
       .then(setDespesas).catch(() => {});
+    carregarResumoCustos();
   }, [token]);
 
-  const total = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
+  const total = resumoCustos ? resumoCustos.totalGeral : despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
 
   const add = async () => {
     if (!nova.valor) return;
@@ -3577,6 +3584,7 @@ function DespesasTab() {
       setDespesas(d => [salva, ...d]);
       setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
       setShowAdd(false);
+      carregarResumoCustos();
     } catch (e) { alert("Erro ao salvar: " + e.message); }
     finally { setLoading(false); }
   };
@@ -3585,6 +3593,7 @@ function DespesasTab() {
     try {
       await api("DELETE", `/api/motoristas/despesas/${id}`, null, token);
       setDespesas(d => d.filter(x => x.id !== id));
+      carregarResumoCustos();
     } catch (e) { alert("Erro ao remover: " + e.message); }
   };
 
@@ -3606,6 +3615,26 @@ function DespesasTab() {
         <div style={{ fontSize: 11, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total de despesas</div>
         <div style={{ fontSize: 28, fontWeight: 800, color: "var(--red)" }}>{formatMoney(total)}</div>
       </div>
+
+      {resumoCustos && (
+        <div className="grid-2" style={{ marginBottom: 14 }}>
+          <div className="card" style={{ textAlign: "center", padding: "14px 10px" }}>
+            <div style={{ fontSize: 22, marginBottom: 4 }}>⛽</div>
+            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 2 }}>Combustível</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--red)" }}>{formatMoney(resumoCustos.combustivelTotal)}</div>
+          </div>
+          <div className="card" style={{ textAlign: "center", padding: "14px 10px" }}>
+            <div style={{ fontSize: 22, marginBottom: 4 }}>🔧</div>
+            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 2 }}>Desgaste</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--red)" }}>{formatMoney(resumoCustos.desgasteTotal)}</div>
+          </div>
+        </div>
+      )}
+      {resumoCustos && (
+        <p style={{ fontSize: 11, color: "var(--text3)", marginTop: -8, marginBottom: 14, textAlign: "center" }}>
+          Estimados com base nos coeficientes oficiais da ANTT, somando todos os {resumoCustos.totalFretesConsiderados} fretes aceitos. O detalhe de cada viagem está no card do frete.
+        </p>
+      )}
       <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => setShowAdd(true)}>+ Registrar Despesa</button>
       {showAdd && (
         <div className="card" style={{ borderColor: "var(--gold)", marginBottom: 14 }}>
