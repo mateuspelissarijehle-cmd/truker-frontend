@@ -4396,6 +4396,55 @@ function DadosCaminhaoMotorista({ onNavigate }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const tiposCarreta = ["Baú","Grade Baixa","Sider","Tanque","Frigorífico","Graneleiro","Porta Container","Prancha","Munck","Sem carreta"];
 
+  // ── Composição veicular (cavalo + carretas) ──────────────
+  const [veiculos, setVeiculos] = useState([]);          // lista da composição
+  const [carroceriasDisp, setCarroceriasDisp] = useState([]); // carrocerias válidas p/ o veículo
+  const [novaCarreta, setNovaCarreta] = useState({ placa: "", carroceria: "", capacidadeTons: "", eixos: "" });
+  const [addingCarreta, setAddingCarreta] = useState(false);
+  const [erroComp, setErroComp] = useState("");
+  const setNC = (k, v) => setNovaCarreta(f => ({ ...f, [k]: v }));
+
+  const carregarComposicao = async () => {
+    try {
+      const lista = await api("GET", "/api/motoristas/veiculos", null, token);
+      setVeiculos(Array.isArray(lista) ? lista : []);
+    } catch { setVeiculos([]); }
+  };
+
+  const carregarCarroceriasDisp = async (veiculo) => {
+    if (!veiculo) { setCarroceriasDisp([]); return; }
+    try {
+      const lista = await api("GET", `/api/motoristas/carrocerias-disponiveis?veiculo=${veiculo}`, null, token);
+      setCarroceriasDisp(Array.isArray(lista) ? lista : []);
+    } catch { setCarroceriasDisp([]); }
+  };
+
+  const adicionarCarreta = async () => {
+    setErroComp("");
+    if (!novaCarreta.placa) return setErroComp("Informe a placa da carreta.");
+    if (!novaCarreta.carroceria) return setErroComp("Selecione a carroceria.");
+    setAddingCarreta(true);
+    try {
+      await api("POST", "/api/motoristas/veiculos", {
+        tipo: "carreta",
+        placa: novaCarreta.placa,
+        carroceria: novaCarreta.carroceria,
+        capacidadeTons: novaCarreta.capacidadeTons || null,
+        eixos: novaCarreta.eixos || null,
+      }, token);
+      setNovaCarreta({ placa: "", carroceria: "", capacidadeTons: "", eixos: "" });
+      await carregarComposicao();
+    } catch (e) { setErroComp(e.message); }
+    finally { setAddingCarreta(false); }
+  };
+
+  const removerCarreta = async (id) => {
+    try {
+      await api("DELETE", `/api/motoristas/veiculos/${id}`, null, token);
+      await carregarComposicao();
+    } catch (e) { setErroComp(e.message); }
+  };
+
   const carregarPerfil = async () => {
     try {
       const d = await api("GET", "/api/motoristas/perfil", null, token);
@@ -4405,11 +4454,14 @@ function DadosCaminhaoMotorista({ onNavigate }) {
         placa: d.placa_veiculo || "", anoFab: d.ano_veiculo || "",
         renavam: d.renavam || "", tara: d.tara_kg || "", capacidade: d.capacidade_tons || "",
       });
+      if (d.tipo_veiculo) carregarCarroceriasDisp(d.tipo_veiculo);
     } catch (e) { setError("Erro ao carregar dados: " + e.message); }
     finally { setLoadingData(false); }
   };
 
-  useEffect(() => { carregarPerfil(); }, []);
+  useEffect(() => { carregarPerfil(); carregarComposicao(); }, []);
+  // Recarrega carrocerias válidas sempre que o tipo de veículo muda
+  useEffect(() => { carregarCarroceriasDisp(form.tipoVeiculo); }, [form.tipoVeiculo]);
 
   const salvar = async () => {
     setError(""); setLoading(true);
@@ -4462,6 +4514,72 @@ function DadosCaminhaoMotorista({ onNavigate }) {
             <div className="field"><label>Capacidade (t)</label><input type="number" value={form.capacidade} onChange={e => set("capacidade", e.target.value)} placeholder="25" /></div>
           </div>
           <div className="field"><label>RENAVAM</label><input value={form.renavam} onChange={e => set("renavam", e.target.value)} placeholder="00000000000" /></div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">🚛 Composição Veicular</div>
+          <p style={{ fontSize: 13, color: "#8A7E6E", marginTop: -4, marginBottom: 14 }}>
+            Cadastre cada carreta com sua placa e carroceria. O TRUKER só vai te mostrar fretes que seu conjunto consegue transportar.
+          </p>
+
+          {erroComp && <div className="alert alert-error" style={{ marginBottom: 12 }}>{erroComp}</div>}
+
+          {/* Lista de carretas já cadastradas */}
+          {veiculos.filter(v => v.tipo === "carreta").length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              {veiculos.filter(v => v.tipo === "carreta").map(v => (
+                <div key={v.id} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "12px 14px", marginBottom: 8, borderRadius: 12,
+                  background: "#F5F0E8", border: "1px solid #DDD4C0",
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#1A1209" }}>
+                      {v.carroceria_label || v.carroceria} · <span style={{ fontFamily: "monospace", letterSpacing: 1 }}>{v.placa}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#8A7E6E", marginTop: 2 }}>
+                      {v.capacidade_tons ? `${v.capacidade_tons}t` : "capacidade não informada"}
+                      {v.cargas_aceitas?.length ? ` · aceita: ${v.cargas_aceitas.join(", ")}` : ""}
+                    </div>
+                  </div>
+                  <button onClick={() => removerCarreta(v.id)} style={{
+                    background: "#FDECEA", color: "#C0392B", border: "none",
+                    borderRadius: 8, padding: "6px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}>Remover</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {veiculos.filter(v => v.tipo === "carreta").length === 0 && (
+            <div style={{ padding: "16px", textAlign: "center", color: "#8A7E6E", fontSize: 13, background: "#F5F0E8", borderRadius: 12, marginBottom: 14 }}>
+              Nenhuma carreta cadastrada ainda. Adicione abaixo.
+            </div>
+          )}
+
+          {/* Formulário de adicionar carreta */}
+          <div style={{ borderTop: "1px dashed #DDD4C0", paddingTop: 14 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: "#4A3F30", marginBottom: 10 }}>Adicionar carreta</div>
+            {!form.tipoVeiculo && (
+              <div style={{ fontSize: 12, color: "#C0392B", marginBottom: 10 }}>
+                Selecione primeiro o tipo de veículo acima para ver as carrocerias compatíveis.
+              </div>
+            )}
+            <div className="field">
+              <label>Carroceria</label>
+              <select value={novaCarreta.carroceria} onChange={e => setNC("carroceria", e.target.value)} disabled={!form.tipoVeiculo}>
+                <option value="">Selecione...</option>
+                {carroceriasDisp.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </div>
+            <div className="grid-2">
+              <div className="field"><label>Placa da carreta</label><input value={novaCarreta.placa} onChange={e => setNC("placa", e.target.value.toUpperCase())} placeholder="ABC-1234" /></div>
+              <div className="field"><label>Capacidade (t)</label><input type="number" value={novaCarreta.capacidadeTons} onChange={e => setNC("capacidadeTons", e.target.value)} placeholder="25" /></div>
+            </div>
+            <button className="btn btn-secondary" onClick={adicionarCarreta} disabled={addingCarreta || !form.tipoVeiculo} style={{ width: "100%" }}>
+              {addingCarreta ? "Adicionando..." : "+ Adicionar carreta"}
+            </button>
+          </div>
         </div>
         <div className="card">
           <div className="card-title">Documentos do Veículo</div>
