@@ -4442,7 +4442,68 @@ function DadosCaminhaoMotorista({ onNavigate }) {
     try {
       await api("DELETE", `/api/motoristas/veiculos/${id}`, null, token);
       await carregarComposicao();
+      await carregarConjuntos();
     } catch (e) { setErroComp(e.message); }
+  };
+
+  // ── Conjuntos (composições montadas: bitrem, rodotrem, simples) ──────────
+  const [conjuntos, setConjuntos] = useState([]);
+  const [selImplementos, setSelImplementos] = useState([]);   // ids selecionados p/ montar
+  const [nomeConjunto, setNomeConjunto] = useState("");
+  const [montandoConjunto, setMontandoConjunto] = useState(false);
+  const [savingConjunto, setSavingConjunto] = useState(false);
+  const [erroConjunto, setErroConjunto] = useState("");
+
+  const carregarConjuntos = async () => {
+    try {
+      const lista = await api("GET", "/api/motoristas/conjuntos", null, token);
+      setConjuntos(Array.isArray(lista) ? lista : []);
+    } catch { setConjuntos([]); }
+  };
+
+  // Carretas disponíveis na garagem (para montar conjuntos)
+  const carretasGaragem = veiculos.filter(v => v.tipo === "carreta");
+
+  // Ao selecionar implementos, só deixa marcar os do MESMO tipo do primeiro escolhido
+  const tipoSelecionado = selImplementos.length
+    ? carretasGaragem.find(c => c.id === selImplementos[0])?.carroceria
+    : null;
+
+  const toggleImplemento = (id) => {
+    setErroConjunto("");
+    setSelImplementos(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      return [...prev, id];
+    });
+  };
+
+  const criarConjunto = async () => {
+    setErroConjunto("");
+    if (selImplementos.length === 0) return setErroConjunto("Selecione ao menos uma carreta.");
+    setSavingConjunto(true);
+    try {
+      await api("POST", "/api/motoristas/conjuntos", {
+        nome: nomeConjunto || null,
+        veiculoIds: selImplementos,
+      }, token);
+      setSelImplementos([]); setNomeConjunto(""); setMontandoConjunto(false);
+      await carregarConjuntos();
+    } catch (e) { setErroConjunto(e.message); }
+    finally { setSavingConjunto(false); }
+  };
+
+  const ativarConjunto = async (id) => {
+    try {
+      await api("PATCH", `/api/motoristas/conjuntos/${id}/ativar`, {}, token);
+      await carregarConjuntos();
+    } catch (e) { setErroConjunto(e.message); }
+  };
+
+  const removerConjunto = async (id) => {
+    try {
+      await api("DELETE", `/api/motoristas/conjuntos/${id}`, null, token);
+      await carregarConjuntos();
+    } catch (e) { setErroConjunto(e.message); }
   };
 
   const carregarPerfil = async () => {
@@ -4459,7 +4520,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
     finally { setLoadingData(false); }
   };
 
-  useEffect(() => { carregarPerfil(); carregarComposicao(); }, []);
+  useEffect(() => { carregarPerfil(); carregarComposicao(); carregarConjuntos(); }, []);
   // Recarrega carrocerias válidas sempre que o tipo de veículo muda
   useEffect(() => { carregarCarroceriasDisp(form.tipoVeiculo); }, [form.tipoVeiculo]);
 
@@ -4580,6 +4641,112 @@ function DadosCaminhaoMotorista({ onNavigate }) {
               {addingCarreta ? "Adicionando..." : "+ Adicionar carreta"}
             </button>
           </div>
+        </div>
+
+        <div className="card">
+          <div className="card-title">🔗 Meus Conjuntos</div>
+          <p style={{ fontSize: 13, color: "#8A7E6E", marginTop: -4, marginBottom: 14 }}>
+            Monte conjuntos com suas carretas (ex: bitrem com 2 graneleiros). O conjunto <strong>ativo</strong> é o que está rodando agora — só ele define quais fretes você vê.
+          </p>
+
+          {erroConjunto && <div className="alert alert-error" style={{ marginBottom: 12 }}>{erroConjunto}</div>}
+
+          {/* Lista de conjuntos */}
+          {conjuntos.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              {conjuntos.map(c => (
+                <div key={c.id} style={{
+                  padding: "12px 14px", marginBottom: 8, borderRadius: 12,
+                  background: c.ativo ? "#F0F7F0" : "#F5F0E8",
+                  border: c.ativo ? "2px solid #2D7A3A" : "1px solid #DDD4C0",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#1A1209", display: "flex", alignItems: "center", gap: 6 }}>
+                        {c.nome}
+                        {c.ativo && <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", background: "#2D7A3A", borderRadius: 6, padding: "2px 8px" }}>ATIVO</span>}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#8A7E6E", marginTop: 3 }}>
+                        {c.qtd_implementos} carreta{c.qtd_implementos > 1 ? "s" : ""} · {c.capacidade_total}t
+                        {c.cargas_aceitas?.length ? ` · aceita: ${c.cargas_aceitas.join(", ")}` : ""}
+                      </div>
+                    </div>
+                    <button onClick={() => removerConjunto(c.id)} style={{
+                      background: "transparent", color: "#C0392B", border: "none",
+                      fontSize: 12, fontWeight: 600, cursor: "pointer", marginLeft: 8,
+                    }}>Remover</button>
+                  </div>
+                  {!c.ativo && (
+                    <button onClick={() => ativarConjunto(c.id)} style={{
+                      marginTop: 10, width: "100%", background: "#C9A84C", color: "#1A1209",
+                      border: "none", borderRadius: 8, padding: "8px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    }}>Ativar este conjunto</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {conjuntos.length === 0 && !montandoConjunto && (
+            <div style={{ padding: "16px", textAlign: "center", color: "#8A7E6E", fontSize: 13, background: "#F5F0E8", borderRadius: 12, marginBottom: 14 }}>
+              Nenhum conjunto montado. Crie um abaixo combinando suas carretas.
+            </div>
+          )}
+
+          {/* Montar novo conjunto */}
+          {!montandoConjunto && (
+            <button className="btn btn-secondary" onClick={() => setMontandoConjunto(true)}
+              disabled={carretasGaragem.length === 0} style={{ width: "100%" }}>
+              {carretasGaragem.length === 0 ? "Cadastre carretas acima primeiro" : "+ Montar novo conjunto"}
+            </button>
+          )}
+
+          {montandoConjunto && (
+            <div style={{ borderTop: "1px dashed #DDD4C0", paddingTop: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#4A3F30", marginBottom: 4 }}>Selecione as carretas do conjunto</div>
+              <div style={{ fontSize: 11, color: "#8A7E6E", marginBottom: 10 }}>
+                Só carretas do mesmo tipo podem ir no mesmo conjunto.
+              </div>
+
+              {carretasGaragem.map(c => {
+                const marcada = selImplementos.includes(c.id);
+                const bloqueada = tipoSelecionado && c.carroceria !== tipoSelecionado && !marcada;
+                return (
+                  <div key={c.id} onClick={() => !bloqueada && toggleImplemento(c.id)} style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 6,
+                    borderRadius: 10, cursor: bloqueada ? "not-allowed" : "pointer",
+                    background: marcada ? "#FBF6E9" : "#F5F0E8",
+                    border: marcada ? "2px solid #C9A84C" : "1px solid #DDD4C0",
+                    opacity: bloqueada ? 0.4 : 1,
+                  }}>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+                      border: marcada ? "none" : "2px solid #DDD4C0",
+                      background: marcada ? "#C9A84C" : "transparent",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#1A1209", fontSize: 13, fontWeight: 700,
+                    }}>{marcada ? "✓" : ""}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: "#1A1209" }}>{c.carroceria_label || c.carroceria} · {c.placa}</div>
+                      <div style={{ fontSize: 11, color: "#8A7E6E" }}>{c.capacidade_tons ? `${c.capacidade_tons}t` : "—"}</div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              <div className="field" style={{ marginTop: 12 }}>
+                <label>Nome do conjunto (opcional)</label>
+                <input value={nomeConjunto} onChange={e => setNomeConjunto(e.target.value)} placeholder="Ex: Bitrem Graneleiro 60t (deixe vazio p/ sugerir)" />
+              </div>
+
+              <div className="grid-2">
+                <button className="btn btn-secondary" onClick={() => { setMontandoConjunto(false); setSelImplementos([]); setNomeConjunto(""); setErroConjunto(""); }}>Cancelar</button>
+                <button className="btn btn-primary" onClick={criarConjunto} disabled={savingConjunto || selImplementos.length === 0}>
+                  {savingConjunto ? "Criando..." : "Criar conjunto"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="card">
           <div className="card-title">Documentos do Veículo</div>
