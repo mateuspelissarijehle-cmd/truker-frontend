@@ -84,6 +84,37 @@ const TIPOS_CARGA = [
   { id: "madeira", label: "Madeira", icon: "🪵", desc: "Toras, compensados, móveis" },
 ];
 
+// Regras de formulário dinâmico por tipo de carga:
+//  - dimensoes: mostrar campos comprimento/largura/altura?
+//  - especial:  campo extra específico ("animal" | "itens" | "material" | null)
+// Peso é SEMPRE obrigatório (não entra aqui). Espelha a lógica do backend.
+const REGRAS_CARGA = {
+  carga_seca:        { dimensoes: true,  especial: null },
+  graneleiro:        { dimensoes: false, especial: null },
+  refrigerada:       { dimensoes: true,  especial: null },
+  frigorifico:       { dimensoes: true,  especial: null },
+  mudanca:           { dimensoes: false, especial: "itens" },
+  carga_viva:        { dimensoes: false, especial: "animal" },
+  liquidos:          { dimensoes: false, especial: null },
+  inflamavel:        { dimensoes: false, especial: null },
+  perigosa:          { dimensoes: true,  especial: null },
+  farmaceutico:      { dimensoes: true,  especial: null },
+  eletronicos:       { dimensoes: true,  especial: null },
+  alimentos:         { dimensoes: true,  especial: null },
+  bebidas:           { dimensoes: true,  especial: null },
+  construcao:        { dimensoes: false, especial: "material" },
+  maquinario:        { dimensoes: true,  especial: null },
+  superdimensionado: { dimensoes: true,  especial: null },
+  residuos:          { dimensoes: false, especial: null },
+  veiculos:          { dimensoes: true,  especial: null },
+  classificados:     { dimensoes: true,  especial: null },
+  madeira:           { dimensoes: true,  especial: null },
+};
+const regrasCarga = (id) => REGRAS_CARGA[id] || { dimensoes: true, especial: null };
+
+const TIPOS_ANIMAL = ["Bovino", "Suíno", "Aves", "Equino", "Ovino/Caprino", "Outros"];
+const TIPOS_MATERIAL = ["Cimento", "Areia", "Brita", "Tijolo/Bloco", "Vergalhão/Aço", "Madeira", "Telhas", "Outros"];
+
 const TIPOS_VEICULO = [
   { id: "furgao", label: "Furgão", icon: "🚐", cap: "1,5t", eixos: 2 },
   { id: "vuc", label: "VUC", icon: "🚚", cap: "3t", eixos: 2 },
@@ -1977,6 +2008,9 @@ function SolicitarFreteScreen({ onNavigate }) {
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
     descricao: "", precisaMunck: false, precisaEmpilhadeira: false,
     dataColeta: "", horario: "",
+    // Campos especiais dinâmicos
+    tipoAnimal: "", qtdAnimais: "", tipoMaterial: "",
+    itensMudanca: [{ nome: "", qtd: "" }],
   });
   const [addr, setAddr] = useState({
     origemCep:"", origemLogradouro:"", origemNumero:"", origemComplemento:"",
@@ -2036,6 +2070,16 @@ function SolicitarFreteScreen({ onNavigate }) {
     const origem = composeAddr("origem", addr);
     const dest = composeAddr("dest", addr);
     if (!origem || !dest) return setError("Endereço incompleto — volte ao passo 1");
+
+    // Peso é sempre obrigatório
+    if (!form.pesoKg || Number(form.pesoKg) <= 0) return setError("Informe o peso total da carga (kg).");
+
+    // Validação dos campos especiais obrigatórios
+    const regras = regrasCarga(form.tipoCarga);
+    if (regras.especial === "animal" && !form.tipoAnimal) return setError("Selecione o tipo de animal.");
+    if (regras.especial === "material" && !form.tipoMaterial) return setError("Selecione o tipo de material.");
+    if (regras.especial === "itens" && !form.itensMudanca.some(i => i.nome)) return setError("Adicione ao menos um item da mudança.");
+
     setError(""); setCalcLoading(true);
     const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
     try {
@@ -2056,6 +2100,30 @@ function SolicitarFreteScreen({ onNavigate }) {
     }
     setLoading(true); setError("");
     const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
+    const regras = regrasCarga(form.tipoCarga);
+
+    // Monta os detalhes da carga conforme o tipo (só o que faz sentido)
+    const detalhesCarga = {
+      tipoCargaLabel: TIPOS_CARGA.find(c => c.id === form.tipoCarga)?.label || form.tipoCarga,
+      descricao: form.descricao || null,
+    };
+    if (regras.dimensoes) {
+      detalhesCarga.dimensoes = {
+        comprimentoM: form.comprimentoM || null,
+        larguraM: form.larguraM || null,
+        alturaM: form.alturaM || null,
+      };
+    }
+    if (regras.especial === "animal") {
+      detalhesCarga.animal = { tipo: form.tipoAnimal || null, quantidade: form.qtdAnimais || null };
+    }
+    if (regras.especial === "material") {
+      detalhesCarga.material = form.tipoMaterial || null;
+    }
+    if (regras.especial === "itens") {
+      detalhesCarga.itens = form.itensMudanca.filter(i => i.nome);
+    }
+
     try {
       await api("POST", "/api/fretes", {
         tipoCarga: cargaBackend, tipoVeiculo: form.tipoVeiculo,
@@ -2063,6 +2131,7 @@ function SolicitarFreteScreen({ onNavigate }) {
         origemEndereco: composeAddr("origem", addr), origemCidade: addr.origemCidade, origemEstado: addr.origemUF,
         destEndereco: composeAddr("dest", addr), destCidade: addr.destCidade, destEstado: addr.destUF,
         valorProposto: valorNum,
+        detalhesCarga,
       }, token);
       setSuccess(true);
       setTimeout(() => onNavigate("meus-fretes"), 2000);
@@ -2159,14 +2228,69 @@ function SolicitarFreteScreen({ onNavigate }) {
               </div>
             </div>
             <div className="card">
-              <div className="card-title">Peso e Dimensões</div>
-              <div className="field"><label>Peso total (kg)</label><input type="number" placeholder="Ex: 5000" value={form.pesoKg} onChange={e => set("pesoKg", e.target.value)} /></div>
-              <div className="grid-3">
-                <div className="field"><label>Comp. (m)</label><input type="number" placeholder="Ex: 6" value={form.comprimentoM} onChange={e => set("comprimentoM", e.target.value)} /></div>
-                <div className="field"><label>Larg. (m)</label><input type="number" placeholder="Ex: 2.4" value={form.larguraM} onChange={e => set("larguraM", e.target.value)} /></div>
-                <div className="field"><label>Alt. (m)</label><input type="number" placeholder="Ex: 2.8" value={form.alturaM} onChange={e => set("alturaM", e.target.value)} /></div>
-              </div>
-              <div className="field"><label>Descrição da carga</label><textarea rows={3} placeholder="Detalhes importantes da carga..." value={form.descricao} onChange={e => set("descricao", e.target.value)} style={{ resize: "none" }} /></div>
+              <div className="card-title">Peso e Detalhes da Carga</div>
+              <div className="field"><label>Peso total (kg) *</label><input type="number" placeholder="Ex: 5000" value={form.pesoKg} onChange={e => set("pesoKg", e.target.value)} /></div>
+
+              {/* Dimensões — só quando o tipo de carga pede */}
+              {regrasCarga(form.tipoCarga).dimensoes && (
+                <div className="grid-3">
+                  <div className="field"><label>Comp. (m)</label><input type="number" placeholder="6" value={form.comprimentoM} onChange={e => set("comprimentoM", e.target.value)} /></div>
+                  <div className="field"><label>Larg. (m)</label><input type="number" placeholder="2.4" value={form.larguraM} onChange={e => set("larguraM", e.target.value)} /></div>
+                  <div className="field"><label>Alt. (m)</label><input type="number" placeholder="2.8" value={form.alturaM} onChange={e => set("alturaM", e.target.value)} /></div>
+                </div>
+              )}
+
+              {/* Campo especial: CARGA VIVA → tipo de animal + quantidade */}
+              {regrasCarga(form.tipoCarga).especial === "animal" && (
+                <div className="grid-2">
+                  <div className="field"><label>Tipo de animal *</label>
+                    <select value={form.tipoAnimal} onChange={e => set("tipoAnimal", e.target.value)}>
+                      <option value="">Selecione...</option>
+                      {TIPOS_ANIMAL.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                  <div className="field"><label>Qtd. de cabeças</label><input type="number" placeholder="Ex: 18" value={form.qtdAnimais} onChange={e => set("qtdAnimais", e.target.value)} /></div>
+                </div>
+              )}
+
+              {/* Campo especial: CONSTRUÇÃO → tipo de material */}
+              {regrasCarga(form.tipoCarga).especial === "material" && (
+                <div className="field"><label>Tipo de material *</label>
+                  <select value={form.tipoMaterial} onChange={e => set("tipoMaterial", e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {TIPOS_MATERIAL.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Campo especial: MUDANÇA → lista de itens */}
+              {regrasCarga(form.tipoCarga).especial === "itens" && (
+                <div className="field">
+                  <label>Itens da mudança</label>
+                  {form.itensMudanca.map((item, idx) => (
+                    <div key={idx} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input style={{ flex: 2 }} placeholder="Ex: Geladeira" value={item.nome}
+                        onChange={e => {
+                          const arr = [...form.itensMudanca]; arr[idx].nome = e.target.value; set("itensMudanca", arr);
+                        }} />
+                      <input style={{ flex: 1 }} type="number" placeholder="Qtd" value={item.qtd}
+                        onChange={e => {
+                          const arr = [...form.itensMudanca]; arr[idx].qtd = e.target.value; set("itensMudanca", arr);
+                        }} />
+                      {form.itensMudanca.length > 1 && (
+                        <button onClick={() => set("itensMudanca", form.itensMudanca.filter((_, i) => i !== idx))}
+                          style={{ background: "#FDECEA", color: "#C0392B", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 700 }}>×</button>
+                      )}
+                    </div>
+                  ))}
+                  <button className="btn btn-secondary" style={{ width: "100%", marginTop: 4 }}
+                    onClick={() => set("itensMudanca", [...form.itensMudanca, { nome: "", qtd: "" }])}>
+                    + Adicionar item
+                  </button>
+                </div>
+              )}
+
+              <div className="field"><label>Descrição / observações</label><textarea rows={3} placeholder="Detalhes importantes da carga..." value={form.descricao} onChange={e => set("descricao", e.target.value)} style={{ resize: "none" }} /></div>
             </div>
             <div className="card">
               <div className="card-title">Equipamentos no pátio</div>
@@ -2958,6 +3082,43 @@ function AceitarFreteScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
           <div className="info-row"><span className="info-label">Veículo necessário</span><span className="info-value">{frete.tipo_veiculo}</span></div>
         </div>
+
+        {(() => {
+          const d = frete.detalhes_carga;
+          if (!d || (typeof d === "object" && Object.keys(d).length === 0)) return null;
+          const det = typeof d === "string" ? (() => { try { return JSON.parse(d); } catch { return {}; } })() : d;
+          const temDim = det.dimensoes && (det.dimensoes.comprimentoM || det.dimensoes.larguraM || det.dimensoes.alturaM);
+          const temAlgo = det.descricao || temDim || det.animal || det.material || (det.itens && det.itens.length);
+          if (!temAlgo) return null;
+          return (
+            <div className="card">
+              <div className="card-title">📋 Detalhes da Carga</div>
+              {det.animal && (
+                <div className="info-row"><span className="info-label">🐄 Animal</span><span className="info-value">{det.animal.tipo}{det.animal.quantidade ? ` · ${det.animal.quantidade} cabeças` : ""}</span></div>
+              )}
+              {det.material && (
+                <div className="info-row"><span className="info-label">🧱 Material</span><span className="info-value">{det.material}</span></div>
+              )}
+              {temDim && (
+                <div className="info-row"><span className="info-label">📏 Dimensões</span><span className="info-value">{[det.dimensoes.comprimentoM && `${det.dimensoes.comprimentoM}m C`, det.dimensoes.larguraM && `${det.dimensoes.larguraM}m L`, det.dimensoes.alturaM && `${det.dimensoes.alturaM}m A`].filter(Boolean).join(" × ")}</span></div>
+              )}
+              {det.itens && det.itens.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <div className="info-label" style={{ marginBottom: 6 }}>📦 Itens da mudança</div>
+                  {det.itens.map((it, i) => (
+                    <div key={i} style={{ fontSize: 13, color: "var(--text2)", padding: "2px 0" }}>• {it.nome}{it.qtd ? ` (${it.qtd})` : ""}</div>
+                  ))}
+                </div>
+              )}
+              {det.descricao && (
+                <div style={{ marginTop: 8 }}>
+                  <div className="info-label" style={{ marginBottom: 4 }}>Observações</div>
+                  <div style={{ fontSize: 13, color: "var(--text2)" }}>{det.descricao}</div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {frete.custosEstimados && (
           <div className="card">
