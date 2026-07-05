@@ -1042,6 +1042,7 @@ function CadastroScreen({ onNavigate, screenData }) {
   }
 
   if (step === 3) {
+    const senhaOk = form.senha.length >= 6 && form.senha === (form.confirmarSenha || "");
     return (
       <div style={sContainer}>
         <Topo />
@@ -1049,11 +1050,16 @@ function CadastroScreen({ onNavigate, screenData }) {
           <div style={sBigTitle}>Crie uma senha</div>
           <div style={sSub}>Mínimo de 6 caracteres.</div>
           {error && <div className="alert alert-error">{error}</div>}
-          <PasswordInput value={form.senha} onChange={e => set("senha", e.target.value)} />
+          <PasswordInput value={form.senha} onChange={e => set("senha", e.target.value)} placeholder="••••••••" />
+          <div style={{ height: 12 }} />
+          <PasswordInput value={form.confirmarSenha || ""} onChange={e => set("confirmarSenha", e.target.value)} placeholder="Confirme a senha" />
+          {form.confirmarSenha && form.senha !== form.confirmarSenha && (
+            <div style={{ color: "var(--red)", fontSize: 13, marginTop: 8 }}>As senhas não coincidem.</div>
+          )}
         </div>
         <div style={sFooter}>
-          <button style={form.senha.length >= 6 ? sContinuar : sContinuarDisabled}
-            disabled={form.senha.length < 6}
+          <button style={senhaOk ? sContinuar : sContinuarDisabled}
+            disabled={!senhaOk}
             onClick={avancar}>Continuar</button>
         </div>
       </div>
