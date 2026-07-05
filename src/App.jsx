@@ -811,6 +811,8 @@ function CadastroScreen({ onNavigate, screenData }) {
   const TOTAL = tipo === "motorista" ? 12 : 8;
   const pct   = step === 0 ? 0 : Math.round((step / TOTAL) * 100);
 
+  const [verificando, setVerificando] = useState(false);
+
   const verificarDisponibilidade = async (campo, valor) => {
     try {
       const data = await api("GET", `/api/auth/verificar-disponibilidade?campo=${campo}&valor=${encodeURIComponent(valor)}`);
@@ -823,26 +825,26 @@ function CadastroScreen({ onNavigate, screenData }) {
     // Step 2: e-mail — verifica duplicidade antes de avançar
     if (step === 2) {
       if (!form.email.trim()) return setError("Digite seu e-mail.");
-      setLoading(true);
+      setVerificando(true);
       const disponivel = await verificarDisponibilidade("email", form.email.trim());
-      setLoading(false);
+      setVerificando(false);
       if (!disponivel) return setError("Este e-mail já está cadastrado. Faça login ou use outro e-mail.");
     }
     // Step 6 (motorista): CNH — verifica duplicidade
     if (step === 6 && tipo === "motorista") {
       if (form.cnh.trim()) {
-        setLoading(true);
+        setVerificando(true);
         const disponivel = await verificarDisponibilidade("cnh", form.cnh.trim());
-        setLoading(false);
+        setVerificando(false);
         if (!disponivel) return setError("Esta CNH já está cadastrada em outra conta.");
       }
     }
     // Step 7 (motorista): RNTRC — verifica duplicidade
     if (step === 7 && tipo === "motorista") {
       if (form.rntrc.trim()) {
-        setLoading(true);
+        setVerificando(true);
         const disponivel = await verificarDisponibilidade("rntrc", form.rntrc.trim());
-        setLoading(false);
+        setVerificando(false);
         if (!disponivel) return setError("Este RNTRC já está cadastrado em outra conta.");
       }
     }
@@ -1069,9 +1071,9 @@ function CadastroScreen({ onNavigate, screenData }) {
             onKeyDown={e => e.key === "Enter" && form.email.trim() && !loading && avancar()} />
         </div>
         <div style={sFooter}>
-          <button style={form.email.trim() && !loading ? sContinuar : sContinuarDisabled}
-            disabled={!form.email.trim() || loading}
-            onClick={avancar}>{loading ? "Verificando..." : "Continuar"}</button>
+          <button style={form.email.trim() && !verificando ? sContinuar : sContinuarDisabled}
+            disabled={!form.email.trim() || verificando}
+            onClick={avancar}>{verificando ? "Verificando..." : "Continuar"}</button>
         </div>
       </div>
     );
