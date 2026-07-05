@@ -811,7 +811,43 @@ function CadastroScreen({ onNavigate, screenData }) {
   const TOTAL = tipo === "motorista" ? 12 : 8;
   const pct   = step === 0 ? 0 : Math.round((step / TOTAL) * 100);
 
-  const avancar = () => { setError(""); setStep(s => s + 1); };
+  const verificarDisponibilidade = async (campo, valor) => {
+    try {
+      const data = await api("GET", `/api/auth/verificar-disponibilidade?campo=${campo}&valor=${encodeURIComponent(valor)}`);
+      return data.disponivel;
+    } catch { return true; } // em caso de erro de rede, deixa passar
+  };
+
+  const avancar = async () => {
+    setError("");
+    // Step 2: e-mail — verifica duplicidade antes de avançar
+    if (step === 2) {
+      if (!form.email.trim()) return setError("Digite seu e-mail.");
+      setLoading(true);
+      const disponivel = await verificarDisponibilidade("email", form.email.trim());
+      setLoading(false);
+      if (!disponivel) return setError("Este e-mail já está cadastrado. Faça login ou use outro e-mail.");
+    }
+    // Step 6 (motorista): CNH — verifica duplicidade
+    if (step === 6 && tipo === "motorista") {
+      if (form.cnh.trim()) {
+        setLoading(true);
+        const disponivel = await verificarDisponibilidade("cnh", form.cnh.trim());
+        setLoading(false);
+        if (!disponivel) return setError("Esta CNH já está cadastrada em outra conta.");
+      }
+    }
+    // Step 7 (motorista): RNTRC — verifica duplicidade
+    if (step === 7 && tipo === "motorista") {
+      if (form.rntrc.trim()) {
+        setLoading(true);
+        const disponivel = await verificarDisponibilidade("rntrc", form.rntrc.trim());
+        setLoading(false);
+        if (!disponivel) return setError("Este RNTRC já está cadastrado em outra conta.");
+      }
+    }
+    setStep(s => s + 1);
+  };
   const voltar  = () => {
     setError("");
     if (step <= 1) {
@@ -1030,12 +1066,12 @@ function CadastroScreen({ onNavigate, screenData }) {
           {error && <div className="alert alert-error">{error}</div>}
           <input autoFocus type="email" style={sInput} placeholder="seu@email.com"
             value={form.email} onChange={e => set("email", e.target.value)}
-            onKeyDown={e => e.key === "Enter" && form.email.trim() && avancar()} />
+            onKeyDown={e => e.key === "Enter" && form.email.trim() && !loading && avancar()} />
         </div>
         <div style={sFooter}>
-          <button style={form.email.trim() ? sContinuar : sContinuarDisabled}
-            disabled={!form.email.trim()}
-            onClick={avancar}>Continuar</button>
+          <button style={form.email.trim() && !loading ? sContinuar : sContinuarDisabled}
+            disabled={!form.email.trim() || loading}
+            onClick={avancar}>{loading ? "Verificando..." : "Continuar"}</button>
         </div>
       </div>
     );
