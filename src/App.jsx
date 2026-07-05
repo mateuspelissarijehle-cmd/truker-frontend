@@ -1344,8 +1344,8 @@ function CadastroScreen({ onNavigate, screenData }) {
             <div style={sBigTitle}>Placa do veículo</div>
             <div style={sSub}>Placa do cavalo mecânico.</div>
             {error && <div className="alert alert-error">{error}</div>}
-            <input autoFocus style={sInput} placeholder="ABC-1234"
-              value={form.placa} onChange={e => set("placa", e.target.value.toUpperCase().slice(0, 8))}
+            <input autoFocus style={sInput} placeholder="ABC-1234 ou ABC1D23"
+              value={form.placa} onChange={e => set("placa", maskPlaca(e.target.value))}
               onKeyDown={e => e.key === "Enter" && form.placa.trim() && avancar()} />
           </div>
           <div style={sFooter}>
@@ -2043,6 +2043,18 @@ function ContratanteHome({ onNavigate }) {
 // SOLICITAR FRETE
 // ─────────────────────────────────────────────
 const maskCep = v => v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+
+// Máscara de placa BR: antigo ABC-1234 ou Mercosul ABC1D23
+const maskPlaca = v => {
+  const s = v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
+  if (s.length <= 3) return s;
+  // Mercosul: 4ª posição é número, 5ª é letra
+  if (s.length >= 5 && /\d/.test(s[3]) && /[A-Z]/.test(s[4])) {
+    return s.slice(0, 3) + s.slice(3); // sem traço no Mercosul
+  }
+  // Antigo: ABC-1234
+  return s.slice(0, 3) + "-" + s.slice(3);
+};
 
 function SolicitarFreteScreen({ onNavigate }) {
   const { token } = useAuth();
@@ -4770,7 +4782,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
           <div className="field"><label>Marca</label><input value={form.marca} onChange={e => set("marca", e.target.value)} placeholder="Scania, Volvo, Mercedes..." /></div>
           <div className="field"><label>Modelo</label><input value={form.modelo} onChange={e => set("modelo", e.target.value)} placeholder="R450, FH540, Actros..." /></div>
           <div className="grid-2">
-            <div className="field"><label>Placa</label><input value={form.placa} onChange={e => set("placa", e.target.value.toUpperCase())} placeholder="ABC-1234" /></div>
+            <div className="field"><label>Placa</label><input value={form.placa} onChange={e => set("placa", maskPlaca(e.target.value))} placeholder="ABC-1234 ou ABC1D23" /></div>
             <div className="field"><label>Ano</label><input type="number" value={form.anoFab} onChange={e => set("anoFab", e.target.value)} placeholder="2018" /></div>
           </div>
           <div className="grid-2">
@@ -4837,7 +4849,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
               </select>
             </div>
             <div className="grid-2">
-              <div className="field"><label>Placa da carreta</label><input value={novaCarreta.placa} onChange={e => setNC("placa", e.target.value.toUpperCase())} placeholder="ABC-1234" /></div>
+              <div className="field"><label>Placa da carreta</label><input value={novaCarreta.placa} onChange={e => setNC("placa", maskPlaca(e.target.value))} placeholder="ABC-1234 ou ABC1D23" /></div>
               <div className="field"><label>Capacidade (t)</label><input type="number" value={novaCarreta.capacidadeTons} onChange={e => setNC("capacidadeTons", e.target.value)} placeholder="25" /></div>
             </div>
             <button className="btn btn-secondary" onClick={adicionarCarreta} disabled={addingCarreta || !form.tipoVeiculo} style={{ width: "100%" }}>
