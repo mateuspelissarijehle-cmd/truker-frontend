@@ -491,11 +491,11 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
     <div ref={divRef} style={{ width: "100%", height: `${height}px`, borderRadius: 12, overflow: "hidden", position: "relative", zIndex: 1, background: "#EFE9DC" }} />
   );
 }
-function PasswordInput({ value, onChange, placeholder }) {
+function PasswordInput({ value, onChange, placeholder, inputStyle }) {
   const [show, setShow] = useState(false);
   return (
     <div className="input-eye">
-      <input type={show ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder || "••••••••"} />
+      <input type={show ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder || "••••••••"} style={inputStyle} />
       <button className="eye" type="button" onClick={() => setShow(!show)}>{show ? "🙈" : "👁"}</button>
     </div>
   );
@@ -1050,9 +1050,9 @@ function CadastroScreen({ onNavigate, screenData }) {
           <div style={sBigTitle}>Crie uma senha</div>
           <div style={sSub}>Mínimo de 6 caracteres.</div>
           {error && <div className="alert alert-error">{error}</div>}
-          <PasswordInput value={form.senha} onChange={e => set("senha", e.target.value)} placeholder="••••••••" />
+          <PasswordInput value={form.senha} onChange={e => set("senha", e.target.value)} placeholder="••••••••" inputStyle={sInput} />
           <div style={{ height: 12 }} />
-          <PasswordInput value={form.confirmarSenha || ""} onChange={e => set("confirmarSenha", e.target.value)} placeholder="Confirme a senha" />
+          <PasswordInput value={form.confirmarSenha || ""} onChange={e => set("confirmarSenha", e.target.value)} placeholder="Confirme a senha" inputStyle={sInput} />
           {form.confirmarSenha && form.senha !== form.confirmarSenha && (
             <div style={{ color: "var(--red)", fontSize: 13, marginTop: 8 }}>As senhas não coincidem.</div>
           )}
