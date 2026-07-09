@@ -2550,7 +2550,8 @@ function DetalheFrete({ frete, onNavigate }) {
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat</button>
           </div>
         )}
-        {frete.status === "entregue" && <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => onNavigate("avaliar", { frete })}>⭐ Avaliar Motorista</button>}
+        {frete.status === "entregue" && !frete.ja_avaliou && <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => onNavigate("avaliar", { frete })}>⭐ Avaliar Motorista</button>}
+        {frete.status === "entregue" && frete.ja_avaliou && <div className="alert alert-success" style={{ marginBottom: 10 }}>✅ Você já avaliou este frete.</div>}
         {frete.status === "aguardando" && (
           <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => onNavigate("propostas-recebidas", frete)}>📨 Ver Propostas Recebidas</button>
         )}
