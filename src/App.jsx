@@ -2486,10 +2486,6 @@ function MeusFretes({ onNavigate }) {
                 <span>📅 {data}</span>
                 <span>🚛 {f.motorista_nome || "Aguardando"}</span>
               </div>
-              <div style={{ display: "flex", gap: 12, marginTop: 4, fontSize: 12, color: "var(--text3)" }}>
-                <span>💰 Motorista: {formatMoney(f.valor_motorista || 0)}</span>
-                <span>📊 Taxa: {formatMoney(f.comissao_truker || 0)}</span>
-              </div>
             </div>
           );
         })}
@@ -3131,7 +3127,6 @@ function AceitarFreteScreen({ frete, onNavigate }) {
         <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
           <div className="price" style={{ fontSize: 42 }}>{formatMoney(frete.valor_motorista || 0)}</div>
           <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>Seu valor como motorista (valor publicado)</div>
-          <div style={{ fontSize: 12, color: "#444", marginTop: 2 }}>Plataforma: {formatMoney(frete.comissao_truker || 0)} · Total: {formatMoney(frete.valor_final || frete.valor_antt || 0)}</div>
         </div>
         <div className="card">
           <div className="map-placeholder">
@@ -5157,7 +5152,7 @@ function FinancasContratante({ onNavigate }) {
   const iconCarga = (tipo) => TIPOS_CARGA.find(t => t.id === tipo)?.icon || "📦";
   const labelCarga = (tipo) => TIPOS_CARGA.find(t => t.id === tipo)?.label || tipo || "—";
 
-  const resumo = dados?.resumo || {};
+  const resumo = dados?.resumo || dados || {};
   const porMes = dados?.por_mes || [];
   const porRota = dados?.por_rota || [];
   const porTipo = dados?.por_tipo_carga || [];
