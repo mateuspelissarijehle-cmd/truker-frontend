@@ -2754,8 +2754,8 @@ function PerfilContratante({ onNavigate }) {
   const { user, logout } = useAuth();
   const settingsLinks = [
     { icon: "👤", label: "Dados Pessoais", sub: "Nome, foto, CPF/CNPJ, empresa", screen: "dados-pessoais-contratante" },
-    { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
-    { icon: "🔒", label: "Privacidade e segurança", sub: "Senha, dados pessoais", screen: null },
+    { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: "notificacoes" },
+    { icon: "🔒", label: "Privacidade e segurança", sub: "Senha, dados pessoais", screen: "privacidade" },
     { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
   ];
   const accessLinks = [
@@ -3848,8 +3848,8 @@ function PerfilMotorista({ onNavigate }) {
                 { icon: "👤", label: "Dados Pessoais", sub: "Nome, foto, CPF, CNH, endereço", screen: "dados-pessoais-motorista" },
                 { icon: "🚛", label: "Meu Caminhão", sub: "Tipo, carreta, placa, documentos", screen: "dados-caminhao" },
                 { icon: "💰", label: "Minhas Finanças", sub: "Despesas, receitas e controle", screen: "financas-motorista" },
-                { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: null },
-                { icon: "🔒", label: "Privacidade", sub: "Senha, dados pessoais", screen: null },
+                { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: "notificacoes" },
+                { icon: "🔒", label: "Privacidade", sub: "Senha, dados pessoais", screen: "privacidade" },
                 { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
               ].map((item, i) => (
                 <div key={i} onClick={() => item.screen && onNavigate(item.screen)}
@@ -5748,6 +5748,205 @@ function SobreScreen({ onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
+// PRIVACIDADE
+// ─────────────────────────────────────────────
+function PrivacidadeScreen({ onNavigate }) {
+  const { user } = useAuth();
+  const dadosPessoaisScreen = user?.tipo === "motorista" ? "dados-pessoais-motorista" : "dados-pessoais-contratante";
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Privacidade</h1></div>
+      <div className="content">
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate("alterar-senha")}>
+          <span style={{ fontSize: 20 }}>🔑</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: "var(--text)" }}>Alterar senha</div>
+            <div style={{ fontSize: 12, color: "var(--text3)" }}>Redefina sua senha com um código enviado ao seu email</div>
+          </div>
+          <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+        </div>
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate(dadosPessoaisScreen)}>
+          <span style={{ fontSize: 20 }}>👤</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: "var(--text)" }}>Dados pessoais</div>
+            <div style={{ fontSize: 12, color: "var(--text3)" }}>Veja e edite seus dados cadastrados</div>
+          </div>
+          <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+        </div>
+        <div className="card">
+          <div className="card-title">🔒 Segurança dos seus dados</div>
+          <p style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.6 }}>
+            Sua senha é armazenada com hash seguro e nunca fica visível para a equipe TRUKER. Para trocá-la, enviamos um código de verificação para o email cadastrado na sua conta.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ALTERAR SENHA (usuário logado — reaproveita o fluxo de recuperação)
+// ─────────────────────────────────────────────
+function AlterarSenhaScreen({ onNavigate }) {
+  const { user } = useAuth();
+  const [step, setStep] = useState(1);
+  const [code, setCode] = useState("");
+  const [novaSenha, setNovaSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [codigoTeste, setCodigoTeste] = useState(null);
+  const email = user?.email || "";
+
+  const enviarCodigo = async () => {
+    setError(""); setLoading(true);
+    try {
+      const resp = await api("POST", "/api/auth/esqueci-senha", { email });
+      if (resp.codigo_teste) setCodigoTeste(resp.codigo_teste);
+      setStep(2);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const verificarCodigo = async () => {
+    if (code.length < 6) return setError("Digite o código de 6 dígitos");
+    setError(""); setLoading(true);
+    try {
+      await api("POST", "/api/auth/verificar-codigo-senha", { email, codigo: code });
+      setStep(3);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  const redefinir = async () => {
+    if (!novaSenha || novaSenha.length < 6) return setError("A senha deve ter pelo menos 6 caracteres");
+    setError(""); setLoading(true);
+    try {
+      await api("POST", "/api/auth/redefinir-senha", { email, codigo: code, novaSenha });
+      setStep(4);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate("privacidade")}>←</button><h1>Alterar Senha</h1></div>
+      <div className="content">
+        {step < 4 && (
+          <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>
+            {step === 1 && <>Vamos enviar um código de verificação para <strong style={{ color: "var(--text)" }}>{email}</strong>.</>}
+            {step === 2 && <>Código enviado para <strong style={{ color: "var(--gold)" }}>{email}</strong>. Digite abaixo.</>}
+            {step === 3 && "Defina sua nova senha."}
+          </p>
+        )}
+        {step === 2 && codigoTeste && (
+          <div style={{ background: "rgba(201,168,76,0.1)", border: "1px dashed var(--gold)", borderRadius: 10, padding: "14px 12px", marginBottom: 14, textAlign: "center" }}>
+            <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🧪 Modo teste — email indisponível</div>
+            <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: 14, color: "var(--text)", fontFamily: "monospace" }}>{codigoTeste}</div>
+          </div>
+        )}
+        {step === 4 && (
+          <div style={{ textAlign: "center", paddingTop: 20 }}>
+            <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text)", marginBottom: 8 }}>Senha alterada!</div>
+            <div style={{ fontSize: 14, color: "var(--text3)", marginBottom: 24 }}>Sua senha foi redefinida com sucesso.</div>
+            <button className="btn btn-primary" onClick={() => onNavigate("privacidade")}>Voltar</button>
+          </div>
+        )}
+        {error && <div className="alert alert-error">{error}</div>}
+        {step === 1 && (
+          <button className="btn btn-primary" onClick={enviarCodigo} disabled={loading}>{loading ? "Enviando..." : "Enviar código"}</button>
+        )}
+        {step === 2 && (
+          <>
+            <div className="field">
+              <label>Código de verificação</label>
+              <input
+                type="text" inputMode="numeric" maxLength={6}
+                value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="000000"
+                style={{ fontSize: 28, letterSpacing: 12, textAlign: "center", fontFamily: "monospace" }}
+              />
+            </div>
+            <button className="btn btn-primary" onClick={verificarCodigo} disabled={loading}>{loading ? "Verificando..." : "Verificar código"}</button>
+            <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={enviarCodigo} disabled={loading}>🔄 Reenviar código</button>
+          </>
+        )}
+        {step === 3 && (
+          <>
+            <div className="field"><label>Nova senha</label><PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} /></div>
+            <button className="btn btn-primary" onClick={redefinir} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICAÇÕES
+// ─────────────────────────────────────────────
+function NotificacoesScreen({ onNavigate }) {
+  const { token } = useAuth();
+  const [prefs, setPrefs] = useState({ novo_frete: true, chat: true, status_frete: true });
+  const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api("GET", "/api/usuarios/notificacoes", null, token)
+      .then(setPrefs)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const alternar = async (categoria, valor) => {
+    setPrefs(p => ({ ...p, [categoria]: valor }));
+    setSalvando(categoria); setError("");
+    try {
+      const atualizado = await api("PUT", "/api/usuarios/notificacoes", { [categoria]: valor }, token);
+      setPrefs(atualizado);
+    } catch (e) {
+      setPrefs(p => ({ ...p, [categoria]: !valor }));
+      setError(e.message);
+    } finally { setSalvando(null); }
+  };
+
+  const itens = [
+    { key: "novo_frete", label: "Novo frete disponível", sub: "Avisos de fretes compatíveis com você" },
+    { key: "chat", label: "Mensagem no chat", sub: "Novas mensagens em conversas ativas" },
+    { key: "status_frete", label: "Atualização de status do frete", sub: "Mudanças de status nos seus fretes" },
+  ];
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Notificações</h1></div>
+      <div className="content">
+        {error && <div className="alert alert-error">{error}</div>}
+        {loading ? <Loading /> : (
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            {itens.map((item, i) => (
+              <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderBottom: i < itens.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>{item.sub}</div>
+                </div>
+                <label className="toggle">
+                  <input type="checkbox" checked={!!prefs[item.key]} disabled={salvando === item.key} onChange={e => alternar(item.key, e.target.checked)} />
+                  <span className="toggle-slider" />
+                </label>
+              </div>
+            ))}
+          </div>
+        )}
+        <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 12, lineHeight: 1.6 }}>
+          As alterações são salvas automaticamente.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ADMIN — MOTORISTA DE TESTE
 // ─────────────────────────────────────────────
 function AdminMotoristaTeste({ onNavigate }) {
@@ -5886,6 +6085,9 @@ function Router() {
     case "avaliacoes": return <AvaliacoesScreen {...p} />;
     case "suporte": return <SuporteScreen {...p} />;
     case "sobre": return <SobreScreen {...p} />;
+    case "privacidade": return <PrivacidadeScreen {...p} />;
+    case "alterar-senha": return <AlterarSenhaScreen {...p} />;
+    case "notificacoes": return <NotificacoesScreen {...p} />;
     default: return <SplashScreen {...p} />;
   }
 }
