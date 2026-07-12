@@ -3211,19 +3211,18 @@ function AceitarFreteScreen({ frete, onNavigate }) {
           <div className="card">
             <div className="card-title">Sua proposta de valor</div>
             <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-              O contratante publicou {formatMoney(frete.valor_final || frete.valor_antt || 0)} pelo frete inteiro. Proponha o valor total que você gostaria de receber pela plataforma negociar (sujeito ao piso mínimo ANTT).
+              O valor publicado para você é {formatMoney(frete.valor_motorista || 0)}. Proponha o valor que você gostaria de receber (sujeito ao piso mínimo ANTT).
             </p>
             <div className="field">
-              <label>Valor proposto (total do frete, R$)</label>
-              <input type="number" step="0.01" placeholder={String(frete.valor_final || frete.valor_antt || "")} value={valorProposta} onChange={e => setValorProposta(e.target.value)} />
+              <label>Valor proposto (o que você vai receber, R$)</label>
+              <input type="number" step="0.01" placeholder={String(frete.valor_motorista || "")} value={valorProposta} onChange={e => setValorProposta(e.target.value)} />
             </div>
             {frete.totalCustosEstimados != null && valorProposta && !isNaN(parseFloat(String(valorProposta).replace(",", "."))) && (() => {
-              const valorTotal = parseFloat(String(valorProposta).replace(",", "."));
-              const seuTake = valorTotal * 0.90; // 90% após comissão da plataforma (10%)
+              const seuTake = parseFloat(String(valorProposta).replace(",", "."));
               const liquidoProposta = seuTake - frete.totalCustosEstimados;
               return (
                 <div className="alert alert-info" style={{ fontSize: 12 }}>
-                  Se aceito: você recebe ≈ {formatMoney(seuTake)} (após comissão) − {formatMoney(frete.totalCustosEstimados)} (combustível+desgaste) = <strong>{formatMoney(liquidoProposta)} líquido estimado</strong>
+                  Se aceito: você recebe {formatMoney(seuTake)} − {formatMoney(frete.totalCustosEstimados)} (combustível+desgaste) = <strong>{formatMoney(liquidoProposta)} líquido estimado</strong>
                 </div>
               );
             })()}
