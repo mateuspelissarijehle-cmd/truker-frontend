@@ -2828,6 +2828,8 @@ function MotoristaHome({ onNavigate }) {
   const [online, setOnline] = useState(() => { try { return localStorage.getItem("truker_online") === "true"; } catch { return false; } });
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroPeso, setFiltroPeso] = useState("todos");
+  const [buscaCidade, setBuscaCidade] = useState("");
+  const [buscaCidadeDebounced, setBuscaCidadeDebounced] = useState("");
   const [kmVazio, setKmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
   const [ganhosDia, setGanhosDia] = useState(null);
@@ -2886,13 +2888,20 @@ function MotoristaHome({ onNavigate }) {
     return () => clearInterval(interval);
   }, [fretesAtivos.length, token]);
 
-  // Carrega fretes disponíveis quando fica online
+  // Debounce da busca por cidade antes de consultar o backend
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaCidadeDebounced(buscaCidade.trim()), 400);
+    return () => clearTimeout(t);
+  }, [buscaCidade]);
+
+  // Carrega fretes disponíveis quando fica online ou quando a busca por cidade muda
   useEffect(() => {
     if (!online) { setDisponiveis([]); setLoading(false); return; }
     setLoading(true);
-    api("GET", "/api/fretes/disponiveis", null, token)
+    const qs = buscaCidadeDebounced ? `?busca_origem_cidade=${encodeURIComponent(buscaCidadeDebounced)}` : "";
+    api("GET", `/api/fretes/disponiveis${qs}`, null, token)
       .then(setDisponiveis).catch(() => setDisponiveis([])).finally(() => setLoading(false));
-  }, [online]);
+  }, [online, buscaCidadeDebounced]);
 
   // Carrega fretes ativos do motorista (aceito/coletando/em_rota)
   useEffect(() => {
@@ -3020,6 +3029,15 @@ function MotoristaHome({ onNavigate }) {
             })}
           </div>
         )}
+        <div style={{ marginBottom: 12, position: "relative" }}>
+          <input
+            type="text"
+            value={buscaCidade}
+            onChange={e => setBuscaCidade(e.target.value)}
+            placeholder="🔍 Buscar por cidade de origem"
+            style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13, fontFamily: "Inter, sans-serif" }}
+          />
+        </div>
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 11, color: "#555", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Tipo de frete</div>
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
@@ -3060,12 +3078,13 @@ function MotoristaHome({ onNavigate }) {
         ) : (filtrados.length > 0 ? filtrados : disponiveis).map(f => {
           const cargaObj = TIPOS_CARGA.find(c => c.id === f.tipo_carga);
           return (
-            <div key={f.id} className="uber-card" onClick={() => onNavigate("aceitar-frete", f)}>
+            <div key={f.id} className="uber-card" onClick={() => onNavigate("aceitar-frete", f)} style={f.prioridade_rota ? { borderColor: "var(--gold)" } : undefined}>
               <div className="uber-card-header">
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
                     <span className="tag-chip">{cargaObj?.icon || "📦"} {cargaObj?.label || f.tipo_carga}</span>
                     <span className="tag-chip">📏 {f.distancia_km} km</span>
+                    {f.prioridade_rota && <span className="tag-chip">📍 Perto da sua última entrega</span>}
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
                   <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>⚖️ {f.peso_tons}t · 🚛 {f.tipo_veiculo}</div>
