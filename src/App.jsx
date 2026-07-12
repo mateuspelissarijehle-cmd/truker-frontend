@@ -4987,11 +4987,11 @@ function FinancasMotorista({ onNavigate }) {
   const { token } = useAuth();
   const [tab, setTab] = useState("despesas");
   const [despesas, setDespesas] = useState([]);
-  const [receitas, setReceitas] = useState([]);
+  const [ganhos, setGanhos] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loadingAdd, setLoadingAdd] = useState(false);
   const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
-  const [loadingReceitas, setLoadingReceitas] = useState(false);
+  const [loadingGanhos, setLoadingGanhos] = useState(true);
   const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
   const tiposDespesa = [
     { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
@@ -5001,21 +5001,17 @@ function FinancasMotorista({ onNavigate }) {
     { id: "outro", icon: "📦", label: "Outro" },
   ];
 
-  // Carrega despesas do banco ao montar
+  // Carrega despesas e ganhos do banco já ao montar a tela (não só ao clicar na aba)
   useEffect(() => {
     api("GET", "/api/motoristas/despesas", null, token)
       .then(setDespesas).catch(() => {});
+    setLoadingGanhos(true);
+    api("GET", "/api/motoristas/ganhos", null, token)
+      .then(setGanhos).catch(() => setGanhos(null)).finally(() => setLoadingGanhos(false));
   }, [token]);
 
-  useEffect(() => {
-    if (tab === "receitas" && receitas.length === 0) {
-      setLoadingReceitas(true);
-      api("GET", "/api/motoristas/extrato", null, token).then(d => setReceitas(Array.isArray(d) ? d : [])).catch(() => setReceitas([])).finally(() => setLoadingReceitas(false));
-    }
-  }, [tab]);
-
   const totalDespesas = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
-  const totalReceitas = receitas.reduce((a, r) => a + Number(r.valor_motorista || 0), 0);
+  const totalReceitas = Number(ganhos?.ganhos_total || 0);
   const saldo = totalReceitas - totalDespesas;
 
   const add = async () => {
@@ -5109,19 +5105,45 @@ function FinancasMotorista({ onNavigate }) {
         )}
         {tab === "receitas" && (
           <>
-            {loadingReceitas ? <Loading /> : receitas.length === 0 ? (
+            {loadingGanhos ? <Loading /> : !ganhos || Number(ganhos.total_fretes || 0) === 0 ? (
               <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>💰</div>
                 <p style={{ fontWeight: 600 }}>Nenhuma receita ainda</p>
                 <p style={{ fontSize: 13, marginTop: 6 }}>Fretes concluídos entram aqui automaticamente.</p>
               </div>
-            ) : receitas.map((r, i) => (
-              <div key={i} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(45,122,58,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>🚛</div>
-                <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}>{r.origem_cidade || "—"} → {r.dest_cidade || "—"}</div><div style={{ fontSize: 12, color: "var(--text3)" }}>{r.tipo_carga || "—"} · {r.distancia_km || "—"} km</div></div>
-                <div style={{ fontWeight: 700, color: "var(--green)", fontSize: 15 }}>+{formatMoney(r.valor_motorista || 0)}</div>
-              </div>
-            ))}
+            ) : (
+              <>
+                <div className="card" style={{ textAlign: "center", borderColor: "rgba(45,122,58,0.3)", marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 4 }}>Ganhos este mês</div>
+                  <div style={{ fontSize: 32, fontWeight: 800, color: "var(--green)" }}>{formatMoney(ganhos.ganhos_mes_atual)}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+                    {ganhos.fretes_mes_atual} frete{ganhos.fretes_mes_atual === 1 ? "" : "s"} · média {formatMoney(ganhos.media_por_frete)}/frete
+                  </div>
+                </div>
+                {ganhos.historico_mensal?.length > 0 && (
+                  <div className="card" style={{ marginBottom: 14 }}>
+                    <div className="card-title">Histórico mensal</div>
+                    {ganhos.historico_mensal.map((m, i) => (
+                      <div key={i} style={{ marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
+                          <span style={{ fontWeight: 700 }}>{m.mes}/{m.ano}</span>
+                          <span style={{ color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.valor)}</span>
+                        </div>
+                        <div className="progress-bar">
+                          <div className="progress-fill green" style={{ width: `${Math.round((Number(m.valor) / Math.max(...ganhos.historico_mensal.map(x => Number(x.valor)), 1)) * 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="card">
+                  <div className="card-title">Resumo total</div>
+                  <div className="info-row"><span className="info-label">Total de fretes</span><span className="info-value">{ganhos.total_fretes}</span></div>
+                  <div className="info-row"><span className="info-label">Km carregado total</span><span className="info-value">{formatKm(ganhos.km_carregado)}</span></div>
+                  <div className="info-row"><span className="info-label" style={{ fontWeight: 800 }}>Ganhos totais</span><span className="info-value" style={{ color: "var(--green)", fontWeight: 800 }}>{formatMoney(ganhos.ganhos_total)}</span></div>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
