@@ -333,6 +333,40 @@ function StatusBadge({ status }) {
 }
 function Loading() { return <div className="loading"><div className="spinner" />Carregando...</div>; }
 
+// Cartão discreto de histórico de preços da rota (piso ANTT + média de mercado)
+function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga, mostrarPiso = true }) {
+  const { token } = useAuth();
+  const [historico, setHistorico] = useState(null);
+
+  useEffect(() => {
+    if (!origemCidade || !origemUf || !destCidade || !destUf) { setHistorico(null); return; }
+    let cancelado = false;
+    const params = new URLSearchParams({ origem_cidade: origemCidade, origem_uf: origemUf, dest_cidade: destCidade, dest_uf: destUf });
+    if (tipoVeiculo) params.set("tipo_veiculo", tipoVeiculo);
+    if (tipoCarga) params.set("tipo_carga", tipoCarga);
+    api("GET", `/api/fretes/historico-precos-rota?${params.toString()}`, null, token)
+      .then(data => { if (!cancelado) setHistorico(data); })
+      .catch(() => { if (!cancelado) setHistorico(null); });
+    return () => { cancelado = true; };
+  }, [origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga]);
+
+  if (!historico) return null;
+  const temMedia = historico.mediaMercado != null;
+
+  return (
+    <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12, color: "var(--text2)" }}>
+      <span>📊{" "}
+        {mostrarPiso && <>Piso ANTT: <strong>{formatMoney(historico.pisoAntt)}</strong></>}
+        {mostrarPiso && temMedia && " · "}
+        {temMedia && <>Média paga nessa rota: <strong>{formatMoney(historico.mediaMercado)}</strong> (baseado em {historico.totalFretes} frete{historico.totalFretes === 1 ? "" : "s"})</>}
+      </span>
+      {temMedia && historico.granularidade === "estado" && (
+        <div style={{ marginTop: 4, color: "var(--text3)" }}>Média do estado — poucos dados nessa cidade exata</div>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────
 // MAPA LEAFLET + OPENSTREETMAP (gratuito)
 // ─────────────────────────────────────────────
@@ -2392,6 +2426,11 @@ function SolicitarFreteScreen({ onNavigate }) {
                 <div className="price" style={{ fontSize: 28, color: "var(--text3)" }}>{formatMoney(calc.pisoMinimo)}</div>
               </div>
             </div>
+            <HistoricoPrecoRota
+              origemCidade={addr.origemCidade} origemUf={addr.origemUF}
+              destCidade={addr.destCidade} destUf={addr.destUF}
+              tipoVeiculo={form.tipoVeiculo} tipoCarga={CARGA_BACKEND_MAP[form.tipoCarga] || "geral"}
+            />
             <div className="card">
               <div className="card-title">💰 Defina o valor do frete</div>
               <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
@@ -3138,6 +3177,13 @@ function AceitarFreteScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
           <div className="info-row"><span className="info-label">Veículo necessário</span><span className="info-value">{frete.tipo_veiculo}</span></div>
         </div>
+
+        <HistoricoPrecoRota
+          origemCidade={frete.origem_cidade} origemUf={frete.origem_estado}
+          destCidade={frete.dest_cidade} destUf={frete.dest_estado}
+          tipoVeiculo={frete.tipo_veiculo} tipoCarga={frete.tipo_carga}
+          mostrarPiso={false}
+        />
 
         {(() => {
           const d = frete.detalhes_carga;
