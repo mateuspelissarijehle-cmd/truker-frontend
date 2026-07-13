@@ -58,6 +58,34 @@ async function api(method, path, body, token) {
   return data;
 }
 
+// Baixa um arquivo binário autenticado (ex: PDF de contrato) e abre em nova aba.
+// O endpoint só aceita token via header Authorization, então não dá pra usar
+// window.open(url) direto — buscamos como blob e abrimos uma URL local.
+// A aba é aberta ANTES do fetch (síncrono, dentro do clique do usuário) e só
+// redirecionada depois — abrir só no final, após o await, é bloqueado como
+// pop-up pela maioria dos navegadores por perder o gesto do usuário.
+async function abrirArquivoAutenticado(path, token) {
+  const novaJanela = window.open("", "_blank");
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      let msg = "Não foi possível abrir o arquivo";
+      try { const data = await res.json(); msg = data.error || msg; } catch {}
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    if (novaJanela) novaJanela.location.href = url;
+    else window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) {
+    if (novaJanela) novaJanela.close();
+    throw e;
+  }
+}
+
 // ─────────────────────────────────────────────
 // TIPOS DE CARGA
 // ─────────────────────────────────────────────
@@ -2637,7 +2665,10 @@ function DetalheFrete({ frete, onNavigate }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [contratoLoading, setContratoLoading] = useState(false);
   if (!frete) return <Loading />;
+
+  const temContrato = ["aceito", "coletando", "em_rota", "entregue"].includes(frete.status);
 
   const cancelar = async () => {
     if (!confirm("Cancelar este frete?")) return;
@@ -2645,6 +2676,13 @@ function DetalheFrete({ frete, onNavigate }) {
     try { await api("PATCH", `/api/fretes/${frete.id}/status`, { status: "cancelado" }, token); onNavigate("meus-fretes"); }
     catch (e) { setError(e.message); }
     finally { setLoading(false); }
+  };
+
+  const verContrato = async () => {
+    setContratoLoading(true); setError("");
+    try { await abrirArquivoAutenticado(`/api/fretes/${frete.id}/contrato`, token); }
+    catch (e) { setError(e.message); }
+    finally { setContratoLoading(false); }
   };
 
   return (
@@ -2683,6 +2721,11 @@ function DetalheFrete({ frete, onNavigate }) {
             <div className="info-row"><span className="info-label">Nome</span><span className="info-value">{frete.motorista_nome}</span></div>
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat</button>
           </div>
+        )}
+        {temContrato && (
+          <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={verContrato} disabled={contratoLoading}>
+            {contratoLoading ? "Abrindo contrato..." : "📄 Ver Contrato"}
+          </button>
         )}
         {frete.status === "entregue" && !frete.ja_avaliou && <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => onNavigate("avaliar", { frete })}>⭐ Avaliar Motorista</button>}
         {frete.status === "entregue" && frete.ja_avaliou && <div className="alert alert-success" style={{ marginBottom: 10 }}>✅ Você já avaliou este frete.</div>}
@@ -3738,10 +3781,19 @@ function MeusFretesMot({ onNavigate }) {
   const [fretes, setFretes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState("todos");
+  const [contratoLoadingId, setContratoLoadingId] = useState(null);
+  const [contratoError, setContratoError] = useState("");
 
   useEffect(() => {
     api("GET", "/api/fretes", null, token).then(setFretes).catch(() => setFretes([])).finally(() => setLoading(false));
   }, []);
+
+  const verContrato = async (freteId) => {
+    setContratoLoadingId(freteId); setContratoError("");
+    try { await abrirArquivoAutenticado(`/api/fretes/${freteId}/contrato`, token); }
+    catch (e) { setContratoError(e.message); }
+    finally { setContratoLoadingId(null); }
+  };
 
   const filtrados = filtro === "todos" ? fretes : fretes.filter(f => {
     if (filtro === "andamento") return ["aceito", "em_rota", "coletando"].includes(f.status);
@@ -3770,6 +3822,7 @@ function MeusFretesMot({ onNavigate }) {
             <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--gold)" : "var(--border)", background: filtro === s ? "var(--gold)" : "var(--surface)", color: filtro === s ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}>{l}</button>
           ))}
         </div>
+        {contratoError && <div className="alert alert-error">{contratoError}</div>}
         {loading ? <Loading /> : filtrados.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
         ) : filtrados.map(f => {
@@ -3785,6 +3838,11 @@ function MeusFretesMot({ onNavigate }) {
               <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>📅 {data}</span></div>
               {emAndamento && (
                 <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("em-transito", f)}>📍 Ver em trânsito</button>
+              )}
+              {f.status === "entregue" && (
+                <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => verContrato(f.id)} disabled={contratoLoadingId === f.id}>
+                  {contratoLoadingId === f.id ? "Abrindo contrato..." : "📄 Ver Contrato"}
+                </button>
               )}
             </div>
           );
@@ -3812,6 +3870,14 @@ function EmTransitoScreen({ frete, onNavigate }) {
   const [showAddDespesa, setShowAddDespesa] = useState(false);
   const [novaDespesa, setNovaDespesa] = useState({ tipo: "pedagio", descricao: "", valor: "" });
   const [salvandoDespesa, setSalvandoDespesa] = useState(false);
+  const [contratoLoading, setContratoLoading] = useState(false);
+
+  const verContrato = async () => {
+    setContratoLoading(true); setError("");
+    try { await abrirArquivoAutenticado(`/api/fretes/${frete.id}/contrato`, token); }
+    catch (e) { setError(e.message); }
+    finally { setContratoLoading(false); }
+  };
 
   const tiposDespesaFrete = [
     { id: "pedagio", icon: "🛣️", label: "Pedágio" },
@@ -3949,6 +4015,9 @@ function EmTransitoScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
+          <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={verContrato} disabled={contratoLoading}>
+            {contratoLoading ? "Abrindo contrato..." : "📄 Ver Contrato"}
+          </button>
         </div>
 
         <div className="card">
