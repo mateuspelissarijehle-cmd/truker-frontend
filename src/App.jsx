@@ -2049,7 +2049,8 @@ function ContratanteHome({ onNavigate }) {
             <div key={label} className="stat-card"><div style={{ fontSize: 18 }}>{icon}</div><div className="stat-value" style={{ fontSize: 22 }}>{val}</div><div className="stat-label">{label}</div></div>
           ))}
         </div>
-        <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={() => onNavigate("solicitar-frete")}>+ Solicitar Frete</button>
+        <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => onNavigate("solicitar-frete")}>+ Solicitar Frete</button>
+        <button className="btn btn-secondary" style={{ marginBottom: 16 }} onClick={() => onNavigate("buscar-motoristas")}>🔍 Buscar Motoristas Disponíveis</button>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <span style={{ fontWeight: 700, fontSize: 15 }}>Meus Fretes</span>
           <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => onNavigate("meus-fretes")}>Ver todos</span>
@@ -2093,9 +2094,11 @@ const maskPlaca = v => {
   return s.slice(0, 3) + "-" + s.slice(3);
 };
 
-function SolicitarFreteScreen({ onNavigate }) {
+function SolicitarFreteScreen({ onNavigate, screenData }) {
   const { token } = useAuth();
   const [step, setStep] = useState(1);
+  const motoristaConvidadoId = screenData?.motoristaConvidadoId || null;
+  const motoristaConvidadoNome = screenData?.motoristaConvidadoNome || null;
   const [form, setForm] = useState({
     tipoFrete: "interestadual", tipoCarga: "carga_seca", tipoVeiculo: "truck",
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
@@ -2107,7 +2110,7 @@ function SolicitarFreteScreen({ onNavigate }) {
   });
   const [addr, setAddr] = useState({
     origemCep:"", origemLogradouro:"", origemNumero:"", origemComplemento:"",
-    origemBairro:"", origemCidade:"", origemUF:"",
+    origemBairro:"", origemCidade: screenData?.origemCidadeSugerida || "", origemUF: screenData?.origemUfSugerida || "",
     destCep:"", destLogradouro:"", destNumero:"", destComplemento:"",
     destBairro:"", destCidade:"", destUF:"",
   });
@@ -2225,6 +2228,7 @@ function SolicitarFreteScreen({ onNavigate }) {
         destEndereco: composeAddr("dest", addr), destCidade: addr.destCidade, destEstado: addr.destUF,
         valorProposto: valorNum,
         detalhesCarga,
+        ...(motoristaConvidadoId ? { motoristaConvidadoId } : {}),
       }, token);
       setSuccess(true);
       setTimeout(() => onNavigate("meus-fretes"), 2000);
@@ -2240,7 +2244,17 @@ function SolicitarFreteScreen({ onNavigate }) {
         <span style={{ marginLeft: "auto", fontSize: 12, color: "#555" }}>{step}/3</span>
       </div>
       <div className="content">
-        {success && <div className="alert alert-success">✅ Frete solicitado! Motoristas serão notificados.</div>}
+        {motoristaConvidadoId && (
+          <div style={{ background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16 }}>🚛</span>
+            <span>Convidando <strong>{motoristaConvidadoNome || "motorista selecionado"}</strong> pra este frete — ele será notificado assim que você publicar.</span>
+          </div>
+        )}
+        {success && (
+          <div className="alert alert-success">
+            {motoristaConvidadoId ? "✅ Convite enviado! O motorista tem até 2h pra aceitar." : "✅ Frete solicitado! Motoristas serão notificados."}
+          </div>
+        )}
         {error && <div className="alert alert-error">{error}</div>}
 
         {step === 1 && (
@@ -2455,6 +2469,88 @@ function SolicitarFreteScreen({ onNavigate }) {
             <button className="btn btn-primary" onClick={solicitar} disabled={loading || parseFloat(String(valorEditavel).replace(",", ".")) < calc.pisoMinimo} style={{ marginBottom: 10 }}>{loading ? "Publicando frete..." : "🚛 Publicar Frete"}</button>
             <button className="btn btn-secondary" onClick={() => setStep(2)}>← Editar</button>
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// BUSCAR MOTORISTAS (Contratante — proposta inversa)
+// ─────────────────────────────────────────────
+function BuscarMotoristasScreen({ onNavigate }) {
+  const { token } = useAuth();
+  const [cidade, setCidade] = useState("");
+  const [uf, setUf] = useState("");
+  const [resultados, setResultados] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const buscar = async () => {
+    if (!cidade.trim() || !uf.trim()) return setError("Informe cidade e UF");
+    setError(""); setLoading(true);
+    try {
+      const data = await api("GET", `/api/motoristas/disponiveis-por-rota?cidade=${encodeURIComponent(cidade.trim())}&uf=${encodeURIComponent(uf.trim())}`, null, token);
+      setResultados(data);
+    } catch (e) { setError(e.message); setResultados([]); }
+    finally { setLoading(false); }
+  };
+
+  const formatDisponibilidade = (disponivelEm) => {
+    if (!disponivelEm) return "Disponível agora";
+    const d = new Date(disponivelEm);
+    if (d.getTime() <= Date.now()) return "Disponível agora";
+    return `Disponível a partir de ${d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  const convidar = (m) => {
+    onNavigate("solicitar-frete", {
+      motoristaConvidadoId: m.motorista_id,
+      motoristaConvidadoNome: m.motorista_nome,
+      origemCidadeSugerida: m.cidade_atual,
+      origemUfSugerida: m.uf_atual,
+    });
+  };
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate("home-contratante")}>←</button><h1>Buscar Motoristas</h1></div>
+      <div className="content">
+        <div className="card">
+          <div className="card-title">📍 Onde o motorista está?</div>
+          <div className="grid-2">
+            <div className="field"><label>Cidade</label><input value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Curitiba" /></div>
+            <div className="field"><label>UF</label><input value={uf} onChange={e => setUf(e.target.value.toUpperCase())} maxLength={2} placeholder="PR" /></div>
+          </div>
+          <button className="btn btn-primary" onClick={buscar} disabled={loading} style={{ marginTop: 4 }}>{loading ? "Buscando..." : "🔍 Buscar"}</button>
+        </div>
+        {error && <div className="alert alert-error">{error}</div>}
+
+        {resultados !== null && (
+          resultados.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🚛</div>
+              Nenhum motorista disponível nessa cidade no momento
+            </div>
+          ) : resultados.map(m => (
+            <div key={m.motorista_id} className="uber-card">
+              <div className="uber-card-header">
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>{m.motorista_nome}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>🚛 {m.tipo_veiculo}{m.placa_veiculo ? ` · ${m.placa_veiculo}` : ""}</div>
+                  {Number(m.avaliacao_media) > 0 && <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>⭐ {Number(m.avaliacao_media).toFixed(1)}</div>}
+                </div>
+              </div>
+              <div style={{ padding: "0 16px 14px", display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <span className="tag-chip">🕐 {formatDisponibilidade(m.disponivel_em)}</span>
+                {m.cidade_destino && <span className="tag-chip">🎯 Quer ir até {m.cidade_destino}/{m.uf_destino}</span>}
+              </div>
+              <div className="uber-card-footer">
+                <span style={{ fontSize: 12, color: "var(--text3)" }}>{m.cidade_atual}/{m.uf_atual}</span>
+                <button className="btn btn-primary btn-sm" onClick={() => convidar(m)}>Convidar pra este frete</button>
+              </div>
+            </div>
+          ))
         )}
       </div>
     </div>
@@ -2846,6 +2942,8 @@ function MotoristaHome({ onNavigate }) {
   const [posicaoAtual, setPosicaoAtual] = useState(null);
   const [fretesAtivos, setFretesAtivos] = useState([]);
   const [propostasPendentes, setPropostasPendentes] = useState(0);
+  const [convitesPendentes, setConvitesPendentes] = useState(0);
+  const [temDisponibilidadeAtiva, setTemDisponibilidadeAtiva] = useState(false);
   const posicaoRef = useRef(null);
 
   // Verifica se há contrapropostas do contratante aguardando resposta do motorista
@@ -2853,6 +2951,20 @@ function MotoristaHome({ onNavigate }) {
     api("GET", "/api/fretes/propostas/minhas", null, token)
       .then(lista => setPropostasPendentes(lista.filter(p => p.status === "pendente" && p.rodada === 2).length))
       .catch(() => {});
+  }, [token]);
+
+  // Verifica se há convites diretos de contratantes aguardando resposta
+  useEffect(() => {
+    api("GET", "/api/fretes/convidados", null, token)
+      .then(lista => setConvitesPendentes(lista.length))
+      .catch(() => {});
+  }, [token]);
+
+  // Verifica se já existe um anúncio de disponibilidade ativo (pra decidir se mostra o convite pra publicar)
+  useEffect(() => {
+    api("GET", "/api/motoristas/disponibilidade", null, token)
+      .then(() => setTemDisponibilidadeAtiva(true))
+      .catch(() => setTemDisponibilidadeAtiva(false));
   }, [token]);
 
   // GPS para mostrar no mapa
@@ -2976,6 +3088,30 @@ function MotoristaHome({ onNavigate }) {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Você tem {propostasPendentes} contraproposta{propostasPendentes > 1 ? "s" : ""} para responder</div>
                 <div style={{ fontSize: 12, color: "#666" }}>Toque para ver e decidir</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+            </div>
+          </div>
+        )}
+        {convitesPendentes > 0 && (
+          <div className="card" style={{ borderColor: "var(--gold)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("convites-motorista")}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 24 }}>🎯</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Você tem {convitesPendentes} convite{convitesPendentes > 1 ? "s" : ""} direto{convitesPendentes > 1 ? "s" : ""} de contratante{convitesPendentes > 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 12, color: "#666" }}>Toque para ver e decidir</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+            </div>
+          </div>
+        )}
+        {fretesAtivos.length === 0 && !temDisponibilidadeAtiva && (
+          <div className="card" style={{ cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("disponibilidade-motorista")}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 24 }}>📢</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Sem frete agora? Anuncie sua disponibilidade</div>
+                <div style={{ fontSize: 12, color: "#666" }}>Contratantes da sua região podem te convidar direto</div>
               </div>
               <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
             </div>
@@ -3108,6 +3244,187 @@ function MotoristaHome({ onNavigate }) {
         }))}
       </div>
       <BottomNavMotorista active="inicio" onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// DISPONIBILIDADE (Motorista — proposta inversa)
+// ─────────────────────────────────────────────
+function DisponibilidadeScreen({ onNavigate }) {
+  const { token } = useAuth();
+  const [anuncio, setAnuncio] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [cancelando, setCancelando] = useState(false);
+  const [error, setError] = useState("");
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState({ cidadeAtual: "", ufAtual: "", cidadeDestino: "", ufDestino: "", modo: "agora", horas: "" });
+
+  const carregar = () => {
+    setLoading(true);
+    api("GET", "/api/motoristas/disponibilidade", null, token)
+      .then(d => { setAnuncio(d); setEditando(false); })
+      .catch(() => setAnuncio(false))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { carregar(); }, []);
+
+  const iniciarEdicao = () => {
+    if (anuncio) {
+      setForm({
+        cidadeAtual: anuncio.cidade_atual || "", ufAtual: anuncio.uf_atual || "",
+        cidadeDestino: anuncio.cidade_destino || "", ufDestino: anuncio.uf_destino || "",
+        modo: "agora", horas: "",
+      });
+    }
+    setEditando(true);
+  };
+
+  const publicar = async () => {
+    if (!form.cidadeAtual.trim() || !form.ufAtual.trim()) return setError("Informe cidade e UF atual");
+    if (form.modo === "horas" && (form.horas === "" || Number(form.horas) < 0)) return setError("Informe em quantas horas você fica disponível");
+    setError(""); setSalvando(true);
+    try {
+      await api("POST", "/api/motoristas/disponibilidade", {
+        cidadeAtual: form.cidadeAtual.trim(), ufAtual: form.ufAtual.trim().toUpperCase(),
+        cidadeDestino: form.cidadeDestino.trim() || undefined, ufDestino: form.ufDestino.trim() || undefined,
+        ...(form.modo === "horas" ? { disponivelEmHoras: Number(form.horas) } : {}),
+      }, token);
+      carregar();
+    } catch (e) { setError(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const cancelar = async () => {
+    setCancelando(true); setError("");
+    try {
+      await api("DELETE", "/api/motoristas/disponibilidade", null, token);
+      setAnuncio(false);
+    } catch (e) { setError(e.message); }
+    finally { setCancelando(false); }
+  };
+
+  const formatDisponibilidade = (disponivelEm) => {
+    if (!disponivelEm) return "Disponível agora";
+    const d = new Date(disponivelEm);
+    if (d.getTime() <= Date.now()) return "Disponível agora";
+    return `Disponível a partir de ${d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+  };
+
+  const mostrarForm = !anuncio || editando;
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Disponibilidade</h1></div>
+      <div className="content">
+        {error && <div className="alert alert-error">{error}</div>}
+        {loading ? <Loading /> : (
+          <>
+            {anuncio && !editando && (
+              <div className="card" style={{ borderColor: "var(--gold)" }}>
+                <div className="card-title">📢 Seu anúncio está ativo</div>
+                <div className="info-row"><span className="info-label">Você está em</span><span className="info-value">{anuncio.cidade_atual}/{anuncio.uf_atual}</span></div>
+                {anuncio.cidade_destino && <div className="info-row"><span className="info-label">Quer ir até</span><span className="info-value">{anuncio.cidade_destino}/{anuncio.uf_destino}</span></div>}
+                <div className="info-row"><span className="info-label">Disponibilidade</span><span className="info-value">{formatDisponibilidade(anuncio.disponivel_em)}</span></div>
+                <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 8 }}>
+                  Contratantes dessa cidade podem te encontrar e te convidar direto pra um frete. Seu anúncio expira sozinho em 24h.
+                </p>
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button className="btn btn-secondary" onClick={iniciarEdicao}>✏️ Editar</button>
+                  <button className="btn btn-danger" onClick={cancelar} disabled={cancelando}>{cancelando ? "Cancelando..." : "✕ Cancelar anúncio"}</button>
+                </div>
+              </div>
+            )}
+
+            {mostrarForm && (
+              <div className="card">
+                <div className="card-title">📍 Onde você está?</div>
+                <div className="grid-2">
+                  <div className="field"><label>Cidade atual</label><input value={form.cidadeAtual} onChange={e => setForm(f => ({ ...f, cidadeAtual: e.target.value }))} placeholder="Curitiba" /></div>
+                  <div className="field"><label>UF</label><input value={form.ufAtual} onChange={e => setForm(f => ({ ...f, ufAtual: e.target.value.toUpperCase() }))} maxLength={2} placeholder="PR" /></div>
+                </div>
+                <div className="card-title" style={{ marginTop: 10 }}>🎯 Pra onde você quer ir? (opcional)</div>
+                <div className="grid-2">
+                  <div className="field"><label>Cidade destino</label><input value={form.cidadeDestino} onChange={e => setForm(f => ({ ...f, cidadeDestino: e.target.value }))} placeholder="São Paulo" /></div>
+                  <div className="field"><label>UF</label><input value={form.ufDestino} onChange={e => setForm(f => ({ ...f, ufDestino: e.target.value.toUpperCase() }))} maxLength={2} placeholder="SP" /></div>
+                </div>
+                <div className="card-title" style={{ marginTop: 10 }}>⏱️ Quando você fica disponível?</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                  {[["agora", "Agora"], ["horas", "Em X horas"]].map(([id, label]) => (
+                    <button key={id} onClick={() => setForm(f => ({ ...f, modo: id }))}
+                      style={{ padding: "8px 14px", borderRadius: 20, border: "1px solid", borderColor: form.modo === id ? "var(--gold)" : "var(--border)", background: form.modo === id ? "var(--gold)" : "var(--surface)", color: form.modo === id ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {form.modo === "horas" && (
+                  <div className="field"><label>Em quantas horas</label><input type="number" min="0" step="0.5" value={form.horas} onChange={e => setForm(f => ({ ...f, horas: e.target.value }))} placeholder="Ex: 3" /></div>
+                )}
+                <button className="btn btn-primary" onClick={publicar} disabled={salvando} style={{ marginTop: 4 }}>{salvando ? "Publicando..." : "📢 Publicar Disponibilidade"}</button>
+                {editando && <button className="btn btn-secondary" style={{ marginTop: 8 }} onClick={() => setEditando(false)}>Cancelar edição</button>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CONVITES (Motorista — proposta inversa)
+// ─────────────────────────────────────────────
+function ConvitesScreen({ onNavigate }) {
+  const { token } = useAuth();
+  const [convites, setConvites] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api("GET", "/api/fretes/convidados", null, token)
+      .then(setConvites).catch(() => setConvites([])).finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Convites</h1></div>
+      <div className="content">
+        {loading ? <Loading /> : convites.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🎯</div>
+            <p style={{ fontWeight: 600 }}>Nenhum convite no momento</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Publique sua disponibilidade pra contratantes te encontrarem</p>
+          </div>
+        ) : convites.map(f => {
+          const cargaObj = TIPOS_CARGA.find(c => c.id === f.tipo_carga);
+          const expiraTexto = f.negociando_expira_em
+            ? `expira ${new Date(f.negociando_expira_em).toLocaleString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+            : "";
+          return (
+            <div key={f.id} className="uber-card" onClick={() => onNavigate("aceitar-frete", f)} style={{ borderColor: "var(--gold)" }}>
+              <div className="uber-card-header">
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                    <span className="tag-chip">🎯 Convite de {f.contratante_nome}</span>
+                    <span className="tag-chip">{cargaObj?.icon || "📦"} {cargaObj?.label || f.tipo_carga}</span>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
+                  <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>📏 {f.distancia_km} km · ⚖️ {f.peso_tons}t</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div className="price">{formatMoney(f.valor_motorista || 0)}</div>
+                  <div style={{ fontSize: 11, color: "#555" }}>motorista</div>
+                </div>
+              </div>
+              <div className="uber-card-footer">
+                <span style={{ fontSize: 12, color: "#555" }}>⏳ {expiraTexto}</span>
+                <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); onNavigate("aceitar-frete", f); }}>Ver e decidir</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -4208,6 +4525,8 @@ function OpcoesMotorista({ onNavigate }) {
   const { user } = useAuth();
   const items = [
     { icon: "📨", label: "Minhas Propostas", sub: "Acompanhe negociações de valor", screen: "minhas-propostas" },
+    { icon: "🎯", label: "Convites", sub: "Fretes que contratantes te convidaram direto", screen: "convites-motorista" },
+    { icon: "📢", label: "Disponibilidade", sub: "Anuncie onde você está pra ser convidado", screen: "disponibilidade-motorista" },
     { icon: "💬", label: "Suporte", sub: "Fale com a gente", screen: "suporte" },
     { icon: "ℹ️", label: "Sobre o app", sub: "Versão, contato e créditos", screen: "sobre" },
   ];
@@ -6078,7 +6397,8 @@ function Router() {
     case "admin-usuarios": return <AdminUsuarios {...p} />;
     case "admin-motorista-teste": return <AdminMotoristaTeste {...p} />;
     case "home-contratante": return <ContratanteHome {...p} />;
-    case "solicitar-frete": return <SolicitarFreteScreen {...p} />;
+    case "solicitar-frete": return <SolicitarFreteScreen screenData={screenData} {...p} />;
+    case "buscar-motoristas": return <BuscarMotoristasScreen {...p} />;
     case "meus-fretes": return <MeusFretes {...p} />;
     case "detalhe-frete": return <DetalheFrete frete={screenData} {...p} />;
     case "propostas-recebidas": return <PropostasRecebidasScreen frete={screenData} {...p} />;
@@ -6088,6 +6408,8 @@ function Router() {
     case "financas-contratante": return <FinancasContratante {...p} />;
     case "home-motorista": return <MotoristaHome {...p} />;
     case "aceitar-frete": return <AceitarFreteScreen frete={screenData} {...p} />;
+    case "disponibilidade-motorista": return <DisponibilidadeScreen {...p} />;
+    case "convites-motorista": return <ConvitesScreen {...p} />;
     case "minhas-propostas": return <MinhasPropostasScreen {...p} />;
     case "meus-fretes-motorista": return <MeusFretesMot {...p} />;
     case "em-transito": return <EmTransitoScreen frete={screenData} {...p} />;
