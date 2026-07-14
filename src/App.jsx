@@ -158,6 +158,29 @@ const TIPOS_VEICULO = [
   { id: "tanque", label: "Tanque", icon: "⛽", cap: "30t", eixos: 4 },
 ];
 
+// Nome do estado → sigla. O Google Places às vezes retorna o nome completo do
+// estado (ex: "Paraná") em vez da sigla nos terms do autocomplete de cidades —
+// essa tabela garante que a UF preenchida automaticamente sempre vira 2 letras,
+// igual ao padrão já usado no preenchimento por CEP.
+const UF_POR_NOME = {
+  "acre": "AC", "alagoas": "AL", "amapá": "AP", "amapa": "AP", "amazonas": "AM",
+  "bahia": "BA", "ceará": "CE", "ceara": "CE", "distrito federal": "DF",
+  "espírito santo": "ES", "espirito santo": "ES", "goiás": "GO", "goias": "GO",
+  "maranhão": "MA", "maranhao": "MA", "mato grosso": "MT", "mato grosso do sul": "MS",
+  "minas gerais": "MG", "pará": "PA", "para": "PA", "paraíba": "PB", "paraiba": "PB",
+  "paraná": "PR", "parana": "PR", "pernambuco": "PE", "piauí": "PI", "piaui": "PI",
+  "rio de janeiro": "RJ", "rio grande do norte": "RN", "rio grande do sul": "RS",
+  "rondônia": "RO", "rondonia": "RO", "roraima": "RR", "santa catarina": "SC",
+  "são paulo": "SP", "sao paulo": "SP", "sergipe": "SE", "tocantins": "TO",
+};
+// Resolve um termo de estado (sigla já pronta ou nome completo) pra sigla de 2 letras.
+function resolverUF(termo) {
+  if (!termo) return "";
+  const limpo = termo.trim();
+  if (limpo.length === 2) return limpo.toUpperCase();
+  return UF_POR_NOME[limpo.toLowerCase()] || "";
+}
+
 const TIPOS_FRETE = [
   { id: "urbano", label: "Urbano", icon: "🏙️", desc: "Até 50km, dentro da cidade" },
   { id: "intermunicipal", label: "Intermunicipal", icon: "🛣️", desc: "50 a 300km, entre cidades" },
@@ -360,6 +383,71 @@ function StatusBadge({ status }) {
   return <span className={`badge ${cls}`}>{label}</span>;
 }
 function Loading() { return <div className="loading"><div className="spinner" />Carregando...</div>; }
+
+// Campo de cidade com autocomplete (Google Places, restrito a cidades via
+// GET /api/maps/autocomplete). Controlado — value/onChange ficam com quem chama,
+// então o usuário sempre pode digitar livremente mesmo sem usar sugestão nenhuma.
+// Ao escolher uma sugestão, onSelecionar recebe {cidade, uf, descricao, placeId}
+// já com a UF resolvida pra sigla de 2 letras.
+function CampoCidadeAutocomplete({ label = "Cidade", value, onChange, onSelecionar, placeholder = "Digite a cidade" }) {
+  const { token } = useAuth();
+  const [sugestoes, setSugestoes] = useState([]);
+  const [aberto, setAberto] = useState(false);
+  const [buscando, setBuscando] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (!value || value.trim().length < 3) { setSugestoes([]); setAberto(false); return; }
+    let cancelado = false;
+    setBuscando(true);
+    const t = setTimeout(() => {
+      api("GET", `/api/maps/autocomplete?q=${encodeURIComponent(value.trim())}`, null, token)
+        .then(data => { if (!cancelado) { setSugestoes(data); setAberto(data.length > 0); } })
+        .catch(() => { if (!cancelado) { setSugestoes([]); setAberto(false); } })
+        .finally(() => { if (!cancelado) setBuscando(false); });
+    }, 300);
+    return () => { cancelado = true; clearTimeout(t); };
+  }, [value]);
+
+  useEffect(() => {
+    const fechar = e => { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setAberto(false); };
+    document.addEventListener("mousedown", fechar);
+    return () => document.removeEventListener("mousedown", fechar);
+  }, []);
+
+  const escolher = sug => {
+    const termos = sug.terms || [];
+    const cidade = termos[0]?.value || sug.descricao.split(",")[0].trim();
+    const uf = resolverUF(termos[1]?.value);
+    setAberto(false);
+    setSugestoes([]);
+    onSelecionar({ cidade, uf, descricao: sug.descricao, placeId: sug.placeId });
+  };
+
+  return (
+    <div className="field" style={{ position: "relative" }} ref={wrapperRef}>
+      <label>{label}</label>
+      <input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => sugestoes.length > 0 && setAberto(true)}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+      {aberto && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.15)", zIndex: 50, maxHeight: 220, overflowY: "auto" }}>
+          {buscando && <div style={{ padding: "10px 14px", fontSize: 13, color: "var(--text3)" }}>Buscando...</div>}
+          {!buscando && sugestoes.map(s => (
+            <div key={s.placeId} onMouseDown={e => e.preventDefault()} onClick={() => escolher(s)}
+              style={{ padding: "10px 14px", fontSize: 13, color: "var(--text)", cursor: "pointer", borderBottom: "1px solid var(--border)" }}>
+              📍 {s.descricao}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Cartão discreto de histórico de preços da rota (piso ANTT + média de mercado)
 function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga, mostrarPiso = true }) {
@@ -2550,7 +2638,12 @@ function BuscarMotoristasScreen({ onNavigate }) {
         <div className="card">
           <div className="card-title">📍 Onde o motorista está?</div>
           <div className="grid-2">
-            <div className="field"><label>Cidade</label><input value={cidade} onChange={e => setCidade(e.target.value)} placeholder="Curitiba" /></div>
+            <CampoCidadeAutocomplete
+              label="Cidade" value={cidade}
+              onChange={setCidade}
+              onSelecionar={({ cidade: c, uf: u }) => { setCidade(c); if (u) setUf(u); }}
+              placeholder="Curitiba"
+            />
             <div className="field"><label>UF</label><input value={uf} onChange={e => setUf(e.target.value.toUpperCase())} maxLength={2} placeholder="PR" /></div>
           </div>
           <button className="btn btn-primary" onClick={buscar} disabled={loading} style={{ marginTop: 4 }}>{loading ? "Buscando..." : "🔍 Buscar"}</button>
@@ -3408,12 +3501,22 @@ function DisponibilidadeScreen({ onNavigate }) {
               <div className="card">
                 <div className="card-title">📍 Onde você está?</div>
                 <div className="grid-2">
-                  <div className="field"><label>Cidade atual</label><input value={form.cidadeAtual} onChange={e => setForm(f => ({ ...f, cidadeAtual: e.target.value }))} placeholder="Curitiba" /></div>
+                  <CampoCidadeAutocomplete
+                    label="Cidade atual" value={form.cidadeAtual}
+                    onChange={v => setForm(f => ({ ...f, cidadeAtual: v }))}
+                    onSelecionar={({ cidade, uf }) => setForm(f => ({ ...f, cidadeAtual: cidade, ufAtual: uf || f.ufAtual }))}
+                    placeholder="Curitiba"
+                  />
                   <div className="field"><label>UF</label><input value={form.ufAtual} onChange={e => setForm(f => ({ ...f, ufAtual: e.target.value.toUpperCase() }))} maxLength={2} placeholder="PR" /></div>
                 </div>
                 <div className="card-title" style={{ marginTop: 10 }}>🎯 Pra onde você quer ir? (opcional)</div>
                 <div className="grid-2">
-                  <div className="field"><label>Cidade destino</label><input value={form.cidadeDestino} onChange={e => setForm(f => ({ ...f, cidadeDestino: e.target.value }))} placeholder="São Paulo" /></div>
+                  <CampoCidadeAutocomplete
+                    label="Cidade destino" value={form.cidadeDestino}
+                    onChange={v => setForm(f => ({ ...f, cidadeDestino: v }))}
+                    onSelecionar={({ cidade, uf }) => setForm(f => ({ ...f, cidadeDestino: cidade, ufDestino: uf || f.ufDestino }))}
+                    placeholder="São Paulo"
+                  />
                   <div className="field"><label>UF</label><input value={form.ufDestino} onChange={e => setForm(f => ({ ...f, ufDestino: e.target.value.toUpperCase() }))} maxLength={2} placeholder="SP" /></div>
                 </div>
                 <div className="card-title" style={{ marginTop: 10 }}>⏱️ Quando você fica disponível?</div>
