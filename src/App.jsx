@@ -1587,6 +1587,9 @@ function AdminDashboard({ onNavigate }) {
         <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-motorista-teste")}>
           🚛 Criar Motorista de Teste
         </button>
+        <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-seguradoras")}>
+          🛡️ Gerenciar Seguradoras
+        </button>
 
         {loadingStats && <Loading />}
 
@@ -2987,6 +2990,7 @@ function MotoristaHome({ onNavigate }) {
   const [propostasPendentes, setPropostasPendentes] = useState(0);
   const [convitesPendentes, setConvitesPendentes] = useState(0);
   const [temDisponibilidadeAtiva, setTemDisponibilidadeAtiva] = useState(false);
+  const [seguroValido, setSeguroValido] = useState(true);
   const posicaoRef = useRef(null);
 
   // Verifica se há contrapropostas do contratante aguardando resposta do motorista
@@ -3008,6 +3012,13 @@ function MotoristaHome({ onNavigate }) {
     api("GET", "/api/motoristas/disponibilidade", null, token)
       .then(() => setTemDisponibilidadeAtiva(true))
       .catch(() => setTemDisponibilidadeAtiva(false));
+  }, [token]);
+
+  // Seguro é obrigatório pra aceitar fretes — avisa na Home se estiver faltando/vencido
+  useEffect(() => {
+    api("GET", "/api/motoristas/seguro", null, token)
+      .then(s => setSeguroValido(!!s.valido))
+      .catch(() => {});
   }, [token]);
 
   // GPS para mostrar no mapa
@@ -3124,6 +3135,18 @@ function MotoristaHome({ onNavigate }) {
         </div>
       </div>
       <div className="content">
+        {!seguroValido && (
+          <div className="card" style={{ borderColor: "var(--red)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("seguro-motorista")}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 24 }}>🛡️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Registre seu seguro pra poder aceitar fretes</div>
+                <div style={{ fontSize: 12, color: "#666" }}>Toque para regularizar</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+            </div>
+          </div>
+        )}
         {propostasPendentes > 0 && (
           <div className="card" style={{ borderColor: "var(--gold)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("minhas-propostas")}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -3417,6 +3440,144 @@ function DisponibilidadeScreen({ onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
+// SEGURO DE FRETE (Motorista — obrigatório pra aceitar fretes)
+// ─────────────────────────────────────────────
+function SeguroScreen({ onNavigate }) {
+  const { token } = useAuth();
+  const [seguro, setSeguro] = useState(null);
+  const [seguradoras, setSeguradoras] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [error, setError] = useState("");
+  const [editando, setEditando] = useState(false);
+  const [form, setForm] = useState({ modo: "parceira", seguradoraId: "", avulsoNome: "", avulsoApolice: "", validade: "" });
+
+  const carregar = () => {
+    setLoading(true);
+    Promise.all([
+      api("GET", "/api/motoristas/seguro", null, token),
+      api("GET", "/api/seguradoras", null, token).catch(() => []),
+    ]).then(([s, segs]) => {
+      setSeguro(s);
+      setSeguradoras(segs);
+      setEditando(false);
+      if (!segs.length) setForm(f => ({ ...f, modo: "avulso" }));
+    }).catch(e => setError(e.message)).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { carregar(); }, []);
+
+  const iniciarEdicao = () => {
+    if (seguro) {
+      setForm({
+        modo: seguro.seguro_seguradora_id ? "parceira" : "avulso",
+        seguradoraId: seguro.seguro_seguradora_id || "",
+        avulsoNome: seguro.seguro_avulso_nome || "",
+        avulsoApolice: seguro.seguro_avulso_apolice || "",
+        validade: seguro.seguro_validade ? String(seguro.seguro_validade).slice(0, 10) : "",
+      });
+    }
+    setEditando(true);
+  };
+
+  const salvar = async () => {
+    if (!form.validade) return setError("Informe a validade do seguro");
+    if (form.modo === "parceira" && !form.seguradoraId) return setError("Escolha uma seguradora parceira");
+    if (form.modo === "avulso" && (!form.avulsoNome.trim() || !form.avulsoApolice.trim())) return setError("Informe nome e número da apólice");
+    setError(""); setSalvando(true);
+    try {
+      await api("PUT", "/api/motoristas/seguro", {
+        ...(form.modo === "parceira"
+          ? { seguradoraId: form.seguradoraId }
+          : { seguroAvulsoNome: form.avulsoNome.trim(), seguroAvulsoApolice: form.avulsoApolice.trim() }),
+        seguroValidade: form.validade,
+      }, token);
+      carregar();
+    } catch (e) { setError(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const mostrarForm = !seguro?.valido || editando;
+  const semParceiras = seguradoras.length === 0;
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Seguro</h1></div>
+      <div className="content">
+        {error && <div className="alert alert-error">{error}</div>}
+        {loading ? <Loading /> : (
+          <>
+            {seguro?.valido && !editando && (
+              <div className="card" style={{ borderColor: "rgba(45,122,58,0.3)" }}>
+                <div className="card-title">✅ Seguro válido</div>
+                <div className="info-row"><span className="info-label">Seguradora</span><span className="info-value">{seguro.seguro_seguradora_id ? seguro.seguradora_nome : seguro.seguro_avulso_nome}</span></div>
+                {!seguro.seguro_seguradora_id && (
+                  <div className="info-row"><span className="info-label">Apólice</span><span className="info-value">{seguro.seguro_avulso_apolice}</span></div>
+                )}
+                <div className="info-row"><span className="info-label">Validade</span><span className="info-value">{String(seguro.seguro_validade).slice(0, 10).split("-").reverse().join("/")}</span></div>
+                <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={iniciarEdicao}>✏️ Atualizar</button>
+              </div>
+            )}
+
+            {!seguro?.valido && !editando && (
+              <div className="alert alert-error" style={{ marginBottom: 14 }}>
+                ⚠️ {seguro?.seguro_validade ? "Seu seguro venceu." : "Você ainda não tem um seguro registrado."} Você não pode aceitar fretes até registrar um seguro válido.
+              </div>
+            )}
+
+            {mostrarForm && (
+              <div className="card">
+                <div className="card-title">Registrar seguro</div>
+                <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+                  {[["parceira", "Seguradora parceira"], ["avulso", "Seguro avulso"]].map(([id, label]) => (
+                    <button key={id} onClick={() => setForm(f => ({ ...f, modo: id }))}
+                      style={{ padding: "8px 14px", borderRadius: 20, border: "1px solid", borderColor: form.modo === id ? "var(--gold)" : "var(--border)", background: form.modo === id ? "var(--gold)" : "var(--surface)", color: form.modo === id ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {form.modo === "parceira" && (
+                  semParceiras ? (
+                    <div className="alert alert-info" style={{ marginBottom: 14 }}>
+                      Nenhuma seguradora parceira cadastrada ainda — use seguro avulso por enquanto.
+                    </div>
+                  ) : (
+                    <div className="field">
+                      <label>Seguradora</label>
+                      <select value={form.seguradoraId} onChange={e => setForm(f => ({ ...f, seguradoraId: e.target.value }))}>
+                        <option value="">Selecione...</option>
+                        {seguradoras.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                      </select>
+                    </div>
+                  )
+                )}
+
+                {form.modo === "avulso" && (
+                  <>
+                    <div className="field"><label>Nome da seguradora</label><input value={form.avulsoNome} onChange={e => setForm(f => ({ ...f, avulsoNome: e.target.value }))} placeholder="Ex: Porto Seguro" /></div>
+                    <div className="field"><label>Número da apólice</label><input value={form.avulsoApolice} onChange={e => setForm(f => ({ ...f, avulsoApolice: e.target.value }))} placeholder="Ex: 123456789" /></div>
+                  </>
+                )}
+
+                {!(form.modo === "parceira" && semParceiras) && (
+                  <div className="field"><label>Validade</label><input type="date" value={form.validade} onChange={e => setForm(f => ({ ...f, validade: e.target.value }))} /></div>
+                )}
+
+                <button className="btn btn-primary" onClick={salvar} disabled={salvando || (form.modo === "parceira" && semParceiras)} style={{ marginTop: 4 }}>
+                  {salvando ? "Salvando..." : "Registrar Seguro"}
+                </button>
+                {editando && <button className="btn btn-secondary" style={{ marginTop: 8 }} onClick={() => setEditando(false)}>Cancelar edição</button>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // CONVITES (Motorista — proposta inversa)
 // ─────────────────────────────────────────────
 function ConvitesScreen({ onNavigate }) {
@@ -3541,7 +3702,14 @@ function AceitarFreteScreen({ frete, onNavigate }) {
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button><h1>Aceitar Frete</h1></div>
       <div className="content">
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && (
+          <div className="alert alert-error">
+            {error}
+            {error.includes("seguro de frete registrado") && (
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("seguro-motorista")}>🛡️ Registrar Seguro</button>
+            )}
+          </div>
+        )}
         <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
           <div className="price" style={{ fontSize: 42 }}>{formatMoney(frete.valor_motorista || 0)}</div>
           <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>Seu valor como motorista (valor publicado)</div>
@@ -3719,7 +3887,14 @@ function MinhasPropostasScreen({ onNavigate }) {
         <h1>Minhas Propostas</h1>
       </div>
       <div className="content">
-        {error && <div className="alert alert-error">{error}</div>}
+        {error && (
+          <div className="alert alert-error">
+            {error}
+            {error.includes("seguro de frete registrado") && (
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("seguro-motorista")}>🛡️ Registrar Seguro</button>
+            )}
+          </div>
+        )}
         {msg && <div className="alert alert-success">{msg}</div>}
 
         {loading && <Loading />}
@@ -4252,13 +4427,14 @@ function PerfilMotorista({ onNavigate }) {
               {[
                 { icon: "👤", label: "Dados Pessoais", sub: "Nome, foto, CPF, CNH, endereço", screen: "dados-pessoais-motorista" },
                 { icon: "🚛", label: "Meu Caminhão", sub: "Tipo, carreta, placa, documentos", screen: "dados-caminhao" },
+                { icon: "🛡️", label: "Seguro", sub: "Obrigatório pra aceitar fretes", screen: "seguro-motorista" },
                 { icon: "💰", label: "Minhas Finanças", sub: "Despesas, receitas e controle", screen: "financas-motorista" },
                 { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: "notificacoes" },
                 { icon: "🔒", label: "Privacidade", sub: "Senha, dados pessoais", screen: "privacidade" },
                 { icon: "📄", label: "Termos de uso", sub: "Política de privacidade", screen: "termos" },
               ].map((item, i) => (
                 <div key={i} onClick={() => item.screen && onNavigate(item.screen)}
-                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px", borderBottom: i < 5 ? "1px solid var(--border)" : "none", cursor: item.screen ? "pointer" : "default" }}>
+                  style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 16px", borderBottom: i < 6 ? "1px solid var(--border)" : "none", cursor: item.screen ? "pointer" : "default" }}>
                   <div style={{ width: 36, height: 36, borderRadius: 10, background: i < 3 ? "var(--gold-light)" : "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{item.icon}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
@@ -6558,6 +6734,96 @@ function AdminMotoristaTeste({ onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
+// ADMIN — SEGURADORAS PARCEIRAS
+// ─────────────────────────────────────────────
+function AdminSeguradorasScreen({ onNavigate }) {
+  const { token } = useAuth();
+  const [seguradoras, setSeguradoras] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [showNova, setShowNova] = useState(false);
+  const [nova, setNova] = useState({ nome: "", descricao: "", urlContato: "" });
+  const [salvando, setSalvando] = useState(false);
+  const [atualizandoId, setAtualizandoId] = useState(null);
+
+  const carregar = () => {
+    setLoading(true);
+    api("GET", "/api/admin/seguradoras", null, token)
+      .then(setSeguradoras)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { carregar(); }, []);
+
+  const criar = async () => {
+    if (!nova.nome.trim()) return setError("Informe o nome da seguradora");
+    setError(""); setSalvando(true);
+    try {
+      await api("POST", "/api/admin/seguradoras", {
+        nome: nova.nome.trim(),
+        descricao: nova.descricao.trim() || undefined,
+        urlContato: nova.urlContato.trim() || undefined,
+      }, token);
+      setNova({ nome: "", descricao: "", urlContato: "" });
+      setShowNova(false);
+      carregar();
+    } catch (e) { setError(e.message); }
+    finally { setSalvando(false); }
+  };
+
+  const alternarAtivo = async (seg) => {
+    setAtualizandoId(seg.id); setError("");
+    try {
+      await api("PATCH", `/api/admin/seguradoras/${seg.id}`, { ativo: !seg.ativo }, token);
+      carregar();
+    } catch (e) { setError(e.message); }
+    finally { setAtualizandoId(null); }
+  };
+
+  return (
+    <div className="screen">
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Seguradoras Parceiras</h1></div>
+      <div className="content">
+        {error && <div className="alert alert-error">{error}</div>}
+        <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => setShowNova(s => !s)}>
+          {showNova ? "Cancelar" : "+ Nova Seguradora"}
+        </button>
+
+        {showNova && (
+          <div className="card" style={{ borderColor: "var(--gold)", marginBottom: 14 }}>
+            <div className="card-title">Nova Seguradora Parceira</div>
+            <div className="field"><label>Nome</label><input value={nova.nome} onChange={e => setNova(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Porto Seguro" /></div>
+            <div className="field"><label>Descrição (opcional)</label><input value={nova.descricao} onChange={e => setNova(f => ({ ...f, descricao: e.target.value }))} placeholder="Ex: Desconto de 10% pra motoristas TRUKER" /></div>
+            <div className="field"><label>Link de contato (opcional)</label><input value={nova.urlContato} onChange={e => setNova(f => ({ ...f, urlContato: e.target.value }))} placeholder="https://..." /></div>
+            <button className="btn btn-primary" onClick={criar} disabled={salvando} style={{ width: "100%" }}>{salvando ? "Salvando..." : "Salvar"}</button>
+          </div>
+        )}
+
+        {loading ? <Loading /> : seguradoras.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>🛡️</div>
+            Nenhuma seguradora cadastrada ainda
+          </div>
+        ) : seguradoras.map(seg => (
+          <div key={seg.id} className="card" style={{ opacity: seg.ativo ? 1 : 0.6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{seg.nome}</div>
+              <span className={`badge ${seg.ativo ? "badge-done" : "badge-cancel"}`}>{seg.ativo ? "Ativa" : "Inativa"}</span>
+            </div>
+            {seg.descricao && <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 4 }}>{seg.descricao}</div>}
+            {seg.url_contato && <div style={{ fontSize: 12, color: "var(--gold)", marginBottom: 8 }}>{seg.url_contato}</div>}
+            <button className="btn btn-secondary btn-sm" onClick={() => alternarAtivo(seg)} disabled={atualizandoId === seg.id}>
+              {atualizandoId === seg.id ? "Atualizando..." : seg.ativo ? "Desativar" : "Ativar"}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // ROUTER
 // ─────────────────────────────────────────────
 function Router() {
@@ -6592,6 +6858,7 @@ function Router() {
     case "admin-dashboard": return <AdminDashboard {...p} />;
     case "admin-usuarios": return <AdminUsuarios {...p} />;
     case "admin-motorista-teste": return <AdminMotoristaTeste {...p} />;
+    case "admin-seguradoras": return <AdminSeguradorasScreen {...p} />;
     case "home-contratante": return <ContratanteHome {...p} />;
     case "solicitar-frete": return <SolicitarFreteScreen screenData={screenData} {...p} />;
     case "buscar-motoristas": return <BuscarMotoristasScreen {...p} />;
@@ -6605,6 +6872,7 @@ function Router() {
     case "home-motorista": return <MotoristaHome {...p} />;
     case "aceitar-frete": return <AceitarFreteScreen frete={screenData} {...p} />;
     case "disponibilidade-motorista": return <DisponibilidadeScreen {...p} />;
+    case "seguro-motorista": return <SeguroScreen {...p} />;
     case "convites-motorista": return <ConvitesScreen {...p} />;
     case "minhas-propostas": return <MinhasPropostasScreen {...p} />;
     case "meus-fretes-motorista": return <MeusFretesMot {...p} />;
