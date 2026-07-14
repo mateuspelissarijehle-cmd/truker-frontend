@@ -5222,7 +5222,11 @@ function DadosPessoaisContratante({ onNavigate }) {
           </div>
           <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
           <div className="grid-2">
-            <div className="field"><label>Cidade</label><input value={form.cidade} onChange={e => set("cidade", e.target.value)} placeholder="Curitiba" /></div>
+            <CampoCidadeAutocomplete
+              value={form.cidade} onChange={v => set("cidade", v)}
+              onSelecionar={({ cidade, uf }) => { set("cidade", cidade); if (uf) set("uf", uf); }}
+              placeholder="Curitiba"
+            />
             <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
           </div>
         </div>
@@ -5328,7 +5332,11 @@ function DadosPessoaisMotorista({ onNavigate }) {
           </div>
           <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
           <div className="grid-2">
-            <div className="field"><label>Cidade</label><input value={form.cidade} onChange={e => set("cidade", e.target.value)} placeholder="Curitiba" /></div>
+            <CampoCidadeAutocomplete
+              value={form.cidade} onChange={v => set("cidade", v)}
+              onSelecionar={({ cidade, uf }) => { set("cidade", cidade); if (uf) set("uf", uf); }}
+              placeholder="Curitiba"
+            />
             <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
           </div>
         </div>
