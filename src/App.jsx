@@ -2230,10 +2230,16 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
   });
   const [addr, setAddr] = useState({
     origemCep:"", origemLogradouro:"", origemNumero:"", origemComplemento:"",
-    origemBairro:"", origemCidade: screenData?.origemCidadeSugerida || "", origemUF: screenData?.origemUfSugerida || "",
+    origemBairro:"", origemCidade:"", origemUF:"",
     destCep:"", destLogradouro:"", destNumero:"", destComplemento:"",
     destBairro:"", destCidade:"", destUF:"",
   });
+  // Cidade/UF são controlados (não refs) — o autocomplete precisa reagir a cada
+  // tecla digitada pra buscar sugestões, e escolher uma sugestão preenche os dois.
+  const [origemCidade, setOrigemCidade] = useState(screenData?.origemCidadeSugerida || "");
+  const [origemUF, setOrigemUF] = useState(screenData?.origemUfSugerida || "");
+  const [destCidade, setDestCidade] = useState("");
+  const [destUF, setDestUF] = useState("");
   const [calc, setCalc] = useState(null);
   const [valorEditavel, setValorEditavel] = useState("");
   const [loading, setLoading] = useState(false);
@@ -2244,9 +2250,9 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
   const FR = useRef(null);
   if (!FR.current) FR.current = {
     origemCep:{current:null}, origemLogradouro:{current:null}, origemNumero:{current:null},
-    origemComplemento:{current:null}, origemBairro:{current:null}, origemCidade:{current:null}, origemUF:{current:null},
+    origemComplemento:{current:null}, origemBairro:{current:null},
     destCep:{current:null}, destLogradouro:{current:null}, destNumero:{current:null},
-    destComplemento:{current:null}, destBairro:{current:null}, destCidade:{current:null}, destUF:{current:null},
+    destComplemento:{current:null}, destBairro:{current:null},
   };
   const rv = k => FR.current[k]?.current?.value?.trim() || "";
 
@@ -2261,9 +2267,11 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
       const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
       const d = await res.json();
       if (!d.erro) {
-        [["Logradouro", d.logradouro], ["Bairro", d.bairro], ["Cidade", d.localidade], ["UF", d.uf]].forEach(([f, val]) => {
+        [["Logradouro", d.logradouro], ["Bairro", d.bairro]].forEach(([f, val]) => {
           if (FR.current[`${tipo}${f}`]?.current) FR.current[`${tipo}${f}`].current.value = val || "";
         });
+        if (tipo === "origem") { setOrigemCidade(d.localidade || ""); setOrigemUF(d.uf || ""); }
+        else { setDestCidade(d.localidade || ""); setDestUF(d.uf || ""); }
       }
     } catch {}
   };
@@ -2273,9 +2281,9 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
   const handleContinuar = () => {
     const snap = {
       origemCep: rv("origemCep"), origemLogradouro: rv("origemLogradouro"), origemNumero: rv("origemNumero"),
-      origemComplemento: rv("origemComplemento"), origemBairro: rv("origemBairro"), origemCidade: rv("origemCidade"), origemUF: rv("origemUF"),
+      origemComplemento: rv("origemComplemento"), origemBairro: rv("origemBairro"), origemCidade: origemCidade.trim(), origemUF: origemUF.trim(),
       destCep: rv("destCep"), destLogradouro: rv("destLogradouro"), destNumero: rv("destNumero"),
-      destComplemento: rv("destComplemento"), destBairro: rv("destBairro"), destCidade: rv("destCidade"), destUF: rv("destUF"),
+      destComplemento: rv("destComplemento"), destBairro: rv("destBairro"), destCidade: destCidade.trim(), destUF: destUF.trim(),
     };
     if (!snap.origemLogradouro || !snap.origemNumero || !snap.origemCidade) return setError("Preencha logradouro, número e cidade da coleta");
     if (!snap.destLogradouro || !snap.destNumero || !snap.destCidade) return setError("Preencha logradouro, número e cidade da entrega");
@@ -2403,8 +2411,12 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
               <div className="field"><label>Bairro / Distrito</label>
                 <input ref={FR.current.origemBairro} defaultValue={addr.origemBairro} placeholder="Bairro" /></div>
               <div className="grid-2">
-                <div className="field"><label>Cidade</label><input ref={FR.current.origemCidade} defaultValue={addr.origemCidade} placeholder="Curitiba" /></div>
-                <div className="field"><label>UF</label><input ref={FR.current.origemUF} defaultValue={addr.origemUF} placeholder="PR" maxLength={2} onChange={e => { e.target.value = e.target.value.toUpperCase(); }} /></div>
+                <CampoCidadeAutocomplete
+                  value={origemCidade} onChange={setOrigemCidade}
+                  onSelecionar={({ cidade, uf }) => { setOrigemCidade(cidade); if (uf) setOrigemUF(uf); }}
+                  placeholder="Curitiba"
+                />
+                <div className="field"><label>UF</label><input value={origemUF} onChange={e => setOrigemUF(e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
               </div>
             </div>
             <div className="card">
@@ -2421,8 +2433,12 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
               <div className="field"><label>Bairro / Distrito</label>
                 <input ref={FR.current.destBairro} defaultValue={addr.destBairro} placeholder="Bairro" /></div>
               <div className="grid-2">
-                <div className="field"><label>Cidade</label><input ref={FR.current.destCidade} defaultValue={addr.destCidade} placeholder="São Paulo" /></div>
-                <div className="field"><label>UF</label><input ref={FR.current.destUF} defaultValue={addr.destUF} placeholder="SP" maxLength={2} onChange={e => { e.target.value = e.target.value.toUpperCase(); }} /></div>
+                <CampoCidadeAutocomplete
+                  value={destCidade} onChange={setDestCidade}
+                  onSelecionar={({ cidade, uf }) => { setDestCidade(cidade); if (uf) setDestUF(uf); }}
+                  placeholder="São Paulo"
+                />
+                <div className="field"><label>UF</label><input value={destUF} onChange={e => setDestUF(e.target.value.toUpperCase())} placeholder="SP" maxLength={2} /></div>
               </div>
             </div>
             <div className="card">
