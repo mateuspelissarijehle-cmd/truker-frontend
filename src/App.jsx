@@ -389,7 +389,7 @@ function Loading() { return <div className="loading"><div className="spinner" />
 // então o usuário sempre pode digitar livremente mesmo sem usar sugestão nenhuma.
 // Ao escolher uma sugestão, onSelecionar recebe {cidade, uf, descricao, placeId}
 // já com a UF resolvida pra sigla de 2 letras.
-function CampoCidadeAutocomplete({ label = "Cidade", value, onChange, onSelecionar, placeholder = "Digite a cidade" }) {
+function CampoCidadeAutocomplete({ label = "Cidade", value, onChange, onSelecionar, placeholder = "Digite a cidade", inputStyle }) {
   const { token } = useAuth();
   const [sugestoes, setSugestoes] = useState([]);
   const [aberto, setAberto] = useState(false);
@@ -425,14 +425,15 @@ function CampoCidadeAutocomplete({ label = "Cidade", value, onChange, onSelecion
   };
 
   return (
-    <div className="field" style={{ position: "relative" }} ref={wrapperRef}>
-      <label>{label}</label>
+    <div className={label ? "field" : undefined} style={{ position: "relative" }} ref={wrapperRef}>
+      {label && <label>{label}</label>}
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
         onFocus={() => sugestoes.length > 0 && setAberto(true)}
         placeholder={placeholder}
         autoComplete="off"
+        style={inputStyle}
       />
       {aberto && (
         <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.15)", zIndex: 50, maxHeight: 220, overflowY: "auto" }}>
@@ -3324,13 +3325,14 @@ function MotoristaHome({ onNavigate }) {
             })}
           </div>
         )}
-        <div style={{ marginBottom: 12, position: "relative" }}>
-          <input
-            type="text"
+        <div style={{ marginBottom: 12 }}>
+          <CampoCidadeAutocomplete
+            label={null}
             value={buscaCidade}
-            onChange={e => setBuscaCidade(e.target.value)}
+            onChange={setBuscaCidade}
+            onSelecionar={({ cidade }) => setBuscaCidade(cidade)}
             placeholder="🔍 Buscar por cidade de origem"
-            style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13, fontFamily: "Inter, sans-serif" }}
+            inputStyle={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13, fontFamily: "Inter, sans-serif" }}
           />
         </div>
         <div style={{ marginBottom: 10 }}>
