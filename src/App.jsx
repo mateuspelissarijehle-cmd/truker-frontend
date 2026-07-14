@@ -293,7 +293,7 @@ const css = `
   .route { font-size: 15px; font-weight: 700; margin: 8px 0 4px; }
   .meta { font-size: 12px; color: var(--gray2); display: flex; gap: 12px; flex-wrap: wrap; }
   .loading { text-align: center; padding: 40px; color: var(--gray2); font-size: 14px; }
-  .spinner { width: 28px; height: 28px; border: 3px solid #333; border-top-color: var(--orange); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  .spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .divider { height: 1px; background: var(--border); margin: 16px 0; }
   .tipo-tag { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -315,7 +315,7 @@ const css = `
   .stat-value { font-family: 'Inter', sans-serif; letter-spacing: -0.5px; font-size: 28px; font-weight: 800; color: var(--orange); }
   .stat-label { font-size: 10px; color: var(--gray2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
   .carga-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-  .carga-item { background: var(--dark3); border: 1px solid #333; border-radius: 10px; padding: 10px; cursor: pointer; transition: all 0.15s; text-align: center; }
+  .carga-item { background: var(--dark3); border: 1px solid var(--border); border-radius: 10px; padding: 10px; cursor: pointer; transition: all 0.15s; text-align: center; }
   .carga-item.selected { border-color: var(--orange); background: var(--orange-light); }
   .carga-item .ci-icon { font-size: 22px; margin-bottom: 4px; }
   .carga-item .ci-label { font-size: 11px; font-weight: 700; color: var(--white); }
@@ -788,7 +788,7 @@ function EsqueciSenhaScreen({ onNavigate }) {
       <button className="back-btn" style={{ marginBottom: 24 }} onClick={() => onNavigate("login")}>← Voltar</button>
       <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
       <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Recuperar senha</div>
-      {step === 1 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Digite seu email para receber o código de recuperação.</p>}
+      {step === 1 && <p style={{ color: "var(--text3)", fontSize: 14, marginBottom: 24 }}>Digite seu email para receber o código de recuperação.</p>}
       {step === 2 && <p style={{ color: "var(--text3)", fontSize: 14, marginBottom: 24 }}>Código enviado para <strong style={{ color: "var(--gold)" }}>{email}</strong>. Digite abaixo.</p>}
       {step === 2 && codigoTeste && (
         <div style={{ background: "rgba(201,168,76,0.1)", border: "1px dashed var(--gold)", borderRadius: 10, padding: "14px 12px", marginBottom: 14, textAlign: "center" }}>
@@ -796,7 +796,7 @@ function EsqueciSenhaScreen({ onNavigate }) {
           <div style={{ fontSize: 38, fontWeight: 900, letterSpacing: 14, color: "var(--text)", fontFamily: "monospace" }}>{codigoTeste}</div>
         </div>
       )}
-      {step === 3 && <p style={{ color: "#666", fontSize: 14, marginBottom: 24 }}>Defina sua nova senha.</p>}
+      {step === 3 && <p style={{ color: "var(--text3)", fontSize: 14, marginBottom: 24 }}>Defina sua nova senha.</p>}
       {step === 4 && (
         <div style={{ textAlign: "center", paddingTop: 20 }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
@@ -1620,10 +1620,10 @@ function AdminDashboard({ onNavigate }) {
             </div>
             <div className="card">
               <div className="card-title">Motoristas Online</div>
-              {motoristas.filter(m => m.online).length === 0 && <p style={{ fontSize: 13, color: "#555" }}>Nenhum motorista online agora</p>}
+              {motoristas.filter(m => m.online).length === 0 && <p style={{ fontSize: 13, color: "var(--text2)" }}>Nenhum motorista online agora</p>}
               {motoristas.filter(m => m.online).map(m => (
                 <div key={m.id} className="admin-row">
-                  <div><span className="online-dot" /><strong>{m.nome}</strong><div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>{m.tipo_veiculo} · {m.total_fretes} fretes · ⭐ {Number(m.avaliacao_media).toFixed(1)}</div></div>
+                  <div><span className="online-dot" /><strong>{m.nome}</strong><div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>{m.tipo_veiculo} · {m.total_fretes} fretes · ⭐ {Number(m.avaliacao_media).toFixed(1)}</div></div>
                   <div style={{ textAlign: "right", fontSize: 12 }}>
                     <div style={{ color: "var(--green)" }}>{formatKm(m.km_carregado)}</div>
                     <div style={{ color: "var(--orange)", fontSize: 11 }}>{formatMoney(m.ganhos_total)} ganhos</div>
@@ -1635,7 +1635,7 @@ function AdminDashboard({ onNavigate }) {
         )}
 
         {!loadingStats && tab === "overview" && !stats && (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>⚠️</div>
             <p style={{ fontWeight: 600 }}>Erro ao carregar dados</p>
             <p style={{ fontSize: 13, marginTop: 4 }}>Verifique a conexão com o banco de dados</p>
@@ -1644,15 +1644,15 @@ function AdminDashboard({ onNavigate }) {
 
         {!loadingStats && tab === "motoristas" && (
           <>
-            {motoristas.length === 0 && <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>Nenhum motorista cadastrado</div>}
+            {motoristas.length === 0 && <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>Nenhum motorista cadastrado</div>}
             {motoristas.map(m => (
               <div key={m.id} className="card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                   <div>
                     <div style={{ fontWeight: 700 }}>{m.online ? <span className="online-dot" /> : <span className="offline-dot" />}{m.nome}</div>
-                    <div style={{ fontSize: 12, color: "#666" }}>{m.tipo_veiculo || "—"} · {m.total_fretes} fretes · ⭐ {Number(m.avaliacao_media).toFixed(1)}</div>
+                    <div style={{ fontSize: 12, color: "var(--text3)" }}>{m.tipo_veiculo || "—"} · {m.total_fretes} fretes · ⭐ {Number(m.avaliacao_media).toFixed(1)}</div>
                   </div>
-                  <span className={`badge ${m.online ? "badge-active" : ""}`} style={!m.online ? { background: "#222", color: "#555", border: "1px solid #333" } : {}}>{m.online ? "Online" : "Offline"}</span>
+                  <span className={`badge ${m.online ? "badge-active" : ""}`} style={!m.online ? { background: "var(--surface2)", color: "var(--text3)", border: "1px solid var(--border)" } : {}}>{m.online ? "Online" : "Offline"}</span>
                 </div>
                 <div style={{ display: "flex", gap: 12, fontSize: 12 }}>
                   <span style={{ color: "var(--green)" }}>✅ {formatKm(m.km_carregado)} carregado</span>
@@ -1665,7 +1665,7 @@ function AdminDashboard({ onNavigate }) {
 
         {!loadingStats && tab === "fretes" && (
           <>
-            {fretes.length === 0 && <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>Nenhum frete na plataforma</div>}
+            {fretes.length === 0 && <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>Nenhum frete na plataforma</div>}
             {fretes.map(f => (
               <div key={f.id} className="card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
@@ -1673,10 +1673,10 @@ function AdminDashboard({ onNavigate }) {
                   <span className="price" style={{ fontSize: 16 }}>{formatMoney(f.valor_final || f.valor_antt)}</span>
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{f.origem_cidade} → {f.dest_cidade}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>
                   📦 {f.tipo_carga} · 📏 {f.distancia_km} km · ⚖️ {f.peso_tons}t
                 </div>
-                <div style={{ fontSize: 11, color: "#555", marginTop: 6 }}>
+                <div style={{ fontSize: 11, color: "var(--text2)", marginTop: 6 }}>
                   Contratante: {f.contratante_nome} {f.motorista_nome ? `· Motorista: ${f.motorista_nome}` : ""}
                 </div>
               </div>
@@ -1688,12 +1688,12 @@ function AdminDashboard({ onNavigate }) {
           <>
             <div className="card">
               <div className="card-title">Eficiência por Motorista</div>
-              {motoristas.length === 0 && <p style={{ fontSize: 13, color: "#555" }}>Sem dados ainda</p>}
+              {motoristas.length === 0 && <p style={{ fontSize: 13, color: "var(--text2)" }}>Sem dados ainda</p>}
               {motoristas.map(m => (
                 <div key={m.id} className="admin-row">
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{m.nome}</span>
-                    <div style={{ fontSize: 11, color: "#666" }}>{m.total_fretes} fretes · {formatKm(m.km_carregado)}</div>
+                    <div style={{ fontSize: 11, color: "var(--text3)" }}>{m.total_fretes} fretes · {formatKm(m.km_carregado)}</div>
                   </div>
                   <span style={{ fontSize: 13, color: "var(--green)", fontWeight: 700 }}>{formatMoney(m.ganhos_total)}</span>
                 </div>
@@ -1904,7 +1904,7 @@ function AdminUsuarios({ onNavigate }) {
             {loadingBusca && <Loading />}
 
             {!loadingBusca && resultados.length === 0 && (
-              <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>Nenhum usuário encontrado</div>
+              <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>Nenhum usuário encontrado</div>
             )}
 
             {!loadingBusca && resultados.map(u => (
@@ -1915,7 +1915,7 @@ function AdminUsuarios({ onNavigate }) {
                       {u.motorista_id && (u.online ? <span className="online-dot" /> : <span className="offline-dot" />)}
                       {u.nome}
                     </div>
-                    <div style={{ fontSize: 12, color: "#666" }}>{u.email}</div>
+                    <div style={{ fontSize: 12, color: "var(--text3)" }}>{u.email}</div>
                     <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{u.telefone || "sem telefone"} {u.cidade ? `· ${u.cidade}/${u.uf}` : ""}</div>
                   </div>
                   <span className={`badge ${u.tipo === "motorista" ? "badge-active" : "badge-pending"}`}>{u.tipo}</span>
@@ -1971,7 +1971,7 @@ function AdminUsuarios({ onNavigate }) {
                 {form.tipo === "motorista" && !detalhe.motorista && (
                   <div className="card" style={{ borderColor: "var(--red)", borderWidth: 2 }}>
                     <div className="card-title">⚠️ Perfil de Motorista Ausente</div>
-                    <p style={{ fontSize: 13, color: "#666", marginBottom: 12 }}>
+                    <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 12 }}>
                       Este usuário é do tipo motorista, mas não tem um perfil correspondente na tabela de motoristas.
                       Isso impede aceitar fretes, propor valores e aparecer como online. Crie o perfil para corrigir.
                     </p>
@@ -2071,7 +2071,7 @@ function ContratanteHome({ onNavigate }) {
   return (
     <div className="screen">
       <div className="header">
-        <div><div style={{ fontSize: 11, color: "#555" }}>Olá,</div><h1>{user?.nome?.split(" ")[0] || "Contratante"}</h1></div>
+        <div><div style={{ fontSize: 11, color: "var(--text2)" }}>Olá,</div><h1>{user?.nome?.split(" ")[0] || "Contratante"}</h1></div>
         <div style={{ marginLeft: "auto", fontSize: 24, cursor: "pointer" }} onClick={() => onNavigate("perfil")}>👤</div>
       </div>
       <div className="content">
@@ -2087,7 +2087,7 @@ function ContratanteHome({ onNavigate }) {
           <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => onNavigate("meus-fretes")}>Ver todos</span>
         </div>
         {loading ? <Loading /> : fretes.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
             <p style={{ fontWeight: 600 }}>Nenhum frete ainda</p>
             <p style={{ fontSize: 13, marginTop: 4, color: "#444" }}>Solicite seu primeiro frete!</p>
@@ -2272,7 +2272,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
       <div className="header">
         <button className="back-btn" onClick={() => step > 1 ? setStep(s => s - 1) : onNavigate("home-contratante")}>←</button>
         <h1>Solicitar Frete</h1>
-        <span style={{ marginLeft: "auto", fontSize: 12, color: "#555" }}>{step}/3</span>
+        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text2)" }}>{step}/3</span>
       </div>
       <div className="content">
         {motoristaConvidadoId && (
@@ -2467,7 +2467,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
               <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{form.pesoKg} kg</span></div>
               <div className="divider" />
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Piso mínimo legal (Tabela ANTT)</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 4 }}>Piso mínimo legal (Tabela ANTT)</div>
                 <div className="price" style={{ fontSize: 28, color: "var(--text3)" }}>{formatMoney(calc.pisoMinimo)}</div>
               </div>
             </div>
@@ -2478,7 +2478,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
             />
             <div className="card">
               <div className="card-title">💰 Defina o valor do frete</div>
-              <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+              <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 10 }}>
                 Você pode oferecer o piso mínimo ou um valor maior para atrair motoristas mais rápido. O valor não pode ficar abaixo do piso legal.
               </p>
               <div className="field">
@@ -2826,7 +2826,7 @@ function PropostasRecebidasScreen({ frete, onNavigate }) {
         {loading && <Loading />}
 
         {!loading && propostas.length === 0 && (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
             <p style={{ fontWeight: 600 }}>Nenhuma proposta recebida ainda</p>
             <p style={{ fontSize: 13, marginTop: 4 }}>Motoristas podem aceitar pelo valor publicado ou enviar uma proposta diferente</p>
@@ -2838,7 +2838,7 @@ function PropostasRecebidasScreen({ frete, onNavigate }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
               <div>
                 <div style={{ fontWeight: 700 }}>{p.motorista_nome}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>{p.tipo_veiculo} · {p.placa_veiculo || "—"} · ⭐ {Number(p.avaliacao_media).toFixed(1)}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>{p.tipo_veiculo} · {p.placa_veiculo || "—"} · ⭐ {Number(p.avaliacao_media).toFixed(1)}</div>
               </div>
               <span className={`badge ${p.rodada === 2 ? "badge-pending" : "badge-active"}`}>
                 {p.rodada === 2 ? "Aguardando motorista" : "Proposta do motorista"}
@@ -2880,7 +2880,7 @@ function PropostasRecebidasScreen({ frete, onNavigate }) {
             )}
 
             {p.rodada === 2 && (
-              <p style={{ fontSize: 12, color: "#666", marginTop: 10 }}>Aguardando o motorista aceitar ou recusar sua contraproposta de {formatMoney(p.valor_contratante)}.</p>
+              <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 10 }}>Aguardando o motorista aceitar ou recusar sua contraproposta de {formatMoney(p.valor_contratante)}.</p>
             )}
           </div>
         ))}
@@ -3120,7 +3120,7 @@ function MotoristaHome({ onNavigate }) {
     <div className="screen">
       <div className="header">
         <div>
-          <div style={{ fontSize: 11, color: "#555", display: "flex", alignItems: "center" }}>
+          <div style={{ fontSize: 11, color: "var(--text2)", display: "flex", alignItems: "center" }}>
             <span className={online ? "online-dot" : "offline-dot"} />
             {online ? "Online — aceitando fretes" : "Offline"}
           </div>
@@ -3141,7 +3141,7 @@ function MotoristaHome({ onNavigate }) {
               <span style={{ fontSize: 24 }}>🛡️</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Registre seu seguro pra poder aceitar fretes</div>
-                <div style={{ fontSize: 12, color: "#666" }}>Toque para regularizar</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Toque para regularizar</div>
               </div>
               <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
             </div>
@@ -3153,7 +3153,7 @@ function MotoristaHome({ onNavigate }) {
               <span style={{ fontSize: 24 }}>📨</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Você tem {propostasPendentes} contraproposta{propostasPendentes > 1 ? "s" : ""} para responder</div>
-                <div style={{ fontSize: 12, color: "#666" }}>Toque para ver e decidir</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Toque para ver e decidir</div>
               </div>
               <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
             </div>
@@ -3165,7 +3165,7 @@ function MotoristaHome({ onNavigate }) {
               <span style={{ fontSize: 24 }}>🎯</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Você tem {convitesPendentes} convite{convitesPendentes > 1 ? "s" : ""} direto{convitesPendentes > 1 ? "s" : ""} de contratante{convitesPendentes > 1 ? "s" : ""}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>Toque para ver e decidir</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Toque para ver e decidir</div>
               </div>
               <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
             </div>
@@ -3177,7 +3177,7 @@ function MotoristaHome({ onNavigate }) {
               <span style={{ fontSize: 24 }}>📢</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Sem frete agora? Anuncie sua disponibilidade</div>
-                <div style={{ fontSize: 12, color: "#666" }}>Contratantes da sua região podem te convidar direto</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Contratantes da sua região podem te convidar direto</div>
               </div>
               <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
             </div>
@@ -3186,11 +3186,11 @@ function MotoristaHome({ onNavigate }) {
         <div className="km-vazio-bar">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>📊 KM VAZIO HOJE</span>
-            <span style={{ fontSize: 11, color: "#555" }}>Meta: {formatKm(metaKmVazio)}</span>
+            <span style={{ fontSize: 11, color: "var(--text2)" }}>Meta: {formatKm(metaKmVazio)}</span>
           </div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
             <span style={{ fontSize: 24, fontWeight: 800, color: pctMeta > 100 ? "var(--red)" : pctMeta > 75 ? "var(--orange)" : "var(--green)" }}>{formatKm(kmVazio)}</span>
-            <span style={{ fontSize: 12, color: "#555" }}>({pctMeta}% da meta)</span>
+            <span style={{ fontSize: 12, color: "var(--text2)" }}>({pctMeta}% da meta)</span>
           </div>
           <div className="progress-bar">
             <div className={`progress-fill ${pctMeta > 100 ? "red" : pctMeta > 75 ? "" : "green"}`} style={{ width: `${Math.min(pctMeta, 100)}%` }} />
@@ -3241,18 +3241,18 @@ function MotoristaHome({ onNavigate }) {
           />
         </div>
         <div style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 11, color: "#555", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Tipo de frete</div>
+          <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Tipo de frete</div>
           <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
             {[["todos", "Todos"], ["urbano", "🏙️ Urbano"], ["intermunicipal", "🛣️ Intermunic."], ["interestadual", "🗺️ Interestadual"]].map(([id, label]) => (
-              <button key={id} onClick={() => setFiltroTipo(id)} style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid", borderColor: filtroTipo === id ? "var(--orange)" : "#333", background: filtroTipo === id ? "var(--orange)" : "var(--dark3)", color: filtroTipo === id ? "#fff" : "#888", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "Barlow, sans-serif" }}>{label}</button>
+              <button key={id} onClick={() => setFiltroTipo(id)} style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid", borderColor: filtroTipo === id ? "var(--orange)" : "var(--border)", background: filtroTipo === id ? "var(--orange)" : "var(--dark3)", color: filtroTipo === id ? "#fff" : "var(--text3)", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "Inter, sans-serif" }}>{label}</button>
             ))}
           </div>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#555", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Peso da carga</div>
+          <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Peso da carga</div>
           <div style={{ display: "flex", gap: 6 }}>
             {[["todos", "Todos"], ["leve", "Até 3t"], ["medio", "3–14t"], ["pesado", "+14t"]].map(([id, label]) => (
-              <button key={id} onClick={() => setFiltroPeso(id)} style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid", borderColor: filtroPeso === id ? "var(--orange)" : "#333", background: filtroPeso === id ? "var(--orange)" : "var(--dark3)", color: filtroPeso === id ? "#fff" : "#888", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Barlow, sans-serif" }}>{label}</button>
+              <button key={id} onClick={() => setFiltroPeso(id)} style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid", borderColor: filtroPeso === id ? "var(--orange)" : "var(--border)", background: filtroPeso === id ? "var(--orange)" : "var(--dark3)", color: filtroPeso === id ? "#fff" : "var(--text3)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}>{label}</button>
             ))}
           </div>
         </div>
@@ -3262,7 +3262,7 @@ function MotoristaHome({ onNavigate }) {
         </div>
 
         {!online && (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>😴</div>
             <p style={{ fontWeight: 600 }}>Você está offline</p>
             <p style={{ fontSize: 13, marginTop: 4 }}>Ative o toggle para receber fretes</p>
@@ -3272,7 +3272,7 @@ function MotoristaHome({ onNavigate }) {
         {online && loading && <Loading />}
 
         {online && !loading && (disponiveis.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>🔍</div>
             <p style={{ fontWeight: 600 }}>Nenhum frete disponível</p>
             <p style={{ fontSize: 13, marginTop: 4, color: "#444" }}>Novos fretes aparecem aqui automaticamente</p>
@@ -3289,11 +3289,11 @@ function MotoristaHome({ onNavigate }) {
                     {f.prioridade_rota && <span className="tag-chip">📍 Perto da sua última entrega</span>}
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
-                  <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>⚖️ {f.peso_tons}t · 🚛 {f.tipo_veiculo}</div>
+                  <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4 }}>⚖️ {f.peso_tons}t · 🚛 {f.tipo_veiculo}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div className="price">{formatMoney(f.valor_motorista || 0)}</div>
-                  <div style={{ fontSize: 11, color: "#555" }}>motorista</div>
+                  <div style={{ fontSize: 11, color: "var(--text2)" }}>motorista</div>
                   {f.valorLiquidoEstimado != null && (
                     <div style={{ fontSize: 11, color: f.valorLiquidoEstimado >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700, marginTop: 2 }}>
                       ≈ {formatMoney(f.valorLiquidoEstimado)} líquido
@@ -3302,7 +3302,7 @@ function MotoristaHome({ onNavigate }) {
                 </div>
               </div>
               <div className="uber-card-footer">
-                <span style={{ fontSize: 12, color: "#555" }}>📍 {f.distancia_motorista_km || "?"} km de você</span>
+                <span style={{ fontSize: 12, color: "var(--text2)" }}>📍 {f.distancia_motorista_km || "?"} km de você</span>
                 <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); onNavigate("aceitar-frete", f); }}>Ver frete</button>
               </div>
             </div>
@@ -3614,15 +3614,15 @@ function ConvitesScreen({ onNavigate }) {
                     <span className="tag-chip">{cargaObj?.icon || "📦"} {cargaObj?.label || f.tipo_carga}</span>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
-                  <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>📏 {f.distancia_km} km · ⚖️ {f.peso_tons}t</div>
+                  <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4 }}>📏 {f.distancia_km} km · ⚖️ {f.peso_tons}t</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div className="price">{formatMoney(f.valor_motorista || 0)}</div>
-                  <div style={{ fontSize: 11, color: "#555" }}>motorista</div>
+                  <div style={{ fontSize: 11, color: "var(--text2)" }}>motorista</div>
                 </div>
               </div>
               <div className="uber-card-footer">
-                <span style={{ fontSize: 12, color: "#555" }}>⏳ {expiraTexto}</span>
+                <span style={{ fontSize: 12, color: "var(--text2)" }}>⏳ {expiraTexto}</span>
                 <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); onNavigate("aceitar-frete", f); }}>Ver e decidir</button>
               </div>
             </div>
@@ -3688,7 +3688,7 @@ function AceitarFreteScreen({ frete, onNavigate }) {
         <div className="header"><button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button><h1>Proposta Enviada</h1></div>
         <div className="content">
           <div className="alert alert-success">✅ Sua proposta de {formatMoney(parseFloat(String(valorProposta).replace(",", ".")))} foi enviada ao contratante.</div>
-          <p style={{ fontSize: 13, color: "#666", marginBottom: 16 }}>
+          <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>
             Acompanhe a resposta em <strong>Minhas Propostas</strong>. O contratante pode aceitar, recusar ou enviar uma contraproposta.
           </p>
           <button className="btn btn-primary" onClick={() => onNavigate("minhas-propostas")}>Ver Minhas Propostas</button>
@@ -3712,7 +3712,7 @@ function AceitarFreteScreen({ frete, onNavigate }) {
         )}
         <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
           <div className="price" style={{ fontSize: 42 }}>{formatMoney(frete.valor_motorista || 0)}</div>
-          <div style={{ fontSize: 13, color: "#555", marginTop: 4 }}>Seu valor como motorista (valor publicado)</div>
+          <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 4 }}>Seu valor como motorista (valor publicado)</div>
         </div>
         <div className="card">
           <div className="map-placeholder">
@@ -3803,7 +3803,7 @@ function AceitarFreteScreen({ frete, onNavigate }) {
         {propondoValor && (
           <div className="card">
             <div className="card-title">Sua proposta de valor</div>
-            <p style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
+            <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 10 }}>
               O valor publicado para você é {formatMoney(frete.valor_motorista || 0)}. Proponha o valor que você gostaria de receber (sujeito ao piso mínimo ANTT).
             </p>
             <div className="field">
@@ -3877,7 +3877,7 @@ function MinhasPropostasScreen({ onNavigate }) {
       expirada: ["", "Encerrada"],
     };
     const [cls, label] = map[p.status] || ["", p.status];
-    return <span className={`badge ${cls}`} style={!cls ? { background: "#222", color: "#666", border: "1px solid #333" } : {}}>{label}</span>;
+    return <span className={`badge ${cls}`} style={!cls ? { background: "var(--surface2)", color: "var(--text3)", border: "1px solid var(--border)" } : {}}>{label}</span>;
   };
 
   return (
@@ -3900,7 +3900,7 @@ function MinhasPropostasScreen({ onNavigate }) {
         {loading && <Loading />}
 
         {!loading && propostas.length === 0 && (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "#555" }}>
+          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>📨</div>
             <p style={{ fontWeight: 600 }}>Nenhuma proposta enviada ainda</p>
             <p style={{ fontSize: 13, marginTop: 4 }}>Proponha valores nos fretes disponíveis para negociar com contratantes</p>
@@ -3912,7 +3912,7 @@ function MinhasPropostasScreen({ onNavigate }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13 }}>{p.origem_cidade} → {p.dest_cidade}</div>
-                <div style={{ fontSize: 12, color: "#666" }}>Contratante: {p.contratante_nome}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Contratante: {p.contratante_nome}</div>
               </div>
               <StatusProposta p={p} />
             </div>
@@ -3938,7 +3938,7 @@ function MinhasPropostasScreen({ onNavigate }) {
             )}
 
             {p.status === "pendente" && p.rodada === 1 && (
-              <p style={{ fontSize: 12, color: "#666", marginTop: 8 }}>Aguardando resposta do contratante...</p>
+              <p style={{ fontSize: 12, color: "var(--text3)", marginTop: 8 }}>Aguardando resposta do contratante...</p>
             )}
           </div>
         ))}
@@ -4199,7 +4199,7 @@ function EmTransitoScreen({ frete, onNavigate }) {
           <div className="card-title">💰 Extrato Financeiro do Frete</div>
           {loadingExtrato && <Loading />}
           {!loadingExtrato && !extrato && (
-            <p style={{ fontSize: 13, color: "#666" }}>Não foi possível carregar o extrato agora.</p>
+            <p style={{ fontSize: 13, color: "var(--text3)" }}>Não foi possível carregar o extrato agora.</p>
           )}
           {!loadingExtrato && extrato && (
             <>
@@ -4385,7 +4385,7 @@ function PerfilMotorista({ onNavigate }) {
         <div style={{ textAlign: "center", padding: "14px 0 20px" }}>
           <div style={{ width: 68, height: 68, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 28 }}>🚛</div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>{user?.nome}</div>
-          <div style={{ fontSize: 13, color: "#555", marginTop: 3 }}>{user?.email}</div>
+          <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 3 }}>{user?.email}</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
             <span className="badge badge-active">Motorista</span>
             <span className="badge" style={{ background: "rgba(251,191,36,0.15)", color: "#FBBF24", border: "1px solid rgba(251,191,36,0.4)" }}>⭐ {ganhos ? Number(ganhos.avaliacao_media).toFixed(1) : "—"}</span>
@@ -4419,7 +4419,7 @@ function PerfilMotorista({ onNavigate }) {
             </div>
             {[["📦", "Meus Fretes", "meus-fretes-motorista"], ["💬", "Chat", "chat"], ["⭐", "Avaliações", "avaliacoes"]].map(([icon, label, screen]) => (
               <div key={label} className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate(screen)}>
-                <span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontWeight: 600 }}>{label}</span><span style={{ marginLeft: "auto", color: "#555" }}>›</span>
+                <span style={{ fontSize: 20 }}>{icon}</span><span style={{ fontWeight: 600 }}>{label}</span><span style={{ marginLeft: "auto", color: "var(--text2)" }}>›</span>
               </div>
             ))}
             <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>Minha Conta</div>
@@ -4501,7 +4501,7 @@ function PerfilMotorista({ onNavigate }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <div>
                   <div style={{ fontSize: 28, fontWeight: 800, color: pctMeta > 100 ? "var(--red)" : pctMeta > 75 ? "var(--orange)" : "var(--green)" }}>{formatKm(kmVazio)}</div>
-                  <div style={{ fontSize: 12, color: "#555" }}>rodado vazio este mês</div>
+                  <div style={{ fontSize: 12, color: "var(--text2)" }}>rodado vazio este mês</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   {!editMeta ? (
@@ -4511,7 +4511,7 @@ function PerfilMotorista({ onNavigate }) {
                     </div>
                   ) : (
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input type="number" value={novaMeta} onChange={e => setNovaMeta(e.target.value)} style={{ width: 80, background: "var(--dark3)", border: "1px solid #333", borderRadius: 8, padding: "6px 8px", color: "var(--white)", fontSize: 14, fontFamily: "Barlow, sans-serif" }} />
+                      <input type="number" value={novaMeta} onChange={e => setNovaMeta(e.target.value)} style={{ width: 80, background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", color: "var(--white)", fontSize: 14, fontFamily: "Inter, sans-serif" }} />
                       <button className="btn btn-primary btn-sm" onClick={() => { setMetaKmVazio(Number(novaMeta)); setEditMeta(false); }}>OK</button>
                     </div>
                   )}
@@ -4520,7 +4520,7 @@ function PerfilMotorista({ onNavigate }) {
               <div className="progress-bar" style={{ height: 10 }}>
                 <div className={`progress-fill ${pctMeta > 100 ? "red" : pctMeta > 75 ? "" : "green"}`} style={{ width: `${Math.min(pctMeta, 100)}%` }} />
               </div>
-              <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 6 }}>
                 {pctMeta >= 100 ? "⚠️ Meta ultrapassada! Aceite fretes de retorno." : pctMeta > 75 ? "⚡ Atenção: próximo da meta." : `✅ ${formatKm(metaKmVazio - kmVazio)} restantes até a meta`}
               </div>
             </div>
@@ -4530,7 +4530,7 @@ function PerfilMotorista({ onNavigate }) {
                 <div key={c.tipo} style={{ marginBottom: 14 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
                     <span>{c.icon} {c.tipo}</span>
-                    <span style={{ color: "#666" }}>{formatKm(c.km)} · {c.fretes} fretes</span>
+                    <span style={{ color: "var(--text3)" }}>{formatKm(c.km)} · {c.fretes} fretes</span>
                   </div>
                   <div className="progress-bar">
                     <div className="progress-fill" style={{ width: `${Math.round((c.km / Math.max(kmVazio, 1)) * 100)}%` }} />
@@ -4687,7 +4687,7 @@ function AvaliarScreen({ data, onNavigate }) {
               <div className="star-rating" style={{ justifyContent: "center" }}>
                 {[1, 2, 3, 4, 5].map(n => <span key={n} onClick={() => setNota(n)} style={{ fontSize: 36, cursor: "pointer" }}>{n <= nota ? "⭐" : "☆"}</span>)}
               </div>
-              <div style={{ marginTop: 8, color: "#555", fontSize: 13 }}>{nota}/5</div>
+              <div style={{ marginTop: 8, color: "var(--text2)", fontSize: 13 }}>{nota}/5</div>
             </div>
             <div className="field"><label>Comentário</label><textarea placeholder="Como foi o serviço?" rows={4} value={comentario} onChange={e => setComentario(e.target.value)} style={{ resize: "none" }} /></div>
             <button className="btn btn-primary" onClick={enviar} disabled={loading}>{loading ? "Enviando..." : "Enviar Avaliação"}</button>
