@@ -5442,6 +5442,8 @@ function FinancasMotorista({ onNavigate }) {
   const [tab, setTab] = useState("despesas");
   const [despesas, setDespesas] = useState([]);
   const [ganhos, setGanhos] = useState(null);
+  const [extrato, setExtrato] = useState(null);
+  const [loadingExtrato, setLoadingExtrato] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [loadingAdd, setLoadingAdd] = useState(false);
   const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
@@ -5455,13 +5457,18 @@ function FinancasMotorista({ onNavigate }) {
     { id: "outro", icon: "📦", label: "Outro" },
   ];
 
-  // Carrega despesas e ganhos do banco já ao montar a tela (não só ao clicar na aba)
+  // Carrega despesas, ganhos e extrato de transações do banco já ao montar a tela (não só ao clicar na aba)
   useEffect(() => {
     api("GET", "/api/motoristas/despesas", null, token)
       .then(setDespesas).catch(() => {});
     setLoadingGanhos(true);
     api("GET", "/api/motoristas/ganhos", null, token)
       .then(setGanhos).catch(() => setGanhos(null)).finally(() => setLoadingGanhos(false));
+    setLoadingExtrato(true);
+    api("GET", "/api/motoristas/extrato", null, token)
+      .then(d => setExtrato(d.transacoes || []))
+      .catch(() => setExtrato([]))
+      .finally(() => setLoadingExtrato(false));
   }, [token]);
 
   const totalDespesas = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
@@ -5592,13 +5599,133 @@ function FinancasMotorista({ onNavigate }) {
                     ))}
                   </div>
                 )}
-                <div className="card">
+                <div className="card" style={{ marginBottom: 14 }}>
                   <div className="card-title">Resumo total</div>
                   <div className="info-row"><span className="info-label">Total de fretes</span><span className="info-value">{ganhos.total_fretes}</span></div>
                   <div className="info-row"><span className="info-label">Km carregado total</span><span className="info-value">{formatKm(ganhos.km_carregado)}</span></div>
+                  <div className="info-row"><span className="info-label">Ganhos com entregas</span><span className="info-value" style={{ color: "var(--green)" }}>{formatMoney(ganhos.ganhos_entregas)}</span></div>
+                  {Number(ganhos.ganhos_compensacoes || 0) > 0 && (
+                    <div className="info-row"><span className="info-label">🔄 Compensações por cancelamento</span><span className="info-value" style={{ color: "var(--gold)" }}>{formatMoney(ganhos.ganhos_compensacoes)}</span></div>
+                  )}
+                  <div className="divider" />
                   <div className="info-row"><span className="info-label" style={{ fontWeight: 800 }}>Ganhos totais</span><span className="info-value" style={{ color: "var(--green)", fontWeight: 800 }}>{formatMoney(ganhos.ganhos_total)}</span></div>
                 </div>
+                <div className="card-title" style={{ marginBottom: 8 }}>Transações</div>
+                {loadingExtrato ? <Loading /> : extrato?.length === 0 ? (
+                  <div className="card" style={{ textAlign: "center", padding: 24, color: "var(--text3)" }}>Nenhuma transação registrada ainda</div>
+                ) : (extrato || []).map(t => {
+                  const ehCompensacao = t.tipo === "compensacao_cancelamento";
+                  const data = t.data_evento ? new Date(t.data_evento).toLocaleDateString("pt-BR") : "—";
+                  return (
+                    <div key={t.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14, cursor: "pointer", borderColor: ehCompensacao ? "rgba(201,168,76,0.4)" : "var(--border)" }}
+                      onClick={() => onNavigate("extrato-frete-motorista", { id: t.id })}>
+                      <div style={{ width: 42, height: 42, borderRadius: 10, background: ehCompensacao ? "rgba(201,168,76,0.15)" : "rgba(45,122,58,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+                        {ehCompensacao ? "🔄" : "🚛"}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{ehCompensacao ? "Compensação por cancelamento" : "Entrega"}</div>
+                        <div style={{ fontSize: 12, color: "var(--text3)" }}>{t.dest_cidade ? `→ ${t.dest_cidade}/${t.dest_estado}` : "—"} · {data}</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: ehCompensacao ? "var(--gold)" : "var(--green)", fontSize: 15 }}>{formatMoney(t.valor)}</div>
+                    </div>
+                  );
+                })}
               </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// EXTRATO DE UM FRETE FINALIZADO (Motorista)
+// Reaproveita GET /api/fretes/:id/extrato — mesmo endpoint usado em "Em Trânsito"
+// pra fretes em andamento, mas aqui pra fretes já entregues ou cancelados com
+// compensação (o backend diferencia pelo campo "tipo" da resposta).
+// ─────────────────────────────────────────────
+function ExtratoFreteMotoristaScreen({ dados, onNavigate }) {
+  const { token } = useAuth();
+  const [extrato, setExtrato] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!dados?.id) return;
+    setLoading(true);
+    api("GET", `/api/fretes/${dados.id}/extrato`, null, token)
+      .then(setExtrato)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [dados?.id]);
+
+  const ehCompensacao = extrato?.tipo === "compensacao_cancelamento";
+  const cd = extrato?.compensacaoDetalhes;
+
+  return (
+    <div className="screen">
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
+        <h1>{ehCompensacao ? "Compensação" : "Extrato do Frete"}</h1>
+      </div>
+      <div className="content">
+        {loading && <Loading />}
+        {error && <div className="alert alert-error">{error}</div>}
+        {extrato && (
+          <>
+            {ehCompensacao && (
+              <div className="alert alert-info" style={{ marginBottom: 14 }}>
+                🔄 Este frete foi cancelado pelo contratante depois que você já tinha saído pra coleta. O valor abaixo é a compensação pelo trecho percorrido, não o valor do frete completo.
+              </div>
+            )}
+            <div className="card" style={{ textAlign: "center", borderColor: ehCompensacao ? "rgba(201,168,76,0.4)" : "rgba(45,122,58,0.3)", marginBottom: 14 }}>
+              <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 4 }}>{ehCompensacao ? "Compensação recebida" : "Valor a receber"}</div>
+              <div style={{ fontSize: 32, fontWeight: 800, color: ehCompensacao ? "var(--gold)" : "var(--green)" }}>{formatMoney(extrato.valorReceber)}</div>
+            </div>
+
+            {ehCompensacao ? (
+              <div className="card">
+                <div className="card-title">Como foi calculado</div>
+                {cd?.distanciaPercorridaKm != null && (
+                  <div className="info-row"><span className="info-label">Distância percorrida</span><span className="info-value">{cd.distanciaPercorridaKm} km</span></div>
+                )}
+                <div className="info-row"><span className="info-label">⛽ Combustível (trecho percorrido)</span><span className="info-value">{formatMoney(extrato.custosAutomaticos.combustivel)}</span></div>
+                <div className="info-row"><span className="info-label">🔧 Desgaste (trecho percorrido)</span><span className="info-value">{formatMoney(extrato.custosAutomaticos.desgaste)}</span></div>
+                {cd?.taxaTranstorno != null && (
+                  <div className="info-row"><span className="info-label">⚠️ Taxa de transtorno ({Math.round((cd.percentualTaxa || 0) * 100)}%)</span><span className="info-value">{formatMoney(cd.taxaTranstorno)}</span></div>
+                )}
+                <div className="divider" />
+                <div className="info-row"><span className="info-label" style={{ fontWeight: 800 }}>Total da compensação</span><span className="info-value" style={{ color: "var(--gold)", fontWeight: 800, fontSize: 16 }}>{formatMoney(extrato.valorReceber)}</span></div>
+                <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 8 }}>
+                  Combustível e desgaste cobrem só o trecho que você já tinha percorrido até o cancelamento. A taxa de transtorno é um adicional fixo pela viagem interrompida.
+                </p>
+              </div>
+            ) : (
+              <div className="card">
+                <div className="card-title">Custos estimados (dados oficiais ANTT)</div>
+                <div className="info-row"><span className="info-label">⛽ Combustível</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(extrato.custosAutomaticos.combustivel)}</span></div>
+                <div className="info-row"><span className="info-label">🔧 Desgaste do veículo</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(extrato.custosAutomaticos.desgaste)}</span></div>
+              </div>
+            )}
+
+            {extrato.despesasManuais?.length > 0 && (
+              <div className="card">
+                <div className="card-title">Despesas lançadas por você</div>
+                {extrato.despesasManuais.map(d => (
+                  <div key={d.id} className="info-row">
+                    <span className="info-label">{d.tipo}{d.descricao ? ` — ${d.descricao}` : ""}</span>
+                    <span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(d.valor)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!ehCompensacao && (
+              <div className="card">
+                <div className="info-row"><span className="info-label">Total de custos</span><span className="info-value" style={{ color: "var(--red)" }}>− {formatMoney(extrato.totalCustos)}</span></div>
+                <div className="info-row"><span className="info-label" style={{ fontWeight: 800 }}>Valor líquido estimado</span><span className="info-value" style={{ color: extrato.valorLiquido >= 0 ? "var(--green)" : "var(--red)", fontWeight: 800, fontSize: 16 }}>{formatMoney(extrato.valorLiquido)}</span></div>
+              </div>
             )}
           </>
         )}
@@ -6486,6 +6613,7 @@ function Router() {
     case "dados-pessoais-motorista": return <DadosPessoaisMotorista {...p} />;
     case "dados-caminhao": return <DadosCaminhaoMotorista {...p} />;
     case "financas-motorista": return <FinancasMotorista {...p} />;
+    case "extrato-frete-motorista": return <ExtratoFreteMotoristaScreen dados={screenData} {...p} />;
     case "chat": return <ChatScreen data={screenData} {...p} />;
     case "avaliar": return <AvaliarScreen data={screenData} {...p} />;
     case "opcoes-motorista": return <OpcoesMotorista {...p} />;
