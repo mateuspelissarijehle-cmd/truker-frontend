@@ -143,20 +143,35 @@ const regrasCarga = (id) => REGRAS_CARGA[id] || { dimensoes: true, especial: nul
 const TIPOS_ANIMAL = ["Bovino", "Suíno", "Aves", "Equino", "Ovino/Caprino", "Outros"];
 const TIPOS_MATERIAL = ["Cimento", "Areia", "Brita", "Tijolo/Bloco", "Vergalhão/Aço", "Madeira", "Telhas", "Outros"];
 
+// TIPOS_VEICULO = CHASSI real (o que determina o número de eixos, base do
+// piso mínimo ANTT — services/antt.js VEICULOS é a mesma lista, mesmos ids).
+// NÃO confundir com carroceria (o que vai montado em cima: graneleiro, tanque,
+// prancha, munck, frigorífico — isso é escolhido separadamente, ver
+// CARROCERIAS_ESPECIAIS abaixo e o campo "carroceria" nos formulários).
+// Corrigido em 14/07/2026: antes esta lista misturava os dois conceitos.
 const TIPOS_VEICULO = [
-  { id: "furgao", label: "Furgão", icon: "🚐", cap: "1,5t", eixos: 2 },
-  { id: "vuc", label: "VUC", icon: "🚚", cap: "3t", eixos: 2 },
-  { id: "toco", label: "Toco", icon: "🚛", cap: "6t", eixos: 2 },
-  { id: "truck", label: "Truck", icon: "🚛", cap: "14t", eixos: 3 },
-  { id: "carreta", label: "Carreta", icon: "🚛", cap: "25t", eixos: 4 },
-  { id: "bitrem", label: "Bitrem", icon: "🚛", cap: "45t", eixos: 6 },
-  { id: "rodotrem", label: "Rodotrem", icon: "🚛", cap: "57t", eixos: 9 },
-  { id: "prancha", label: "Prancha", icon: "🚛", cap: "35t", eixos: 4 },
-  { id: "munck", label: "Munck", icon: "🏗️", cap: "10t", eixos: 3 },
-  { id: "graneleiro", label: "Graneleiro", icon: "🌾", cap: "30t", eixos: 4 },
-  { id: "frigorifico", label: "Frigorífico", icon: "❄️", cap: "20t", eixos: 4 },
-  { id: "tanque", label: "Tanque", icon: "⛽", cap: "30t", eixos: 4 },
+  { id: "furgao", label: "Furgão", icon: "🚐", cap: "1,5t", eixosPadrao: 2 },
+  { id: "vuc", label: "VUC", icon: "🚚", cap: "3t", eixosPadrao: 2 },
+  { id: "toco", label: "Toco", icon: "🚛", cap: "6t", eixosPadrao: 2 },
+  { id: "truck", label: "Truck", icon: "🚛", cap: "14t", eixosPadrao: 3 },
+  { id: "carreta", label: "Carreta", icon: "🚛", cap: "25t", eixosPadrao: 4 },
+  { id: "bitrem", label: "Bitrem", icon: "🚛", cap: "45t", eixosPadrao: 6 },
+  { id: "rodotrem", label: "Rodotrem", icon: "🚛", cap: "57t", eixosPadrao: 9 },
 ];
+function eixosPadraoDoChassi(tipoVeiculoId) {
+  return TIPOS_VEICULO.find(v => v.id === tipoVeiculoId)?.eixosPadrao ?? 4;
+}
+
+// CARROCERIA — o que vai montado no chassi, determina só compatibilidade de
+// carga (não o piso). O catálogo completo com labels vem de
+// GET /api/motoristas/carrocerias-disponiveis (services/matching.js
+// CARROCERIAS é a fonte única de verdade); esta lista curta é só pros ícones.
+const ICONE_CARROCERIA = {
+  bau: "📦", bau_frigorifico: "❄️", bau_refrigerado: "🧊", sider: "📦",
+  graneleiro: "🌾", grade_baixa: "📐", cacamba: "🪨", plataforma: "🛠️",
+  prancha: "🚧", tanque: "⛽", porta_container: "🚢", cegonha: "🚗",
+  gaiola: "🐄", munck: "🏗️",
+};
 
 // Nome do estado → sigla. O Google Places às vezes retorna o nome completo do
 // estado (ex: "Paraná") em vez da sigla nos terms do autocomplete de cidades —
@@ -451,7 +466,7 @@ function CampoCidadeAutocomplete({ label = "Cidade", value, onChange, onSelecion
 }
 
 // Cartão discreto de histórico de preços da rota (piso ANTT + média de mercado)
-function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga, mostrarPiso = true }) {
+function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga, numeroEixos, mostrarPiso = true }) {
   const { token } = useAuth();
   const [historico, setHistorico] = useState(null);
 
@@ -461,11 +476,12 @@ function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVe
     const params = new URLSearchParams({ origem_cidade: origemCidade, origem_uf: origemUf, dest_cidade: destCidade, dest_uf: destUf });
     if (tipoVeiculo) params.set("tipo_veiculo", tipoVeiculo);
     if (tipoCarga) params.set("tipo_carga", tipoCarga);
+    if (numeroEixos) params.set("numero_eixos", numeroEixos);
     api("GET", `/api/fretes/historico-precos-rota?${params.toString()}`, null, token)
       .then(data => { if (!cancelado) setHistorico(data); })
       .catch(() => { if (!cancelado) setHistorico(null); });
     return () => { cancelado = true; };
-  }, [origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga]);
+  }, [origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga, numeroEixos]);
 
   if (!historico) return null;
   const temMedia = historico.mediaMercado != null;
@@ -1444,11 +1460,12 @@ function CadastroScreen({ onNavigate, screenData }) {
     }
 
     if (step === 8) {
-      // Grupos de tipo de veículo
+      // Grupos de tipo de veículo (CHASSI — carroceria é escolhida depois, em
+      // "Meu Caminhão", já que é lá que a composição veicular completa é montada)
       const grupos = [
         { label: "Leves",   items: ["furgao", "vuc", "toco"] },
-        { label: "Médios",  items: ["truck", "munck"] },
-        { label: "Pesados", items: ["carreta", "bitrem", "rodotrem", "prancha", "graneleiro", "frigorifico", "tanque"] },
+        { label: "Médios",  items: ["truck"] },
+        { label: "Pesados", items: ["carreta", "bitrem", "rodotrem"] },
       ];
       return (
         <div style={sContainer}>
@@ -1471,7 +1488,7 @@ function CadastroScreen({ onNavigate, screenData }) {
                       <span style={{ fontSize: 20 }}>{v.icon}</span>
                       <div>
                         <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{v.label}</div>
-                        <div style={{ fontSize: 12, color: "var(--text3)" }}>até {v.cap} · {v.eixos} eixos</div>
+                        <div style={{ fontSize: 12, color: "var(--text3)" }}>até {v.cap} · {v.eixosPadrao} eixos (padrão)</div>
                       </div>
                     </div>
                   );
@@ -2221,6 +2238,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
   const motoristaConvidadoNome = screenData?.motoristaConvidadoNome || null;
   const [form, setForm] = useState({
     tipoFrete: "interestadual", tipoCarga: "carga_seca", tipoVeiculo: "truck",
+    numeroEixos: eixosPadraoDoChassi("truck"), carroceria: "",
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
     descricao: "", precisaMunck: false, precisaEmpilhadeira: false,
     dataColeta: "", horario: "",
@@ -2228,6 +2246,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
     tipoAnimal: "", qtdAnimais: "", tipoMaterial: "",
     itensMudanca: [{ nome: "", qtd: "" }],
   });
+  const [carroceriasDisp, setCarroceriasDisp] = useState([]);
   const [addr, setAddr] = useState({
     origemCep:"", origemLogradouro:"", origemNumero:"", origemComplemento:"",
     origemBairro:"", origemCidade:"", origemUF:"",
@@ -2259,6 +2278,25 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
   const set = (k, val) => setForm(f => ({ ...f, [k]: val }));
   const tipoCargaObj = TIPOS_CARGA.find(c => c.id === form.tipoCarga);
   const tipoVeiculoObj = TIPOS_VEICULO.find(v => v.id === form.tipoVeiculo);
+
+  // Trocar o chassi reresseta o número de eixos pro padrão daquele chassi
+  // (o contratante pode ajustar se a composição real for diferente).
+  const setTipoVeiculo = (id) => setForm(f => ({ ...f, tipoVeiculo: id, numeroEixos: eixosPadraoDoChassi(id) }));
+
+  // Carroceria desejada (opcional) — carrega o catálogo compatível com o
+  // chassi escolhido, filtrado pelas que aceitam o tipo de carga selecionado
+  // (mesmo catálogo que o motorista usa em "Meu Caminhão", services/matching.js).
+  useEffect(() => {
+    if (!form.tipoVeiculo || !token) { setCarroceriasDisp([]); return; }
+    api("GET", `/api/motoristas/carrocerias-disponiveis?veiculo=${form.tipoVeiculo}`, null, token)
+      .then(lista => {
+        const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
+        const compativeis = lista.filter(c => c.cargas.includes(cargaBackend));
+        setCarroceriasDisp(compativeis);
+        setForm(f => (compativeis.some(c => c.id === f.carroceria) ? f : { ...f, carroceria: "" }));
+      })
+      .catch(() => setCarroceriasDisp([]));
+  }, [form.tipoVeiculo, form.tipoCarga, token]);
 
   const fillCep = async (cep, tipo) => {
     const clean = cep.replace(/\D/g, "");
@@ -2307,7 +2345,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
     setError(""); setCalcLoading(true);
     const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
     try {
-      const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(origem)}&destino=${encodeURIComponent(dest)}&peso=${(Number(form.pesoKg)||1000)/1000}&veiculo=${form.tipoVeiculo}&carga=${cargaBackend}`, null, token);
+      const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(origem)}&destino=${encodeURIComponent(dest)}&peso=${(Number(form.pesoKg)||1000)/1000}&veiculo=${form.tipoVeiculo}&carga=${cargaBackend}&numeroEixos=${form.numeroEixos}`, null, token);
       const pisoMinimo = data.frete?.pisoMinimo || data.frete?.valorAntt || 0;
       setCalc({ distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracao, pisoMinimo });
       setValorEditavel(pisoMinimo.toFixed(2));
@@ -2351,6 +2389,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
     try {
       await api("POST", "/api/fretes", {
         tipoCarga: cargaBackend, tipoVeiculo: form.tipoVeiculo,
+        numeroEixos: form.numeroEixos, carroceria: form.carroceria || undefined,
         pesoTons: (Number(form.pesoKg)||1000)/1000,
         origemEndereco: composeAddr("origem", addr), origemCidade: addr.origemCidade, origemEstado: addr.origemUF,
         destEndereco: composeAddr("dest", addr), destCidade: addr.destCidade, destEstado: addr.destUF,
@@ -2465,9 +2504,27 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
             <div className="card">
               <div className="card-title">Veículo necessário</div>
               <div className="field">
-                <select value={form.tipoVeiculo} onChange={e => set("tipoVeiculo", e.target.value)}>
+                <label>Tipo de chassi *</label>
+                <select value={form.tipoVeiculo} onChange={e => setTipoVeiculo(e.target.value)}>
                   {TIPOS_VEICULO.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label} — até {v.cap}</option>)}
                 </select>
+              </div>
+              <div className="grid-2">
+                <div className="field">
+                  <label>Número de eixos *</label>
+                  <input type="number" min="2" max="9" value={form.numeroEixos}
+                    onChange={e => set("numeroEixos", e.target.value)} />
+                  <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                    Padrão pra {tipoVeiculoObj?.label}: {tipoVeiculoObj?.eixosPadrao} eixos — ajuste se a composição real for diferente. É isso que define o piso mínimo ANTT.
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Carroceria desejada (opcional)</label>
+                  <select value={form.carroceria} onChange={e => set("carroceria", e.target.value)} disabled={!carroceriasDisp.length}>
+                    <option value="">Qualquer uma compatível</option>
+                    {carroceriasDisp.map(c => <option key={c.id} value={c.id}>{ICONE_CARROCERIA[c.id] || ""} {c.label}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
             <div className="card">
@@ -2579,7 +2636,8 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
             <HistoricoPrecoRota
               origemCidade={addr.origemCidade} origemUf={addr.origemUF}
               destCidade={addr.destCidade} destUf={addr.destUF}
-              tipoVeiculo={form.tipoVeiculo} tipoCarga={CARGA_BACKEND_MAP[form.tipoCarga] || "geral"}
+              tipoVeiculo={form.tipoVeiculo} numeroEixos={form.numeroEixos}
+              tipoCarga={CARGA_BACKEND_MAP[form.tipoCarga] || "geral"}
             />
             <div className="card">
               <div className="card-title">💰 Defina o valor do frete</div>
@@ -3843,13 +3901,14 @@ function AceitarFreteScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{cargaObj?.icon} {cargaObj?.label || frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
-          <div className="info-row"><span className="info-label">Veículo necessário</span><span className="info-value">{frete.tipo_veiculo}</span></div>
+          <div className="info-row"><span className="info-label">Veículo necessário</span><span className="info-value">{TIPOS_VEICULO.find(v => v.id === frete.tipo_veiculo)?.label || frete.tipo_veiculo}{frete.numero_eixos ? ` · ${frete.numero_eixos} eixos` : ""}</span></div>
+          {frete.carroceria && <div className="info-row"><span className="info-label">Carroceria desejada</span><span className="info-value">{ICONE_CARROCERIA[frete.carroceria] || ""} {frete.carroceria}</span></div>}
         </div>
 
         <HistoricoPrecoRota
           origemCidade={frete.origem_cidade} origemUf={frete.origem_estado}
           destCidade={frete.dest_cidade} destUf={frete.dest_estado}
-          tipoVeiculo={frete.tipo_veiculo} tipoCarga={frete.tipo_carga}
+          tipoVeiculo={frete.tipo_veiculo} tipoCarga={frete.tipo_carga} numeroEixos={frete.numero_eixos}
           mostrarPiso={false}
         />
 
@@ -5362,13 +5421,14 @@ function DadosPessoaisMotorista({ onNavigate }) {
 // ─────────────────────────────────────────────
 function DadosCaminhaoMotorista({ onNavigate }) {
   const { user, token, updateUserData } = useAuth();
-  const [form, setForm] = useState({ tipoVeiculo: "", tipoCarreta: "", marca: "", modelo: "", placa: "", anoFab: "", renavam: "", tara: "", capacidade: "" });
+  const [form, setForm] = useState({ tipoVeiculo: "", numeroEixos: "", tipoCarreta: "", marca: "", modelo: "", placa: "", anoFab: "", renavam: "", tara: "", capacidade: "" });
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const tiposCarreta = ["Baú","Grade Baixa","Sider","Tanque","Frigorífico","Graneleiro","Porta Container","Prancha","Munck","Sem carreta"];
+  // Trocar o chassi ressesta o número de eixos pro padrão daquele chassi.
+  const setTipoVeiculo = (id) => setForm(f => ({ ...f, tipoVeiculo: id, numeroEixos: id ? eixosPadraoDoChassi(id) : "" }));
 
   // ── Composição veicular (cavalo + carretas) ──────────────
   const [veiculos, setVeiculos] = useState([]);          // lista da composição
@@ -5484,7 +5544,8 @@ function DadosCaminhaoMotorista({ onNavigate }) {
     try {
       const d = await api("GET", "/api/motoristas/perfil", null, token);
       setForm({
-        tipoVeiculo: d.tipo_veiculo || "", tipoCarreta: d.tipo_carreta || "",
+        tipoVeiculo: d.tipo_veiculo || "", numeroEixos: d.numero_eixos || (d.tipo_veiculo ? eixosPadraoDoChassi(d.tipo_veiculo) : ""),
+        tipoCarreta: d.tipo_carreta || "",
         marca: d.marca_veiculo || "", modelo: d.modelo_veiculo || "",
         placa: d.placa_veiculo || "", anoFab: d.ano_veiculo || "",
         renavam: d.renavam || "", tara: d.tara_kg || "", capacidade: d.capacidade_tons || "",
@@ -5502,7 +5563,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
     setError(""); setLoading(true);
     try {
       await api("PATCH", "/api/motoristas/veiculo", {
-        tipoVeiculo: form.tipoVeiculo, tipoCarreta: form.tipoCarreta,
+        tipoVeiculo: form.tipoVeiculo, numeroEixos: form.numeroEixos, tipoCarreta: form.tipoCarreta,
         marca: form.marca, modelo: form.modelo, placa: form.placa,
         anoFab: form.anoFab, renavam: form.renavam, tara: form.tara, capacidade: form.capacidade,
       }, token);
@@ -5523,17 +5584,29 @@ function DadosCaminhaoMotorista({ onNavigate }) {
         {error && <div className="alert alert-error">{error}</div>}
         <div className="card">
           <div className="card-title">Tipo do Veículo</div>
-          <div className="field"><label>Tipo de veículo (troca de caminhão)</label>
-            <select value={form.tipoVeiculo} onChange={e => set("tipoVeiculo", e.target.value)}>
+          <div className="field"><label>Tipo de chassi (troca de caminhão)</label>
+            <select value={form.tipoVeiculo} onChange={e => setTipoVeiculo(e.target.value)}>
               <option value="">Selecione...</option>
               {TIPOS_VEICULO.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label} — até {v.cap}</option>)}
             </select>
           </div>
-          <div className="field"><label>Tipo de carreta / implemento (troca de carreta)</label>
-            <select value={form.tipoCarreta} onChange={e => set("tipoCarreta", e.target.value)}>
+          {form.tipoVeiculo && (
+            <div className="field">
+              <label>Número de eixos</label>
+              <input type="number" min="2" max="9" value={form.numeroEixos} onChange={e => set("numeroEixos", e.target.value)} />
+              <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                Padrão pra {TIPOS_VEICULO.find(v => v.id === form.tipoVeiculo)?.label}: {eixosPadraoDoChassi(form.tipoVeiculo)} eixos — ajuste se a sua composição real for diferente.
+              </div>
+            </div>
+          )}
+          <div className="field"><label>Carroceria principal (troca de carreta)</label>
+            <select value={form.tipoCarreta} onChange={e => set("tipoCarreta", e.target.value)} disabled={!form.tipoVeiculo}>
               <option value="">Selecione...</option>
-              {tiposCarreta.map(c => <option key={c} value={c}>{c}</option>)}
+              {carroceriasDisp.map(c => <option key={c.id} value={c.id}>{ICONE_CARROCERIA[c.id] || ""} {c.label}</option>)}
             </select>
+            {!form.tipoVeiculo && (
+              <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>Selecione o chassi acima primeiro.</div>
+            )}
           </div>
         </div>
         <div className="card">
@@ -5611,6 +5684,7 @@ function DadosCaminhaoMotorista({ onNavigate }) {
               <div className="field"><label>Placa da carreta</label><input value={novaCarreta.placa} onChange={e => setNC("placa", maskPlaca(e.target.value))} placeholder="ABC-1234 ou ABC1D23" /></div>
               <div className="field"><label>Capacidade (t)</label><input type="number" value={novaCarreta.capacidadeTons} onChange={e => setNC("capacidadeTons", e.target.value)} placeholder="25" /></div>
             </div>
+            <div className="field"><label>Eixos desta carreta (opcional)</label><input type="number" min="1" max="9" value={novaCarreta.eixos} onChange={e => setNC("eixos", e.target.value)} placeholder="Ex: 3" /></div>
             <button className="btn btn-secondary" onClick={adicionarCarreta} disabled={addingCarreta || !form.tipoVeiculo} style={{ width: "100%" }}>
               {addingCarreta ? "Adicionando..." : "+ Adicionar carreta"}
             </button>
