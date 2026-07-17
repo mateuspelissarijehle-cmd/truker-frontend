@@ -503,12 +503,47 @@ function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVe
 // ─────────────────────────────────────────────
 // MAPA LEAFLET + OPENSTREETMAP (gratuito)
 // ─────────────────────────────────────────────
-function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null, rotas = [] }) {
+// origem/destino: só os 2 pinos fixos de visão geral (coleta/entrega), sem
+// relação com navegação ao vivo. metaAoVivo: alvo de navegação da FASE ATUAL
+// do frete (indo pra origem ainda não coletado, ou pro destino já coletado)
+// — é o que dirige o traçado de rota ao vivo (recalculado conforme lat/lng
+// mudam) e o ETA via onRotaInfo. Sem metaAoVivo, cai no comportamento antigo
+// (traçado único e estático entre origem e destino).
+function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null, rotas = [], metaAoVivo = null, onRotaInfo = null }) {
   const divRef = useRef(null);
   const mapRef = useRef(null);
   const marcadorRef = useRef(null);
-  const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas });
-  propsRef.current = { lat, lng, zoom, origem, destino, rotas };
+  const rotaPrincipalLayerRef = useRef(null);
+  const rotaPrincipalOrigemRef = useRef(null); // {lat,lng} usado no último desenho, pra só redesenhar se moveu o suficiente
+  const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo });
+  propsRef.current = { lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo };
+
+  // Busca a rota real (OSRM, gratuito) entre 2 pontos e desenha no mapa,
+  // substituindo o traçado anterior. Usada tanto no desenho inicial quanto
+  // pra atualizar a linha conforme a posição ao vivo do motorista muda
+  // (acompanhamento em trânsito). Também repassa distância/duração pra quem
+  // quiser mostrar um ETA (onRotaInfo), já que o OSRM devolve isso de graça
+  // junto com a geometria — sem precisar de uma chamada extra à Directions API.
+  const desenharRotaPrincipal = (start, end) => {
+    if (!start || !end || start === end || !mapRef.current) return;
+    fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`)
+      .then(r => r.json())
+      .then(data => {
+        const rota = data.routes?.[0];
+        if (!rota?.geometry || !mapRef.current) return;
+        if (rotaPrincipalLayerRef.current) mapRef.current.removeLayer(rotaPrincipalLayerRef.current);
+        rotaPrincipalLayerRef.current = window.L.geoJSON(rota.geometry, {
+          style: { color: "#F97316", weight: 4, opacity: 0.75, dashArray: "10,6" }
+        }).addTo(mapRef.current);
+        if (propsRef.current.onRotaInfo) {
+          propsRef.current.onRotaInfo({
+            distanciaKm: parseFloat((rota.distance / 1000).toFixed(1)),
+            duracaoMin: Math.ceil(rota.duration / 60),
+          });
+        }
+      })
+      .catch(() => {});
+  };
 
   const initMap = () => {
     if (!divRef.current || mapRef.current) return;
@@ -570,20 +605,15 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
 
     mapRef.current = map;
 
-    // Rota principal via OSRM (gratuito, sem API key)
+    // Rota principal via OSRM (gratuito, sem API key). metaAoVivo tem
+    // prioridade (alvo da fase atual, quando existe acompanhamento ao vivo);
+    // sem ela, cai no traçado estático origem->destino de sempre.
+    const alvoInicial = p.metaAoVivo || p.destino || p.origem;
     const start = p.lat && p.lng ? `${p.lng},${p.lat}` : p.origem?.lng ? `${p.origem.lng},${p.origem.lat}` : null;
-    const end = p.destino?.lat ? `${p.destino.lng},${p.destino.lat}` : p.origem?.lat ? `${p.origem.lng},${p.origem.lat}` : null;
-    if (start && end && start !== end) {
-      fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.routes?.[0]?.geometry && mapRef.current) {
-            window.L.geoJSON(data.routes[0].geometry, {
-              style: { color: "#F97316", weight: 4, opacity: 0.75, dashArray: "10,6" }
-            }).addTo(mapRef.current);
-          }
-        })
-        .catch(() => {});
+    const end = alvoInicial?.lat ? `${alvoInicial.lng},${alvoInicial.lat}` : null;
+    if (start && end) {
+      desenharRotaPrincipal(start, end);
+      rotaPrincipalOrigemRef.current = p.lat && p.lng ? { lat: p.lat, lng: p.lng } : null;
     }
 
     // Múltiplas rotas de fretes ativos (cada uma com cor e número)
@@ -653,6 +683,19 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
       marcadorRef.current = L.marker([lat, lng], { icon }).addTo(mapRef.current);
     }
   }, [lat, lng]);
+
+  // Redesenha a linha de rota (e recalcula o ETA) conforme a posição ao vivo
+  // do motorista muda — acompanhamento em trânsito tipo Uber/iFood. Só
+  // redesenha se moveu o suficiente (~100m) desde o último traçado, pra não
+  // martelar o OSRM a cada atualização mínima de GPS.
+  useEffect(() => {
+    if (!mapRef.current || !window.L || !lat || !lng || !metaAoVivo?.lat || !metaAoVivo?.lng) return;
+    const anterior = rotaPrincipalOrigemRef.current;
+    const moveuOSuficiente = !anterior || Math.abs(anterior.lat - lat) > 0.001 || Math.abs(anterior.lng - lng) > 0.001;
+    if (!moveuOSuficiente) return;
+    desenharRotaPrincipal(`${lng},${lat}`, `${metaAoVivo.lng},${metaAoVivo.lat}`);
+    rotaPrincipalOrigemRef.current = { lat, lng };
+  }, [lat, lng, metaAoVivo?.lat, metaAoVivo?.lng]);
 
   return (
     <div ref={divRef} style={{ width: "100%", height: `${height}px`, borderRadius: 12, overflow: "hidden", position: "relative", zIndex: 1, background: "#EFE9DC" }} />
@@ -2837,6 +2880,33 @@ function DetalheFrete({ frete, onNavigate }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [contratoLoading, setContratoLoading] = useState(false);
+  const [posicaoMotorista, setPosicaoMotorista] = useState(null);
+  const [alvoAoVivo, setAlvoAoVivo] = useState(null);
+  const [etaInfo, setEtaInfo] = useState(null);
+
+  // Acompanhamento em tempo real do motorista (tipo Uber/iFood) — só faz
+  // sentido enquanto o frete está com motorista designado e em trânsito
+  // (indo coletar ou já a caminho da entrega). Faz polling porque o
+  // contratante não tem GPS do motorista pra "empurrar" — precisa perguntar
+  // periodicamente pro backend qual é a última posição conhecida.
+  const emTransito = frete && frete.motorista_nome && ["aceito", "coletando", "em_rota"].includes(frete.status);
+  useEffect(() => {
+    if (!emTransito || !token) return;
+    let cancelado = false;
+    const consultar = () => {
+      api("GET", `/api/fretes/${frete.id}/rastreamento-vivo`, null, token)
+        .then(d => {
+          if (cancelado) return;
+          setPosicaoMotorista(d.posicaoAtual || null);
+          setAlvoAoVivo(d.alvo || null);
+        })
+        .catch(() => {});
+    };
+    consultar();
+    const interval = setInterval(consultar, 20000);
+    return () => { cancelado = true; clearInterval(interval); };
+  }, [emTransito, frete?.id, token]);
+
   if (!frete) return <Loading />;
 
   const temContrato = ["aceito", "coletando", "em_rota", "entregue"].includes(frete.status);
@@ -2866,15 +2936,28 @@ function DetalheFrete({ frete, onNavigate }) {
           <div className="price">{formatMoney(frete.valor_final || frete.valor_antt || 0)}</div>
         </div>
         <div className="card">
-          <div className="card-title">Rota</div>
+          <div className="card-title">
+            Rota {emTransito && <span style={{ color: "var(--gold)", fontWeight: 600 }}>· acompanhando motorista ao vivo</span>}
+          </div>
           {frete.origem_lat && frete.dest_lat ? (
             <MapaLeaflet
-              height={200}
+              height={220}
+              lat={posicaoMotorista?.lat}
+              lng={posicaoMotorista?.lng}
               origem={{ lat: parseFloat(frete.origem_lat), lng: parseFloat(frete.origem_lng), label: frete.origem_cidade }}
               destino={{ lat: parseFloat(frete.dest_lat), lng: parseFloat(frete.dest_lng), label: frete.dest_cidade }}
+              metaAoVivo={alvoAoVivo}
+              onRotaInfo={setEtaInfo}
             />
           ) : (
             <div className="map-placeholder"><div style={{ fontSize: 28 }}>🗺️</div><span>{frete.origem_cidade || "—"} → {frete.dest_cidade || "—"}</span></div>
+          )}
+          {emTransito && (
+            <div style={{ fontSize: 13, color: "var(--text2)", margin: "10px 0" }}>
+              {!posicaoMotorista ? "📡 Aguardando posição do motorista..." : etaInfo
+                ? <><strong style={{ color: "var(--text)" }}>⏱️ {etaInfo.duracaoMin} min</strong> · {etaInfo.distanciaKm} km até {alvoAoVivo?.tipo === "origem" ? "a coleta" : "a entrega"}</>
+                : "Calculando rota..."}
+            </div>
           )}
           <div className="info-row"><span className="info-label">Origem</span><span className="info-value">{frete.origem_endereco || frete.origem_cidade || "—"}</span></div>
           <div className="info-row"><span className="info-label">Destino</span><span className="info-value">{frete.dest_endereco || frete.dest_cidade || "—"}</span></div>
@@ -4226,6 +4309,65 @@ function EmTransitoScreen({ frete, onNavigate }) {
   const [novaDespesa, setNovaDespesa] = useState({ tipo: "pedagio", descricao: "", valor: "" });
   const [salvandoDespesa, setSalvandoDespesa] = useState(false);
   const [contratoLoading, setContratoLoading] = useState(false);
+  const [posicaoAtual, setPosicaoAtual] = useState(null);
+  const [etaInfo, setEtaInfo] = useState(null);
+  const posicaoRef = useRef(null);
+
+  // GPS ao vivo desta tela — a Home também tem o próprio watch+envio, mas
+  // essa tela SUBSTITUI a Home quando o motorista navega pra cá (renderer é
+  // switch-case, só um componente montado por vez), então sem isso aqui o
+  // envio de posição parava assim que o motorista saísse da Home — bem no
+  // momento em que ele mais fica nesta tela durante uma entrega de verdade.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      pos => {
+        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        setPosicaoAtual(coords);
+        posicaoRef.current = coords;
+      },
+      err => console.error("GPS em-transito:", err),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+
+  useEffect(() => {
+    if (!frete?.id || !token) return;
+    const enviar = () => {
+      if (!posicaoRef.current) return;
+      api("PATCH", "/api/motoristas/localizacao", {
+        lat: posicaoRef.current.lat, lng: posicaoRef.current.lng, freteId: frete.id,
+      }, token).catch(e => console.error("GPS send em-transito:", e.message));
+    };
+    enviar();
+    const interval = setInterval(enviar, 30000);
+    return () => clearInterval(interval);
+  }, [frete?.id, token]);
+
+  // Alvo da rota: ainda não coletou (aceito) -> vai até a origem; já coletou
+  // (coletando/em_rota) -> vai até o destino. Calculado localmente (o
+  // motorista já tem tudo isso no próprio objeto `frete`, sem precisar
+  // consultar o backend só pra saber pra onde ele mesmo está indo).
+  const alvo = freteStatus === "aceito"
+    ? { lat: parseFloat(frete.origem_lat), lng: parseFloat(frete.origem_lng), label: frete.origem_cidade || "Coleta" }
+    : ["coletando", "em_rota"].includes(freteStatus)
+      ? { lat: parseFloat(frete.dest_lat), lng: parseFloat(frete.dest_lng), label: frete.dest_cidade || "Entrega" }
+      : null;
+
+  // Abre o Waze com navegação já carregada pro alvo atual (coleta ou
+  // entrega). Tenta o app nativo primeiro (waze://); se o app não estiver
+  // instalado, nada acontece e a aba não perde o foco — depois de um tempo
+  // curto sem "blur" (sinal de que o app abriu), cai pro link web, que
+  // funciona tanto em mobile (abre o app ou App/Play Store) quanto desktop.
+  const abrirWaze = () => {
+    if (!alvo?.lat || !alvo?.lng) return;
+    const appUrl = `waze://?ll=${alvo.lat},${alvo.lng}&navigate=yes`;
+    const webUrl = `https://waze.com/ul?ll=${alvo.lat},${alvo.lng}&navigate=yes`;
+    const timer = setTimeout(() => { window.location.href = webUrl; }, 1500);
+    window.addEventListener("blur", () => clearTimeout(timer), { once: true });
+    window.location.href = appUrl;
+  };
 
   const verContrato = async () => {
     setContratoLoading(true); setError("");
@@ -4352,7 +4494,9 @@ function EmTransitoScreen({ frete, onNavigate }) {
         <div className="card">
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Rota</div>
+              <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+                Rota {alvo && <span style={{ color: "var(--gold)" }}>· indo para {freteStatus === "aceito" ? "coleta" : "entrega"}</span>}
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
                   <div style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--green)", border: "2px solid white", boxShadow: "0 0 0 2px var(--green)" }} />
@@ -4365,8 +4509,30 @@ function EmTransitoScreen({ frete, onNavigate }) {
                 </div>
               </div>
             </div>
-            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate("home-motorista")} style={{ flexShrink: 0 }}>🗺️ Ver no Mapa</button>
           </div>
+
+          {alvo && (
+            <>
+              <MapaLeaflet
+                height={220}
+                lat={posicaoAtual?.lat}
+                lng={posicaoAtual?.lng}
+                metaAoVivo={alvo}
+                onRotaInfo={setEtaInfo}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0" }}>
+                <div style={{ fontSize: 13, color: "var(--text2)" }}>
+                  {!posicaoAtual ? "📡 Obtendo localização..." : etaInfo
+                    ? <><strong style={{ color: "var(--text)" }}>⏱️ {etaInfo.duracaoMin} min</strong> · {etaInfo.distanciaKm} km até {freteStatus === "aceito" ? "a coleta" : "a entrega"}</>
+                    : "Calculando rota..."}
+                </div>
+              </div>
+              <button className="btn btn-primary btn-sm" style={{ width: "100%", marginBottom: 10, background: "#33CCFF" }} onClick={abrirWaze}>
+                🧭 Abrir no Waze
+              </button>
+            </>
+          )}
+
           <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
