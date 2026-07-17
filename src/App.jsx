@@ -44,15 +44,32 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// Timeout de rede pro fetch — sem isso, uma conexão que trava no meio do
+// caminho (comum em rede de celular/estrada) deixa a promise pendurada pra
+// sempre: nunca resolve, nunca rejeita, e qualquer loading state (ex: botão
+// "Aceitando...") fica preso indefinidamente sem erro nenhum pro usuário ver.
+const API_TIMEOUT_MS = 20000;
+
 async function api(method, path, body, token) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(body ? { body: JSON.stringify(body) } : {}),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.");
+    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || data.message || "Erro na requisição");
   return data;
@@ -3912,12 +3929,21 @@ function AceitarFreteScreen({ frete, onNavigate }) {
     let lat = null, lng = null;
     if (navigator.geolocation) {
       try {
-        const pos = await new Promise((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: true })
-        );
+        // A opção `timeout` do getCurrentPosition é só um pedido pro navegador —
+        // em alguns WebViews/Android com localização do aparelho desligada, nem
+        // sucesso nem erro nunca chega, e a promise fica pendurada pra sempre.
+        // Por isso um timeout nosso por fora, redundante mas garantido.
+        const pos = await new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error("GPS timeout")), 6000);
+          navigator.geolocation.getCurrentPosition(
+            (p) => { clearTimeout(timer); resolve(p); },
+            (err) => { clearTimeout(timer); reject(err); },
+            { timeout: 5000, enableHighAccuracy: true }
+          );
+        });
         lat = pos.coords.latitude;
         lng = pos.coords.longitude;
-      } catch {} // GPS indisponível
+      } catch {} // GPS indisponível — segue sem lat/lng
     }
     return { lat, lng };
   };
