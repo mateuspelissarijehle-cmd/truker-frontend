@@ -526,14 +526,80 @@ function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVe
 // — é o que dirige o traçado de rota ao vivo (recalculado conforme lat/lng
 // mudam) e o ETA via onRotaInfo. Sem metaAoVivo, cai no comportamento antigo
 // (traçado único e estático entre origem e destino).
-function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null, rotas = [], metaAoVivo = null, onRotaInfo = null }) {
+// Distância (metros) e rumo (graus, 0-360 a partir do Norte) entre 2 pontos —
+// usados pro modo de navegação: decidir se moveu o suficiente pra recalcular
+// a direção (evita jitter do GPS parado) e pra rotacionar a seta do motorista.
+function distanciaMetros(lat1, lng1, lat2, lng2) {
+  const R = 6371000, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function calcularRumo(lat1, lng1, lat2, lng2) {
+  const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+
+// Ícone do motorista: bolinha simples (mapas sem orientação) ou seta
+// direcional rotacionável (modo navegação, ex.: tela "Em Trânsito").
+function criarIconeMotorista(comOrientacao, headingDeg) {
+  const L = window.L;
+  if (!comOrientacao) {
+    return L.divIcon({
+      html: '<div style="background:#C9A84C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(201,168,76,0.8)"></div>',
+      className: "", iconSize: [14, 14], iconAnchor: [7, 7],
+    });
+  }
+  return L.divIcon({
+    html: `<div class="driver-arrow" style="width:34px;height:34px;transform:rotate(${headingDeg || 0}deg);transform-origin:50% 50%;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.5))">
+      <svg viewBox="0 0 24 24" width="34" height="34"><path d="M12 2 L20 20 L12 16 L4 20 Z" fill="#C9A84C" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>
+    </div>`,
+    className: "", iconSize: [34, 34], iconAnchor: [17, 17],
+  });
+}
+
+// modoNavegacao: habilita zoom/seguimento ao vivo estilo GPS + botão de
+// recentralizar. mostrarOrientacao: além disso, calcula o rumo do motorista
+// e permite alternar entre "Norte sempre pra cima" (só a seta gira) e
+// "direção do movimento pra cima" — nesse 2º modo o mapa inteiro roda via
+// CSS transform (truque leve, sem plugin: o próprio Leaflet não sabe que
+// está rotacionado, só giramos os pixels renderizados). Isso faz os rótulos
+// dos tiles ficarem tortos durante a rotação — comportamento esperado em
+// apps de navegação com tiles raster (mesmo efeito do Waze/Google Maps).
+function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null, rotas = [], metaAoVivo = null, onRotaInfo = null, modoNavegacao = false, zoomNavegacao = 16, seguirPorPadrao = false, mostrarOrientacao = false }) {
   const divRef = useRef(null);
+  const rotatorRef = useRef(null);
   const mapRef = useRef(null);
   const marcadorRef = useRef(null);
   const rotaPrincipalLayerRef = useRef(null);
   const rotaPrincipalOrigemRef = useRef(null); // {lat,lng} usado no último desenho, pra só redesenhar se moveu o suficiente
   const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo });
   propsRef.current = { lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo };
+  const seguindoRef = useRef(seguirPorPadrao);
+  const [seguindo, setSeguindo] = useState(seguirPorPadrao);
+  const [orientModo, setOrientModo] = useState("norte"); // "norte" | "direcao"
+  const headingRef = useRef(null);
+  const ultimoHeadingCalcRef = useRef(null); // {lat,lng} do último ponto usado pra calcular rumo
+
+  const aplicarRotacaoContainer = (modo, headingDeg) => {
+    if (!mostrarOrientacao || !rotatorRef.current) return;
+    const ang = modo === "direcao" && headingDeg != null ? -headingDeg : 0;
+    rotatorRef.current.style.transform = `rotate(${ang}deg)`;
+  };
+
+  const recentralizar = () => {
+    seguindoRef.current = true;
+    setSeguindo(true);
+    const p = propsRef.current;
+    if (mapRef.current && p.lat && p.lng) mapRef.current.setView([p.lat, p.lng], zoomNavegacao, { animate: true });
+  };
+
+  const alternarOrientacao = () => setOrientModo(m => (m === "norte" ? "direcao" : "norte"));
+
+  useEffect(() => { aplicarRotacaoContainer(orientModo, headingRef.current); }, [orientModo]);
 
   // Busca a rota real (OSRM, gratuito) entre 2 pontos e desenha no mapa,
   // substituindo o traçado anterior. Usada tanto no desenho inicial quanto
@@ -569,15 +635,18 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
     const centerLat = p.lat || p.origem?.lat || -25.4284;
     const centerLng = p.lng || p.origem?.lng || -49.2733;
     const map = L.map(divRef.current, { zoomControl: false, attributionControl: false })
-      .setView([centerLat, centerLng], p.zoom);
+      .setView([centerLat, centerLng], modoNavegacao ? zoomNavegacao : p.zoom);
     L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
 
-    // Marcador do motorista (laranja)
+    // Só quebra o "seguir automaticamente" quando o próprio usuário arrasta o
+    // mapa (dragstart não dispara em movimentos programáticos como panTo/setView).
+    if (modoNavegacao) {
+      map.on("dragstart", () => { seguindoRef.current = false; setSeguindo(false); });
+    }
+
+    // Marcador do motorista (bolinha ou seta, ver criarIconeMotorista)
     if (p.lat && p.lng) {
-      const icon = L.divIcon({
-        html: '<div style="background:#C9A84C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(201,168,76,0.8)"></div>',
-        className: "", iconSize: [14, 14], iconAnchor: [7, 7],
-      });
+      const icon = criarIconeMotorista(mostrarOrientacao, headingRef.current);
       marcadorRef.current = L.marker([p.lat, p.lng], { icon }).addTo(map);
     }
 
@@ -690,16 +759,38 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
 
   useEffect(() => {
     if (!mapRef.current || !window.L || !lat || !lng) return;
-    if (marcadorRef.current) marcadorRef.current.setLatLng([lat, lng]);
-    else {
-      const L = window.L;
-      const icon = L.divIcon({
-        html: '<div style="background:#C9A84C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(201,168,76,0.8)"></div>',
-        className: "", iconSize: [14, 14], iconAnchor: [7, 7],
-      });
+
+    // Recalcula o rumo só se moveu o suficiente desde o último cálculo —
+    // com o motorista parado, o GPS "tremula" alguns metros e giraria a
+    // seta/mapa sem necessidade.
+    if (mostrarOrientacao) {
+      const anteriorHeading = ultimoHeadingCalcRef.current;
+      if (anteriorHeading) {
+        if (distanciaMetros(anteriorHeading.lat, anteriorHeading.lng, lat, lng) > 8) {
+          headingRef.current = calcularRumo(anteriorHeading.lat, anteriorHeading.lng, lat, lng);
+          ultimoHeadingCalcRef.current = { lat, lng };
+        }
+      } else {
+        ultimoHeadingCalcRef.current = { lat, lng };
+      }
+    }
+
+    if (marcadorRef.current) {
+      marcadorRef.current.setLatLng([lat, lng]);
+      if (mostrarOrientacao) {
+        const el = marcadorRef.current.getElement()?.querySelector(".driver-arrow");
+        if (el) el.style.transform = `rotate(${headingRef.current || 0}deg)`;
+      }
+    } else {
+      const icon = criarIconeMotorista(mostrarOrientacao, headingRef.current);
       marcadorRef.current = L.marker([lat, lng], { icon }).addTo(mapRef.current);
     }
-  }, [lat, lng]);
+
+    if (modoNavegacao && seguindoRef.current) {
+      mapRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
+    }
+    aplicarRotacaoContainer(orientModo, headingRef.current);
+  }, [lat, lng, orientModo]);
 
   // Redesenha a linha de rota (e recalcula o ETA) conforme a posição ao vivo
   // do motorista muda — acompanhamento em trânsito tipo Uber/iFood. Só
@@ -714,8 +805,44 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
     rotaPrincipalOrigemRef.current = { lat, lng };
   }, [lat, lng, metaAoVivo?.lat, metaAoVivo?.lng]);
 
+  const alturaCss = typeof height === "number" ? `${height}px` : height;
+
   return (
-    <div ref={divRef} style={{ width: "100%", height: `${height}px`, borderRadius: 12, overflow: "hidden", position: "relative", zIndex: 1, background: "#EFE9DC" }} />
+    <div style={{ width: "100%", height: alturaCss, borderRadius: 12, overflow: "hidden", position: "relative", zIndex: 1, background: "#EFE9DC" }}>
+      <div
+        ref={rotatorRef}
+        style={mostrarOrientacao
+          ? { position: "absolute", top: "-50%", left: "-50%", width: "200%", height: "200%", transition: "transform 0.4s ease-out", transformOrigin: "50% 50%" }
+          : { width: "100%", height: "100%" }}
+      >
+        <div ref={divRef} style={{ width: "100%", height: "100%" }} />
+      </div>
+      {modoNavegacao && (
+        <button
+          type="button"
+          onClick={recentralizar}
+          title="Centralizar no motorista"
+          style={{
+            position: "absolute", right: 12, bottom: 12, width: 44, height: 44, borderRadius: "50%",
+            background: seguindo ? "#C9A84C" : "#fff", color: seguindo ? "#fff" : "#333",
+            border: "none", boxShadow: "0 2px 8px rgba(0,0,0,0.35)", fontSize: 20, lineHeight: 1,
+            display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 500,
+          }}
+        >🎯</button>
+      )}
+      {mostrarOrientacao && (
+        <button
+          type="button"
+          onClick={alternarOrientacao}
+          title="Alternar orientação do mapa"
+          style={{
+            position: "absolute", right: 12, top: 12, padding: "7px 12px", borderRadius: 20,
+            background: "rgba(255,255,255,0.92)", color: "#333", border: "none",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.3)", fontSize: 12, fontWeight: 700, cursor: "pointer", zIndex: 500,
+          }}
+        >{orientModo === "norte" ? "🧭 Norte" : "🧭 Direção"}</button>
+      )}
+    </div>
   );
 }
 function PasswordInput({ value, onChange, placeholder, inputStyle }) {
@@ -2965,6 +3092,9 @@ function DetalheFrete({ frete, onNavigate }) {
               destino={{ lat: parseFloat(frete.dest_lat), lng: parseFloat(frete.dest_lng), label: frete.dest_cidade }}
               metaAoVivo={alvoAoVivo}
               onRotaInfo={setEtaInfo}
+              modoNavegacao={emTransito}
+              zoomNavegacao={14}
+              seguirPorPadrao={false}
             />
           ) : (
             <div className="map-placeholder"><div style={{ fontSize: 28 }}>🗺️</div><span>{frete.origem_cidade || "—"} → {frete.dest_cidade || "—"}</span></div>
@@ -4540,11 +4670,15 @@ function EmTransitoScreen({ frete, onNavigate }) {
           {alvo && (
             <>
               <MapaLeaflet
-                height={220}
+                height="52vh"
                 lat={posicaoAtual?.lat}
                 lng={posicaoAtual?.lng}
                 metaAoVivo={alvo}
                 onRotaInfo={setEtaInfo}
+                modoNavegacao
+                zoomNavegacao={17}
+                seguirPorPadrao
+                mostrarOrientacao
               />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0" }}>
                 <div style={{ fontSize: 13, color: "var(--text2)" }}>
