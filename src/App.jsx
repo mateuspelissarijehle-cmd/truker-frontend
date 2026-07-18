@@ -6833,17 +6833,6 @@ function PagamentoScreen({ data, onNavigate }) {
     } catch {}
   };
 
-  const simularAprovacao = async () => {
-    if (!freteId) return;
-    try {
-      await api("POST", `/api/pagamentos/simular-aprovacao/${freteId}`, {}, token);
-      setStatus("approved");
-      clearInterval(intervalRef.current);
-    } catch (e) {
-      setErro("Erro ao simular: " + e.message);
-    }
-  };
-
   if (status === "approved") return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate("meus-fretes")}>←</button><h1>Pagamento</h1></div>
@@ -6888,13 +6877,7 @@ function PagamentoScreen({ data, onNavigate }) {
               Aguardando confirmação do pagamento...
             </div>
             <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "var(--text3)" }}>
-              Powered by MercadoPago · Ambiente de testes
-            </div>
-            <div style={{ marginTop: 16, padding: "12px 16px", background: "rgba(201,168,76,0.08)", borderRadius: 10, border: "1px dashed var(--gold)" }}>
-              <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", marginBottom: 8, letterSpacing: 1 }}>🧪 Sandbox — apenas para testes</div>
-              <button className="btn btn-outline btn-sm" style={{ width: "100%" }} onClick={simularAprovacao}>
-                ✅ Simular Pagamento Aprovado
-              </button>
+              Powered by MercadoPago
             </div>
           </>
         )}
