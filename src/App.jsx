@@ -75,6 +75,33 @@ async function api(method, path, body, token) {
   return data;
 }
 
+// Envia arquivo(s) via multipart/form-data (upload de documento/comprovante). Não
+// define Content-Type manualmente -- o browser precisa gerar o boundary do
+// multipart sozinho; `api()` acima força application/json, por isso não serve
+// pra upload de arquivo (era parte do motivo do botão de CNH não funcionar: não
+// existia nem um jeito de mandar o arquivo pro backend).
+async function apiUpload(method, path, formData, token) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.");
+    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || "Erro na requisição");
+  return data;
+}
+
 // Baixa um arquivo binário autenticado (ex: PDF de contrato) e abre em nova aba.
 // O endpoint só aceita token via header Authorization, então não dá pra usar
 // window.open(url) direto — buscamos como blob e abrimos uma URL local.
@@ -5396,6 +5423,9 @@ function DespesasTab() {
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+  const [comprovanteUrl, setComprovanteUrl] = useState(null);
+  const [lendoNf, setLendoNf] = useState(false);
+  const [nfAviso, setNfAviso] = useState("");
   const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
   const tiposDespesa = [
     { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
@@ -5422,9 +5452,11 @@ function DespesasTab() {
     if (!nova.valor) return;
     setLoading(true);
     try {
-      const salva = await api("POST", "/api/motoristas/despesas", nova, token);
+      const salva = await api("POST", "/api/motoristas/despesas", { ...nova, comprovanteUrl }, token);
       setDespesas(d => [salva, ...d]);
       setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+      setComprovanteUrl(null);
+      setNfAviso("");
       setShowAdd(false);
       carregarResumoCustos();
     } catch (e) { alert("Erro ao salvar: " + e.message); }
@@ -5439,16 +5471,40 @@ function DespesasTab() {
     } catch (e) { alert("Erro ao remover: " + e.message); }
   };
 
-  const handleNF = (e) => {
+  // Bug real relatado: o anexo de NF nunca era realmente enviado pro backend -- só
+  // adivinhava o "tipo" pelo NOME do arquivo e descartava o arquivo, sem nunca ler o
+  // valor. Agora envia de verdade pro POST /despesas/ler-nf, que salva o comprovante
+  // e (pra PDF) tenta extrair o valor do texto automaticamente. Foto/imagem ainda não
+  // tem OCR de verdade — nesse caso só o tipo é sugerido e o valor precisa ser conferido.
+  const handleNF = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const nome = file.name.toLowerCase();
-    let tipo = "outro";
-    if (/ipiranga|petrobras|shell|posto|diesel|gasolina|combustivel/.test(nome)) tipo = "combustivel";
-    else if (/manutencao|oficina|mecanica|reparo/.test(nome)) tipo = "manutencao";
-    else if (/pedagio|concession|autopista|ecopistas/.test(nome)) tipo = "pedagio";
-    else if (/pneu|borracharia/.test(nome)) tipo = "pneu";
-    setNova(f => ({ ...f, tipo, descricao: file.name.replace(/\.[^.]+$/, "") }));
+    setLendoNf(true);
+    setNfAviso("");
+    try {
+      const formData = new FormData();
+      formData.append("arquivo", file);
+      const resp = await apiUpload("POST", "/api/motoristas/despesas/ler-nf", formData, token);
+      setComprovanteUrl(resp.comprovante_url);
+      setNova(f => ({
+        ...f,
+        tipo: resp.tipoSugerido || f.tipo,
+        descricao: f.descricao || file.name.replace(/\.[^.]+$/, ""),
+        valor: resp.valorSugerido != null ? String(resp.valorSugerido) : f.valor,
+      }));
+      if (resp.valorSugerido != null) {
+        setNfAviso("✅ Valor lido automaticamente da NF — confira antes de salvar.");
+      } else if (resp.leituraAutomaticaDisponivel) {
+        setNfAviso("Não consegui identificar um valor no PDF — digite manualmente.");
+      } else {
+        setNfAviso("Leitura automática de valor só funciona para NF em PDF por enquanto — digite o valor manualmente.");
+      }
+    } catch (err) {
+      setNfAviso("Erro ao enviar o comprovante: " + err.message);
+    } finally {
+      setLendoNf(false);
+      e.target.value = "";
+    }
   };
 
   return (
@@ -5490,10 +5546,11 @@ function DespesasTab() {
           <div className="field"><label>Descrição</label><input value={nova.descricao} onChange={e => setN("descricao", e.target.value)} placeholder="Ex: Abastecimento posto BR" /></div>
           <div className="field"><label>Valor (R$)</label><input type="number" step="0.01" value={nova.valor} onChange={e => setN("valor", e.target.value)} placeholder="0,00" /></div>
           <div className="field"><label>Data</label><input type="date" value={nova.data} onChange={e => setN("data", e.target.value)} /></div>
-          <label className="upload-area" style={{ display: "block", marginBottom: 12, cursor: "pointer" }}>
-            📄 Anexar NF — tipo detectado automaticamente
-            <input type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleNF} />
+          <label className="upload-area" style={{ display: "block", marginBottom: 8, cursor: lendoNf ? "default" : "pointer", opacity: lendoNf ? 0.6 : 1 }}>
+            {lendoNf ? "Lendo NF..." : comprovanteUrl ? "📄 NF anexada — trocar arquivo" : "📄 Anexar NF — tipo e valor detectados automaticamente (PDF)"}
+            <input type="file" accept="image/*,application/pdf,.heic,.heif" style={{ display: "none" }} onChange={handleNF} disabled={lendoNf} />
           </label>
+          {nfAviso && <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>{nfAviso}</p>}
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
             <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add} disabled={loading}>{loading ? "Salvando..." : "Salvar"}</button>
@@ -5643,6 +5700,9 @@ function DadosPessoaisMotorista({ onNavigate }) {
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [cnhUrl, setCnhUrl] = useState(null);
+  const [enviandoCnh, setEnviandoCnh] = useState(false);
+  const [cnhErro, setCnhErro] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const carregarPerfil = async () => {
@@ -5655,11 +5715,33 @@ function DadosPessoaisMotorista({ onNavigate }) {
         complemento: d.complemento || "", bairro: d.bairro || "",
         cidade: d.cidade || "", uf: d.uf || "",
       });
+      setCnhUrl(d.cnh_url || null);
     } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
     finally { setLoadingData(false); }
   };
 
   useEffect(() => { carregarPerfil(); }, []);
+
+  // Bug real relatado: o botão de subir a CNH não fazia nada -- não existia input de
+  // arquivo nem chamada pro backend, era só um <div> decorativo. Agora envia de verdade
+  // pro POST /api/motoristas/documentos (campo "cnh"), que já existe no backend.
+  const enviarCnh = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setCnhErro("");
+    setEnviandoCnh(true);
+    try {
+      const formData = new FormData();
+      formData.append("cnh", file);
+      const resp = await apiUpload("POST", "/api/motoristas/documentos", formData, token);
+      setCnhUrl(resp.urls?.cnh_url || null);
+    } catch (err) {
+      setCnhErro(err.message);
+    } finally {
+      setEnviandoCnh(false);
+      e.target.value = "";
+    }
+  };
 
   const fillCep = async (cep) => {
     const clean = cep.replace(/\D/g, "");
@@ -5727,13 +5809,28 @@ function DadosPessoaisMotorista({ onNavigate }) {
         </div>
         <div className="card">
           <div className="card-title">Documentação</div>
-          {[["📄 CNH (frente e verso)", false], ["🪪 CPF", false], ["📋 Comprovante de endereço", false], ["📝 RNTRC / ANTT", false]].map(([doc, ok], i) => (
+          <div className="info-row">
+            <span className="info-label" style={{ fontSize: 13 }}>📄 CNH (frente e verso)</span>
+            <span className={`badge ${cnhUrl ? "badge-active" : "badge-pending"}`}>{cnhUrl ? "Enviada" : "Pendente"}</span>
+          </div>
+          {["🪪 CPF", "📋 Comprovante de endereço", "📝 RNTRC / ANTT"].map((doc, i) => (
             <div key={i} className="info-row">
               <span className="info-label" style={{ fontSize: 13 }}>{doc}</span>
-              <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{ok ? "Aprovado" : "Pendente"}</span>
+              <span className="badge badge-pending">Pendente</span>
             </div>
           ))}
-          <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
+          {cnhErro && <div className="alert alert-error" style={{ marginTop: 10 }}>{cnhErro}</div>}
+          <label className="upload-area" style={{ display: "block", marginTop: 14, cursor: enviandoCnh ? "default" : "pointer", opacity: enviandoCnh ? 0.6 : 1 }}>
+            {enviandoCnh ? "Enviando..." : "📤 Enviar CNH (frente e verso)"}
+            <input
+              type="file" accept="image/*,.pdf,.heic,.heif" style={{ display: "none" }}
+              disabled={enviandoCnh}
+              onChange={enviarCnh}
+            />
+          </label>
+          <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
+            Os outros documentos (CPF, comprovante de endereço, RNTRC) ainda não têm envio pelo app — em breve.
+          </p>
         </div>
         <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
         </>}
@@ -6153,6 +6250,9 @@ function FinancasMotorista({ onNavigate }) {
   const [loadingAdd, setLoadingAdd] = useState(false);
   const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
   const [loadingGanhos, setLoadingGanhos] = useState(true);
+  const [comprovanteUrl, setComprovanteUrl] = useState(null);
+  const [lendoNf, setLendoNf] = useState(false);
+  const [nfAviso, setNfAviso] = useState("");
   const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
   const tiposDespesa = [
     { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
@@ -6184,9 +6284,11 @@ function FinancasMotorista({ onNavigate }) {
     if (!nova.valor) return;
     setLoadingAdd(true);
     try {
-      const salva = await api("POST", "/api/motoristas/despesas", nova, token);
+      const salva = await api("POST", "/api/motoristas/despesas", { ...nova, comprovanteUrl }, token);
       setDespesas(d => [salva, ...d]);
       setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
+      setComprovanteUrl(null);
+      setNfAviso("");
       setShowAdd(false);
     } catch (e) { alert("Erro ao salvar: " + e.message); }
     finally { setLoadingAdd(false); }
@@ -6198,15 +6300,39 @@ function FinancasMotorista({ onNavigate }) {
       setDespesas(d => d.filter(x => x.id !== id));
     } catch (e) { alert("Erro ao remover: " + e.message); }
   };
-  const handleNF = (e) => {
-    const file = e.target.files[0]; if (!file) return;
-    const nome = file.name.toLowerCase();
-    let tipo = "outro";
-    if (/ipiranga|petrobras|shell|posto|diesel|gasolina/.test(nome)) tipo = "combustivel";
-    else if (/manutencao|oficina|mecanica/.test(nome)) tipo = "manutencao";
-    else if (/pedagio|autopista|ecopistas/.test(nome)) tipo = "pedagio";
-    else if (/pneu|borracharia/.test(nome)) tipo = "pneu";
-    setNova(f => ({ ...f, tipo, descricao: file.name.replace(/\.[^.]+$/, "") }));
+
+  // Mesmo bug real da aba de despesas: o anexo de NF nunca subia pro backend, só
+  // adivinhava o tipo pelo nome do arquivo. Agora usa POST /despesas/ler-nf de verdade
+  // (salva o comprovante e tenta ler o valor automaticamente pra NF em PDF).
+  const handleNF = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setLendoNf(true);
+    setNfAviso("");
+    try {
+      const formData = new FormData();
+      formData.append("arquivo", file);
+      const resp = await apiUpload("POST", "/api/motoristas/despesas/ler-nf", formData, token);
+      setComprovanteUrl(resp.comprovante_url);
+      setNova(f => ({
+        ...f,
+        tipo: resp.tipoSugerido || f.tipo,
+        descricao: f.descricao || file.name.replace(/\.[^.]+$/, ""),
+        valor: resp.valorSugerido != null ? String(resp.valorSugerido) : f.valor,
+      }));
+      if (resp.valorSugerido != null) {
+        setNfAviso("✅ Valor lido automaticamente da NF — confira antes de salvar.");
+      } else if (resp.leituraAutomaticaDisponivel) {
+        setNfAviso("Não consegui identificar um valor no PDF — digite manualmente.");
+      } else {
+        setNfAviso("Leitura automática de valor só funciona para NF em PDF por enquanto — digite o valor manualmente.");
+      }
+    } catch (err) {
+      setNfAviso("Erro ao enviar o comprovante: " + err.message);
+    } finally {
+      setLendoNf(false);
+      e.target.value = "";
+    }
   };
   return (
     <div className="screen">
@@ -6239,10 +6365,11 @@ function FinancasMotorista({ onNavigate }) {
                 <div className="field"><label>Descrição</label><input value={nova.descricao} onChange={e => setN("descricao", e.target.value)} placeholder="Ex: Abastecimento posto BR" /></div>
                 <div className="field"><label>Valor (R$)</label><input type="number" step="0.01" value={nova.valor} onChange={e => setN("valor", e.target.value)} placeholder="0,00" /></div>
                 <div className="field"><label>Data</label><input type="date" value={nova.data} onChange={e => setN("data", e.target.value)} /></div>
-                <label className="upload-area" style={{ display: "block", marginBottom: 12, cursor: "pointer" }}>
-                  📄 Anexar NF — tipo detectado automaticamente
-                  <input type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={handleNF} />
+                <label className="upload-area" style={{ display: "block", marginBottom: 8, cursor: lendoNf ? "default" : "pointer", opacity: lendoNf ? 0.6 : 1 }}>
+                  {lendoNf ? "Lendo NF..." : comprovanteUrl ? "📄 NF anexada — trocar arquivo" : "📄 Anexar NF — tipo e valor detectados automaticamente (PDF)"}
+                  <input type="file" accept="image/*,application/pdf,.heic,.heif" style={{ display: "none" }} onChange={handleNF} disabled={lendoNf} />
                 </label>
+                {nfAviso && <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>{nfAviso}</p>}
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
                   <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={add} disabled={loadingAdd}>{loadingAdd ? "Salvando..." : "Salvar"}</button>
