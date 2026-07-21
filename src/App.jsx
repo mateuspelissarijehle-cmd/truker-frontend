@@ -4,9 +4,6 @@ import { useState, useEffect, createContext, useContext, useRef } from "react";
 // CONFIG
 // ─────────────────────────────────────────────
 const API_BASE = "https://truker-app-production.up.railway.app";
-const ADMIN_EMAIL = "admin@truker.app";
-const ADMIN_SENHA = "truker2024";
-const ADMIN_TOKEN = "08c427d2ef6a13f5ef4371b164e337902a766b4e66c57342ab899711e6d7e071";
 const VAPID_PUBLIC_KEY = "BPXxf7PJkl_WSVBkmMFljhbNEZfZs61C7aPrPkL48U_Nk7T4OYOny6vPSJX6ny03qzdO4LvuvSP5sCg9u5JAFLg";
 
 // ─── Registrar Service Worker e assinar push ──────────────────
@@ -1027,10 +1024,6 @@ function LoginScreen({ onNavigate }) {
   const handle = async () => {
     setError("");
     if (!form.email || !form.senha) return setError("Preencha todos os campos");
-    if (form.email === ADMIN_EMAIL && form.senha === ADMIN_SENHA) {
-      login({ nome: "Admin Master", email: ADMIN_EMAIL, tipo: "admin" }, ADMIN_TOKEN);
-      return;
-    }
     setLoading(true);
     try {
       const data = await api("POST", "/api/auth/login", form);
@@ -1831,13 +1824,20 @@ function CadastroScreen({ onNavigate, screenData }) {
 function AdminLoginScreen({ onNavigate }) {
   const { login } = useAuth();
   const [form, setForm] = useState({ email: "", senha: "" });
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handle = () => {
-    if (form.email === ADMIN_EMAIL && form.senha === ADMIN_SENHA) {
-      login({ nome: "Admin Master", email: ADMIN_EMAIL, tipo: "admin" }, ADMIN_TOKEN);
-    } else {
-      setError("Credenciais incorretas");
+  const handle = async () => {
+    setError("");
+    if (!form.email || !form.senha) return setError("Preencha todos os campos");
+    setLoading(true);
+    try {
+      const data = await api("POST", "/api/admin/login", { email: form.email, senha: form.senha });
+      login({ ...data.admin, tipo: "admin" }, data.token);
+    } catch (e) {
+      setError(e.message || "Credenciais incorretas");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1852,7 +1852,7 @@ function AdminLoginScreen({ onNavigate }) {
       {error && <div className="alert alert-error">{error}</div>}
       <div className="field"><label>Email admin</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="admin@truker.app" /></div>
       <div className="field"><label>Senha</label><PasswordInput value={form.senha} onChange={e => setForm({ ...form, senha: e.target.value })} /></div>
-      <button className="btn btn-primary" onClick={handle}>Entrar como Admin</button>
+      <button className="btn btn-primary" onClick={handle} disabled={loading}>{loading ? "Entrando..." : "Entrar como Admin"}</button>
     </div>
   );
 }
