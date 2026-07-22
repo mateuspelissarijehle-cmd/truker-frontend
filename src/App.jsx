@@ -7018,24 +7018,6 @@ function PagamentoScreen({ data, onNavigate }) {
 
 
 // ─────────────────────────────────────────────
-// PLACEHOLDER
-// ─────────────────────────────────────────────
-function PlaceholderScreen({ titulo, icon, onNavigate }) {
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>{titulo}</h1></div>
-      <div className="content">
-        <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>{icon}</div>
-          <p style={{ fontWeight: 600 }}>Em breve</p>
-          <p style={{ fontSize: 13, marginTop: 6 }}>Esta funcionalidade será disponibilizada em breve.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
 // SUPORTE
 // ─────────────────────────────────────────────
 function SuporteScreen({ onNavigate }) {
