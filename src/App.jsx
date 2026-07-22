@@ -3417,6 +3417,7 @@ function MotoristaHome({ onNavigate }) {
   const [disponiveis, setDisponiveis] = useState([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(() => { try { return localStorage.getItem("truker_online") === "true"; } catch { return false; } });
+  const [erroOnline, setErroOnline] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroPeso, setFiltroPeso] = useState("todos");
   const [buscaCidade, setBuscaCidade] = useState("");
@@ -3523,13 +3524,18 @@ function MotoristaHome({ onNavigate }) {
       .catch(() => setFretesAtivos([]));
   }, [token]);
 
-  // ✅ Toggle online/offline — atualiza no banco
+  // ✅ Toggle online/offline — atualiza no banco, com rollback se falhar
   const toggleOnline = async (val) => {
+    const anterior = online;
     setOnline(val);
     localStorage.setItem("truker_online", val ? "true" : "false");
+    setErroOnline("");
     try {
       await api("PATCH", "/api/motoristas/online", { online: val }, token);
     } catch (e) {
+      setOnline(anterior);
+      localStorage.setItem("truker_online", anterior ? "true" : "false");
+      setErroOnline("Não foi possível atualizar seu status. Tente novamente.");
       console.error("Erro ao atualizar status online:", e.message);
     }
   };
@@ -3582,6 +3588,7 @@ function MotoristaHome({ onNavigate }) {
         </div>
       </div>
       <div className="content">
+        {erroOnline && <div className="alert alert-error" style={{ marginBottom: 14 }}>{erroOnline}</div>}
         {!seguroValido && (
           <div className="card" style={{ borderColor: "var(--red)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("seguro-motorista")}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
