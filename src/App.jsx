@@ -1054,8 +1054,10 @@ function LoginScreen({ onNavigate }) {
 // ─────────────────────────────────────────────
 // ESQUECI SENHA — ✅ REAL (integrado ao backend)
 // ─────────────────────────────────────────────
-function EsqueciSenhaScreen({ onNavigate }) {
-  const [email, setEmail] = useState("");
+// Lógica compartilhada entre EsqueciSenhaScreen e AlterarSenhaScreen: os
+// mesmos 3 passos (enviar código → verificar código → redefinir) e as
+// mesmas chamadas de API, variando só o `email` e o que acontece ao concluir.
+function useRedefinicaoSenha(email) {
   const [step, setStep] = useState(1);
   const [code, setCode] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
@@ -1084,16 +1086,25 @@ function EsqueciSenhaScreen({ onNavigate }) {
     finally { setLoading(false); }
   };
 
-  const redefinir = async () => {
+  const redefinir = async (aoConcluir) => {
     if (!novaSenha || novaSenha.length < 6) return setError("A senha deve ter pelo menos 6 caracteres");
     setError(""); setLoading(true);
     try {
       await api("POST", "/api/auth/redefinir-senha", { email, codigo: code, novaSenha });
       setStep(4);
-      setTimeout(() => onNavigate("login"), 3000);
+      if (aoConcluir) aoConcluir();
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
+
+  return { step, code, setCode, novaSenha, setNovaSenha, loading, error, codigoTeste, enviarCodigo, verificarCodigo, redefinir };
+}
+
+function EsqueciSenhaScreen({ onNavigate }) {
+  const [email, setEmail] = useState("");
+  const { step, code, setCode, novaSenha, setNovaSenha, loading, error, codigoTeste, enviarCodigo, verificarCodigo, redefinir } = useRedefinicaoSenha(email);
+
+  const finalizar = () => redefinir(() => setTimeout(() => onNavigate("login"), 3000));
 
   return (
     <div style={{ minHeight: "100vh", padding: "32px 24px" }}>
@@ -1142,7 +1153,7 @@ function EsqueciSenhaScreen({ onNavigate }) {
       {step === 3 && (
         <>
           <div className="field"><label>Nova senha</label><PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} /></div>
-          <button className="btn btn-primary" onClick={redefinir} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
+          <button className="btn btn-primary" onClick={finalizar} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
         </>
       )}
     </div>
@@ -7119,43 +7130,8 @@ function PrivacidadeScreen({ onNavigate }) {
 // ─────────────────────────────────────────────
 function AlterarSenhaScreen({ onNavigate }) {
   const { user } = useAuth();
-  const [step, setStep] = useState(1);
-  const [code, setCode] = useState("");
-  const [novaSenha, setNovaSenha] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [codigoTeste, setCodigoTeste] = useState(null);
   const email = user?.email || "";
-
-  const enviarCodigo = async () => {
-    setError(""); setLoading(true);
-    try {
-      const resp = await api("POST", "/api/auth/esqueci-senha", { email });
-      if (resp.codigo_teste) setCodigoTeste(resp.codigo_teste);
-      setStep(2);
-    } catch (e) { setError(e.message); }
-    finally { setLoading(false); }
-  };
-
-  const verificarCodigo = async () => {
-    if (code.length < 6) return setError("Digite o código de 6 dígitos");
-    setError(""); setLoading(true);
-    try {
-      await api("POST", "/api/auth/verificar-codigo-senha", { email, codigo: code });
-      setStep(3);
-    } catch (e) { setError(e.message); }
-    finally { setLoading(false); }
-  };
-
-  const redefinir = async () => {
-    if (!novaSenha || novaSenha.length < 6) return setError("A senha deve ter pelo menos 6 caracteres");
-    setError(""); setLoading(true);
-    try {
-      await api("POST", "/api/auth/redefinir-senha", { email, codigo: code, novaSenha });
-      setStep(4);
-    } catch (e) { setError(e.message); }
-    finally { setLoading(false); }
-  };
+  const { step, code, setCode, novaSenha, setNovaSenha, loading, error, codigoTeste, enviarCodigo, verificarCodigo, redefinir } = useRedefinicaoSenha(email);
 
   return (
     <div className="screen">
@@ -7204,7 +7180,7 @@ function AlterarSenhaScreen({ onNavigate }) {
         {step === 3 && (
           <>
             <div className="field"><label>Nova senha</label><PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} /></div>
-            <button className="btn btn-primary" onClick={redefinir} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
+            <button className="btn btn-primary" onClick={() => redefinir()} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
           </>
         )}
       </div>
