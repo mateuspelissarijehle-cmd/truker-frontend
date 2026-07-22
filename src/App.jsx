@@ -3402,13 +3402,11 @@ function MotoristaHome({ onNavigate }) {
   const [buscaCidadeDebounced, setBuscaCidadeDebounced] = useState("");
   const [kmVazio, setKmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
-  const [ganhosDia, setGanhosDia] = useState(null);
 
   // Busca km vazio real do dia
   useEffect(() => {
     api("GET", "/api/motoristas/ganhos", null, token)
       .then(d => {
-        setGanhosDia(d);
         setKmVazio(parseFloat(d.km_vazio_hoje || 0));
       })
       .catch(() => {});
@@ -6925,7 +6923,6 @@ function PagamentoScreen({ data, onNavigate }) {
   const valorInicial = data?.valor || 0;
   const [qrCode, setQrCode] = useState(null);
   const [pixKey, setPixKey] = useState(null);
-  const [paymentId, setPaymentId] = useState(null);
   const [status, setStatus] = useState("criando");
   const [valor, setValor] = useState(valorInicial);
   const [copiado, setCopiado] = useState(false);
@@ -6938,7 +6935,6 @@ function PagamentoScreen({ data, onNavigate }) {
       .then(d => {
         setQrCode(d.qr_code);
         setPixKey(d.pix_key);
-        setPaymentId(d.payment_id);
         setValor(d.valor || valorInicial);
         setStatus(d.status === "approved" ? "approved" : "pending");
         if (d.status !== "approved" && d.payment_id) {
