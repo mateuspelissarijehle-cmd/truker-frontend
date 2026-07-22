@@ -250,6 +250,16 @@ async function buscarEnderecoPorCep(cep) {
   } catch { return null; }
 }
 
+// Busca a rota real (OSRM, gratuito, sem API key) entre 2 pontos "lng,lat".
+// Retorna a rota (geometry + distance + duration) ou null se falhar.
+async function buscarRotaOSRM(start, end) {
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`);
+    const data = await r.json();
+    return data.routes?.[0] || null;
+  } catch { return null; }
+}
+
 const TIPOS_FRETE = [
   { id: "urbano", label: "Urbano", icon: "🏙️", desc: "Até 50km, dentro da cidade" },
   { id: "intermunicipal", label: "Intermunicipal", icon: "🛣️", desc: "50 a 300km, entre cidades" },
@@ -646,23 +656,19 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
   // junto com a geometria — sem precisar de uma chamada extra à Directions API.
   const desenharRotaPrincipal = (start, end) => {
     if (!start || !end || start === end || !mapRef.current) return;
-    fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`)
-      .then(r => r.json())
-      .then(data => {
-        const rota = data.routes?.[0];
-        if (!rota?.geometry || !mapRef.current) return;
-        if (rotaPrincipalLayerRef.current) mapRef.current.removeLayer(rotaPrincipalLayerRef.current);
-        rotaPrincipalLayerRef.current = window.L.geoJSON(rota.geometry, {
-          style: { color: "#F97316", weight: 4, opacity: 0.75, dashArray: "10,6" }
-        }).addTo(mapRef.current);
-        if (propsRef.current.onRotaInfo) {
-          propsRef.current.onRotaInfo({
-            distanciaKm: parseFloat((rota.distance / 1000).toFixed(1)),
-            duracaoMin: Math.ceil(rota.duration / 60),
-          });
-        }
-      })
-      .catch(() => {});
+    buscarRotaOSRM(start, end).then(rota => {
+      if (!rota?.geometry || !mapRef.current) return;
+      if (rotaPrincipalLayerRef.current) mapRef.current.removeLayer(rotaPrincipalLayerRef.current);
+      rotaPrincipalLayerRef.current = window.L.geoJSON(rota.geometry, {
+        style: { color: "#F97316", weight: 4, opacity: 0.75, dashArray: "10,6" }
+      }).addTo(mapRef.current);
+      if (propsRef.current.onRotaInfo) {
+        propsRef.current.onRotaInfo({
+          distanciaKm: parseFloat((rota.distance / 1000).toFixed(1)),
+          duracaoMin: Math.ceil(rota.duration / 60),
+        });
+      }
+    });
   };
 
   const initMap = () => {
@@ -761,16 +767,13 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
       if (rota.origem?.lat && rota.destino?.lat) {
         const s = `${rota.origem.lng},${rota.origem.lat}`;
         const e = `${rota.destino.lng},${rota.destino.lat}`;
-        fetch(`https://router.project-osrm.org/route/v1/driving/${s};${e}?overview=full&geometries=geojson`)
-          .then(r => r.json())
-          .then(data => {
-            if (data.routes?.[0]?.geometry && mapRef.current) {
-              window.L.geoJSON(data.routes[0].geometry, {
-                style: { color: cor, weight: 3, opacity: 0.85 }
-              }).addTo(mapRef.current);
-            }
-          })
-          .catch(() => {});
+        buscarRotaOSRM(s, e).then(rotaOSRM => {
+          if (rotaOSRM?.geometry && mapRef.current) {
+            window.L.geoJSON(rotaOSRM.geometry, {
+              style: { color: cor, weight: 3, opacity: 0.85 }
+            }).addTo(mapRef.current);
+          }
+        });
       }
     });
   };
