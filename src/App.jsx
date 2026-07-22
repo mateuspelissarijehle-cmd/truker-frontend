@@ -7476,7 +7476,10 @@ function Router() {
       else if (user.tipo === "motorista") setScreen("home-motorista");
       else setScreen("home-contratante");
     } else {
-      setScreen("entrada");
+      // ?admin=1 é a única forma de chegar na tela de login admin — não existe
+      // link nenhum na interface, de propósito (não expor pra visitante comum).
+      const params = new URLSearchParams(window.location.search);
+      setScreen(params.get("admin") === "1" ? "login-admin" : "entrada");
     }
   }, [user?.id, user?.tipo]);
 
