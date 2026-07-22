@@ -237,6 +237,19 @@ function resolverUF(termo) {
   return UF_POR_NOME[limpo.toLowerCase()] || "";
 }
 
+// Busca endereço por CEP na ViaCEP. Retorna null se o CEP for inválido,
+// não existir ou a requisição falhar.
+async function buscarEnderecoPorCep(cep) {
+  const clean = (cep || "").replace(/\D/g, "");
+  if (clean.length !== 8) return null;
+  try {
+    const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+    const d = await r.json();
+    if (d.erro) return null;
+    return { logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" };
+  } catch { return null; }
+}
+
 const TIPOS_FRETE = [
   { id: "urbano", label: "Urbano", icon: "🏙️", desc: "Até 50km, dentro da cidade" },
   { id: "intermunicipal", label: "Intermunicipal", icon: "🛣️", desc: "50 a 300km, entre cidades" },
@@ -2527,19 +2540,13 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
   }, [form.tipoVeiculo, form.tipoCarga, token]);
 
   const fillCep = async (cep, tipo) => {
-    const clean = cep.replace(/\D/g, "");
-    if (clean.length !== 8) return;
-    try {
-      const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-      const d = await res.json();
-      if (!d.erro) {
-        [["Logradouro", d.logradouro], ["Bairro", d.bairro]].forEach(([f, val]) => {
-          if (FR.current[`${tipo}${f}`]?.current) FR.current[`${tipo}${f}`].current.value = val || "";
-        });
-        if (tipo === "origem") { setOrigemCidade(d.localidade || ""); setOrigemUF(d.uf || ""); }
-        else { setDestCidade(d.localidade || ""); setDestUF(d.uf || ""); }
-      }
-    } catch {}
+    const endereco = await buscarEnderecoPorCep(cep);
+    if (!endereco) return;
+    [["Logradouro", endereco.logradouro], ["Bairro", endereco.bairro]].forEach(([f, val]) => {
+      if (FR.current[`${tipo}${f}`]?.current) FR.current[`${tipo}${f}`].current.value = val || "";
+    });
+    if (tipo === "origem") { setOrigemCidade(endereco.cidade); setOrigemUF(endereco.uf); }
+    else { setDestCidade(endereco.cidade); setDestUF(endereco.uf); }
   };
 
   const composeAddr = (tipo, a) => [a[`${tipo}Logradouro`], a[`${tipo}Numero`], a[`${tipo}Complemento`], a[`${tipo}Bairro`], a[`${tipo}Cidade`], a[`${tipo}UF`]].filter(Boolean).join(", ");
@@ -5622,9 +5629,8 @@ function DadosPessoaisContratante({ onNavigate }) {
   useEffect(() => { carregarPerfil(); }, []);
 
   const fillCep = async (cep) => {
-    const clean = cep.replace(/\D/g, "");
-    if (clean.length !== 8) return;
-    try { const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`); const d = await r.json(); if (!d.erro) setForm(f => ({ ...f, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" })); } catch {}
+    const endereco = await buscarEnderecoPorCep(cep);
+    if (endereco) setForm(f => ({ ...f, ...endereco }));
   };
   const salvar = async () => {
     setError(""); setLoading(true);
@@ -5756,9 +5762,8 @@ function DadosPessoaisMotorista({ onNavigate }) {
   };
 
   const fillCep = async (cep) => {
-    const clean = cep.replace(/\D/g, "");
-    if (clean.length !== 8) return;
-    try { const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`); const d = await r.json(); if (!d.erro) setForm(f => ({ ...f, logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" })); } catch {}
+    const endereco = await buscarEnderecoPorCep(cep);
+    if (endereco) setForm(f => ({ ...f, ...endereco }));
   };
 
   const salvar = async () => {
