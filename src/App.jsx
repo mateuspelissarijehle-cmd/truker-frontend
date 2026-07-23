@@ -2498,7 +2498,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
     dataColeta: "", horario: "",
     // Campos especiais dinâmicos
     tipoAnimal: "", qtdAnimais: "", tipoMaterial: "",
-    itensMudanca: [{ nome: "", qtd: "" }],
+    itensMudanca: [{ id: crypto.randomUUID(), nome: "", qtd: "" }],
   });
   const [carroceriasDisp, setCarroceriasDisp] = useState([]);
   const [addr, setAddr] = useState({
@@ -2816,7 +2816,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
                 <div className="field">
                   <label>Itens da mudança</label>
                   {form.itensMudanca.map((item, idx) => (
-                    <div key={idx} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                    <div key={item.id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                       <input style={{ flex: 2 }} placeholder="Ex: Geladeira" value={item.nome}
                         onChange={e => {
                           const arr = [...form.itensMudanca]; arr[idx].nome = e.target.value; set("itensMudanca", arr);
@@ -2832,7 +2832,7 @@ function SolicitarFreteScreen({ onNavigate, screenData }) {
                     </div>
                   ))}
                   <button className="btn btn-secondary" style={{ width: "100%", marginTop: 4 }}
-                    onClick={() => set("itensMudanca", [...form.itensMudanca, { nome: "", qtd: "" }])}>
+                    onClick={() => set("itensMudanca", [...form.itensMudanca, { id: crypto.randomUUID(), nome: "", qtd: "" }])}>
                     + Adicionar item
                   </button>
                 </div>
