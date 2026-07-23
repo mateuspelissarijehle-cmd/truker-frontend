@@ -4898,7 +4898,6 @@ function EmTransitoScreen({ frete, onNavigate }) {
 function PerfilMotorista({ onNavigate }) {
   const { user, token, logout } = useAuth();
   const [tab, setTab] = useState("resumo");
-  const [kmVazio] = useState(0);
   const [metaKmVazio, setMetaKmVazio] = useState(800);
   const [editMeta, setEditMeta] = useState(false);
   const [novaMeta, setNovaMeta] = useState("800");
@@ -4923,6 +4922,10 @@ function PerfilMotorista({ onNavigate }) {
     }
     setTimeout(() => setTestePushMsg(null), 8000);
   };
+  // Km vazio real do mês, vindo do mesmo endpoint que a MotoristaHome usa
+  // (não há, hoje, um detalhamento por tipo de carga no backend — ver aba
+  // "KM Vazio por tipo de carga" abaixo).
+  const kmVazio = Number(ganhos?.km_vazio_total || 0);
   const pctMeta = Math.min(100, Math.round((kmVazio / metaKmVazio) * 100));
 
   // Carrega perfil completo ao montar
@@ -4934,7 +4937,7 @@ function PerfilMotorista({ onNavigate }) {
 
   // Busca ganhos reais ao entrar na aba
   useEffect(() => {
-    if ((tab === "ganhos" || tab === "resumo") && !ganhos && !loadingGanhos) {
+    if ((tab === "ganhos" || tab === "resumo" || tab === "km-vazio") && !ganhos && !loadingGanhos) {
       setLoadingGanhos(true);
       api("GET", "/api/motoristas/ganhos", null, token)
         .then(setGanhos)
@@ -4942,13 +4945,6 @@ function PerfilMotorista({ onNavigate }) {
         .finally(() => setLoadingGanhos(false));
     }
   }, [tab]);
-
-  const kmVazioPorCarga = [
-    { tipo: "Carga Seca", icon: "📦", km: 180, fretes: 12 },
-    { tipo: "Graneleiro", icon: "🌾", km: 95, fretes: 8 },
-    { tipo: "Refrigerada", icon: "❄️", km: 42, fretes: 5 },
-    { tipo: "Líquidos", icon: "💧", km: 25, fretes: 3 },
-  ];
 
   return (
     <div className="screen">
@@ -5067,6 +5063,7 @@ function PerfilMotorista({ onNavigate }) {
         )}
 
         {tab === "km-vazio" && (
+          loadingGanhos && !ganhos ? <Loading /> : (
           <>
             <div className="card">
               <div className="card-title">Meta de KM Vazio (mensal)</div>
@@ -5098,17 +5095,11 @@ function PerfilMotorista({ onNavigate }) {
             </div>
             <div className="card">
               <div className="card-title">KM Vazio por tipo de carga</div>
-              {kmVazioPorCarga.map(c => (
-                <div key={c.tipo} style={{ marginBottom: 14 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 5 }}>
-                    <span>{c.icon} {c.tipo}</span>
-                    <span style={{ color: "var(--text3)" }}>{formatKm(c.km)} · {c.fretes} fretes</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div className="progress-fill" style={{ width: `${Math.round((c.km / Math.max(kmVazio, 1)) * 100)}%` }} />
-                  </div>
-                </div>
-              ))}
+              <div style={{ textAlign: "center", padding: "16px 8px", color: "var(--text3)" }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>📊</div>
+                <p style={{ fontSize: 13 }}>Ainda não temos esse detalhamento por tipo de carga.</p>
+                <p style={{ fontSize: 12, marginTop: 4 }}>Em breve você poderá ver aqui em quais tipos de carga está rodando mais vazio.</p>
+              </div>
             </div>
             <div className="card">
               <div className="card-title">Eficiência geral</div>
@@ -5124,6 +5115,7 @@ function PerfilMotorista({ onNavigate }) {
               </div>
             </div>
           </>
+          )
         )}
 
         {tab === "despesas" && <DespesasTab />}
