@@ -5453,10 +5453,20 @@ function TermosScreen({ onNavigate }) {
   );
 }
 
-// ─────────────────────────────────────────────
-// COMPONENTE DE DESPESAS (usado na aba Despesas do PerfilMotorista)
-// ─────────────────────────────────────────────
-function DespesasTab() {
+const TIPOS_DESPESA = [
+  { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
+  { id: "pedagio", icon: "🛣️", label: "Pedágio" }, { id: "pneu", icon: "🔄", label: "Pneus" },
+  { id: "seguro", icon: "🛡️", label: "Seguro" }, { id: "multa", icon: "🚨", label: "Multa" },
+  { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
+  { id: "outro", icon: "📦", label: "Outro" },
+];
+
+// Fonte única de verdade das despesas do motorista: busca a lista de despesas
+// registradas e o resumo de custos ANTT (/custos-resumo, que soma combustível +
+// desgaste estimados de todos os fretes aceitos). `total` já sai correto —
+// antes, uma das telas que mostrava despesas somava só o valor bruto da lista,
+// ignorando o resumo ANTT, e batia um total diferente da outra tela pro mesmo mês.
+function useDespesasMotorista() {
   const { token } = useAuth();
   const [despesas, setDespesas] = useState([]);
   const [resumoCustos, setResumoCustos] = useState(null);
@@ -5467,13 +5477,6 @@ function DespesasTab() {
   const [lendoNf, setLendoNf] = useState(false);
   const [nfAviso, setNfAviso] = useState("");
   const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
-  const tiposDespesa = [
-    { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
-    { id: "pedagio", icon: "🛣️", label: "Pedágio" }, { id: "pneu", icon: "🔄", label: "Pneus" },
-    { id: "seguro", icon: "🛡️", label: "Seguro" }, { id: "multa", icon: "🚨", label: "Multa" },
-    { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
-    { id: "outro", icon: "📦", label: "Outro" },
-  ];
 
   const carregarResumoCustos = () => {
     api("GET", "/api/motoristas/custos-resumo", null, token)
@@ -5546,6 +5549,24 @@ function DespesasTab() {
       e.target.value = "";
     }
   };
+
+  return {
+    despesas, resumoCustos, total, showAdd, setShowAdd, loading,
+    nova, setN, comprovanteUrl, lendoNf, nfAviso,
+    add, remover, handleNF,
+  };
+}
+
+// ─────────────────────────────────────────────
+// COMPONENTE DE DESPESAS (usado na aba Despesas do PerfilMotorista)
+// ─────────────────────────────────────────────
+function DespesasTab() {
+  const {
+    despesas, resumoCustos, total, showAdd, setShowAdd, loading,
+    nova, setN, comprovanteUrl, lendoNf, nfAviso,
+    add, remover, handleNF,
+  } = useDespesasMotorista();
+  const tiposDespesa = TIPOS_DESPESA;
 
   return (
     <>
@@ -6284,30 +6305,23 @@ function DadosCaminhaoMotorista({ onNavigate }) {
 function FinancasMotorista({ onNavigate }) {
   const { token } = useAuth();
   const [tab, setTab] = useState("despesas");
-  const [despesas, setDespesas] = useState([]);
   const [ganhos, setGanhos] = useState(null);
   const [extrato, setExtrato] = useState(null);
   const [loadingExtrato, setLoadingExtrato] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
-  const [loadingAdd, setLoadingAdd] = useState(false);
-  const [nova, setNova] = useState({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
   const [loadingGanhos, setLoadingGanhos] = useState(true);
-  const [comprovanteUrl, setComprovanteUrl] = useState(null);
-  const [lendoNf, setLendoNf] = useState(false);
-  const [nfAviso, setNfAviso] = useState("");
-  const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
-  const tiposDespesa = [
-    { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
-    { id: "pedagio", icon: "🛣️", label: "Pedágio" }, { id: "pneu", icon: "🔄", label: "Pneus" },
-    { id: "seguro", icon: "🛡️", label: "Seguro" }, { id: "multa", icon: "🚨", label: "Multa" },
-    { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
-    { id: "outro", icon: "📦", label: "Outro" },
-  ];
+  const tiposDespesa = TIPOS_DESPESA;
 
-  // Carrega despesas, ganhos e extrato de transações do banco já ao montar a tela (não só ao clicar na aba)
+  // Mesma fonte de verdade da aba Despesas do Perfil — antes esta tela somava
+  // só o valor bruto das despesas registradas manualmente, sem o resumo ANTT
+  // (combustível + desgaste estimados), batendo um total diferente pro mesmo mês.
+  const {
+    despesas, resumoCustos, total: totalDespesas, showAdd, setShowAdd, loading: loadingAdd,
+    nova, setN, comprovanteUrl, lendoNf, nfAviso,
+    add, remover, handleNF,
+  } = useDespesasMotorista();
+
+  // Carrega ganhos e extrato de transações do banco já ao montar a tela (não só ao clicar na aba)
   useEffect(() => {
-    api("GET", "/api/motoristas/despesas", null, token)
-      .then(setDespesas).catch(() => {});
     setLoadingGanhos(true);
     api("GET", "/api/motoristas/ganhos", null, token)
       .then(setGanhos).catch(() => setGanhos(null)).finally(() => setLoadingGanhos(false));
@@ -6318,64 +6332,9 @@ function FinancasMotorista({ onNavigate }) {
       .finally(() => setLoadingExtrato(false));
   }, [token]);
 
-  const totalDespesas = despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
   const totalReceitas = Number(ganhos?.ganhos_total || 0);
   const saldo = totalReceitas - totalDespesas;
 
-  const add = async () => {
-    if (!nova.valor) return;
-    setLoadingAdd(true);
-    try {
-      const salva = await api("POST", "/api/motoristas/despesas", { ...nova, comprovanteUrl }, token);
-      setDespesas(d => [salva, ...d]);
-      setNova({ tipo: "combustivel", descricao: "", valor: "", data: new Date().toISOString().slice(0,10) });
-      setComprovanteUrl(null);
-      setNfAviso("");
-      setShowAdd(false);
-    } catch (e) { alert("Erro ao salvar: " + e.message); }
-    finally { setLoadingAdd(false); }
-  };
-
-  const remover = async (id) => {
-    try {
-      await api("DELETE", `/api/motoristas/despesas/${id}`, null, token);
-      setDespesas(d => d.filter(x => x.id !== id));
-    } catch (e) { alert("Erro ao remover: " + e.message); }
-  };
-
-  // Mesmo bug real da aba de despesas: o anexo de NF nunca subia pro backend, só
-  // adivinhava o tipo pelo nome do arquivo. Agora usa POST /despesas/ler-nf de verdade
-  // (salva o comprovante e tenta ler o valor automaticamente pra NF em PDF).
-  const handleNF = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setLendoNf(true);
-    setNfAviso("");
-    try {
-      const formData = new FormData();
-      formData.append("arquivo", file);
-      const resp = await apiUpload("POST", "/api/motoristas/despesas/ler-nf", formData, token);
-      setComprovanteUrl(resp.comprovante_url);
-      setNova(f => ({
-        ...f,
-        tipo: resp.tipoSugerido || f.tipo,
-        descricao: f.descricao || file.name.replace(/\.[^.]+$/, ""),
-        valor: resp.valorSugerido != null ? String(resp.valorSugerido) : f.valor,
-      }));
-      if (resp.valorSugerido != null) {
-        setNfAviso("✅ Valor lido automaticamente da NF — confira antes de salvar.");
-      } else if (resp.leituraAutomaticaDisponivel) {
-        setNfAviso("Não consegui identificar um valor no PDF — digite manualmente.");
-      } else {
-        setNfAviso("Leitura automática de valor só funciona para NF em PDF por enquanto — digite o valor manualmente.");
-      }
-    } catch (err) {
-      setNfAviso("Erro ao enviar o comprovante: " + err.message);
-    } finally {
-      setLendoNf(false);
-      e.target.value = "";
-    }
-  };
   return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Minhas Finanças</h1></div>
@@ -6395,6 +6354,25 @@ function FinancasMotorista({ onNavigate }) {
         </div>
         {tab === "despesas" && (
           <>
+            {resumoCustos && (
+              <div className="grid-2" style={{ marginBottom: 6 }}>
+                <div className="card" style={{ textAlign: "center", padding: "14px 10px" }}>
+                  <div style={{ fontSize: 22, marginBottom: 4 }}>⛽</div>
+                  <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 2 }}>Combustível</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "var(--red)" }}>{formatMoney(resumoCustos.combustivelTotal)}</div>
+                </div>
+                <div className="card" style={{ textAlign: "center", padding: "14px 10px" }}>
+                  <div style={{ fontSize: 22, marginBottom: 4 }}>🔧</div>
+                  <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 2 }}>Desgaste</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: "var(--red)" }}>{formatMoney(resumoCustos.desgasteTotal)}</div>
+                </div>
+              </div>
+            )}
+            {resumoCustos && (
+              <p style={{ fontSize: 11, color: "var(--text3)", marginTop: -8, marginBottom: 14, textAlign: "center" }}>
+                O total de despesas inclui combustível e desgaste estimados com base nos coeficientes oficiais da ANTT, somando todos os {resumoCustos.totalFretesConsiderados} fretes aceitos — além do que você registra manualmente abaixo.
+              </p>
+            )}
             <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => setShowAdd(true)}>+ Adicionar Despesa</button>
             {showAdd && (
               <div className="card" style={{ borderColor: "var(--gold)", marginBottom: 14 }}>
