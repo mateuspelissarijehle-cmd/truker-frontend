@@ -466,6 +466,22 @@ const css = `
 // ─────────────────────────────────────────────
 function formatMoney(v) { return "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }); }
 function formatKm(v) { return Number(v || 0).toLocaleString("pt-BR") + " km"; }
+// Mascara um dado sensível antes de mandar pro backend (ex.: chave Pix, conta
+// bancária) — só os últimos dígitos ficam visíveis, o resto vira •. Usado pra
+// nunca persistir o dado completo em "formas de pagamento salvas".
+function mascararDado(valor, visiveis = 4) {
+  const v = (valor || "").toString().trim();
+  if (!v) return "";
+  if (v.length <= visiveis) return "•".repeat(v.length);
+  return "••••" + v.slice(-visiveis);
+}
+// Mesma ideia, mas pra email (mantém domínio visível — senão fica ilegível).
+function mascararEmail(valor) {
+  const v = (valor || "").trim();
+  const [usuario, dominio] = v.split("@");
+  if (!dominio) return mascararDado(v);
+  return `${usuario.slice(0, 1)}${"•".repeat(Math.max(usuario.length - 1, 3))}@${dominio}`;
+}
 function StatusBadge({ status }) {
   const map = { aguardando: ["badge-pending", "Aguardando"], aceito: ["badge-active", "Aceito"], coletando: ["badge-active", "Coletando"], em_rota: ["badge-active", "Em Rota"], entregue: ["badge-done", "Entregue"], cancelado: ["badge-cancel", "Cancelado"] };
   const [cls, label] = map[status] || ["badge-pending", status];
@@ -6738,6 +6754,9 @@ function FinancasContratante({ onNavigate }) {
 function PagamentosScreen({ onNavigate }) {
   const { token } = useAuth();
   const [formas, setFormas] = useState([]);
+  const [loadingFormas, setLoadingFormas] = useState(true);
+  const [erroFormas, setErroFormas] = useState("");
+  const [salvandoForma, setSalvandoForma] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [tipo, setTipo] = useState("pix");
   const [form, setForm] = useState({});
@@ -6750,14 +6769,73 @@ function PagamentosScreen({ onNavigate }) {
     { id: "boleto", icon: "📄", label: "Boleto", desc: "Gerado automaticamente" },
     { id: "carteira", icon: "💰", label: "Carteira Digital", desc: "PicPay, Mercado Pago" },
   ];
-  const adicionar = () => { setFormas(f => [...f, { tipo, form: { ...form }, id: Date.now() }]); setForm({}); setShowAdd(false); };
-  const remover = (id) => setFormas(f => f.filter(x => x.id !== id));
+
+  // Formas de pagamento salvas de verdade no backend (antes era só estado local
+  // — "adicionar" nunca chamava a API, então a lista sumia ao sair da tela e
+  // voltar). Só guardamos dados mascarados (nunca a chave/conta completa).
+  useEffect(() => {
+    api("GET", "/api/pagamentos/formas", null, token)
+      .then(d => setFormas(Array.isArray(d) ? d : []))
+      .catch(e => setErroFormas(e.message))
+      .finally(() => setLoadingFormas(false));
+  }, []);
+
+  const adicionar = async () => {
+    let dados = {};
+    if (tipo === "pix") {
+      if (!form.chave) return;
+      dados = {
+        tipoChave: form.tipoChave || "",
+        chaveMascarada: form.tipoChave === "email" ? mascararEmail(form.chave) : mascararDado(form.chave),
+        titular: form.titular || "",
+      };
+    } else if (tipo === "ted") {
+      if (!form.banco || !form.conta) return;
+      dados = {
+        banco: form.banco,
+        agenciaMascarada: mascararDado(form.agencia, 2),
+        contaMascarada: mascararDado(form.conta),
+        tipoConta: form.tipoConta || "",
+        titular: form.titular || "",
+      };
+    } else if (tipo === "carteira") {
+      if (!form.carteira || !form.conta) return;
+      dados = {
+        carteira: form.carteira,
+        contaMascarada: form.conta.includes("@") ? mascararEmail(form.conta) : mascararDado(form.conta),
+      };
+    }
+    // boleto: nada pra guardar, é gerado automaticamente no pagamento
+    setSalvandoForma(true);
+    try {
+      const salva = await api("POST", "/api/pagamentos/formas", { tipo, dados }, token);
+      setFormas(f => [salva, ...f]);
+      setForm({});
+      setShowAdd(false);
+    } catch (e) {
+      setErroFormas(e.message);
+    } finally {
+      setSalvandoForma(false);
+    }
+  };
+
+  const remover = async (id) => {
+    if (!window.confirm("Remover esta forma de pagamento?")) return;
+    try {
+      await api("DELETE", `/api/pagamentos/formas/${id}`, null, token);
+      setFormas(f => f.filter(x => x.id !== id));
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   const getIcon = t => ({ pix: "📱", ted: "🏦", cartao: "💳", boleto: "📄", carteira: "💰" }[t] || "💳");
   const getLabel = t => tiposForma.find(x => x.id === t)?.label || t;
   const getDesc = f => {
-    if (f.tipo === "pix") return `Chave: ${f.form.chave || "—"}`;
-    if (f.tipo === "ted") return `${(f.form.banco || "").split(" - ")[1] || "—"} · Ag: ${f.form.agencia || "—"} · CC: ${f.form.conta || "—"}`;
-    if (f.tipo === "carteira") return f.form.carteira || "—";
+    const d = f.dados || {};
+    if (f.tipo === "pix") return `Chave: ${d.chaveMascarada || "—"}`;
+    if (f.tipo === "ted") return `${(d.banco || "").split(" - ")[1] || "—"} · Ag: ${d.agenciaMascarada || "—"} · CC: ${d.contaMascarada || "—"}`;
+    if (f.tipo === "carteira") return `${d.carteira || "—"} · ${d.contaMascarada || "—"}`;
     return "Gerado automaticamente no pagamento";
   };
 
@@ -6829,28 +6907,33 @@ function PagamentosScreen({ onNavigate }) {
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button className="btn btn-secondary btn-sm" onClick={() => { setShowAdd(false); setForm({}); }}>Cancelar</button>
               {tipo !== "cartao" && (
-                <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={adicionar}>Adicionar</button>
+                <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={adicionar} disabled={salvandoForma}>{salvandoForma ? "Salvando..." : "Adicionar"}</button>
               )}
             </div>
           </div>
         )}
-        {formas.length === 0 && !showAdd && (
-          <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>💳</div>
-            <p style={{ fontWeight: 700, fontSize: 16 }}>Nenhuma forma de pagamento</p>
-            <p style={{ fontSize: 13, marginTop: 6 }}>Adicione Pix, TED, boleto ou carteira digital para pagar seus fretes.</p>
-          </div>
+        {erroFormas && <div className="alert alert-error" style={{ marginBottom: 14 }}>{erroFormas}</div>}
+        {loadingFormas ? <Loading /> : (
+          <>
+            {formas.length === 0 && !showAdd && (
+              <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>💳</div>
+                <p style={{ fontWeight: 700, fontSize: 16 }}>Nenhuma forma de pagamento</p>
+                <p style={{ fontSize: 13, marginTop: 6 }}>Adicione Pix, TED, boleto ou carteira digital para pagar seus fretes.</p>
+              </div>
+            )}
+            {formas.map(f => (
+              <div key={f.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--gold-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{getIcon(f.tipo)}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{getLabel(f.tipo)}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)" }}>{getDesc(f)}</div>
+                </div>
+                <button onClick={() => remover(f.id)} style={{ background: "none", border: "none", color: "var(--red)", fontSize: 18, cursor: "pointer" }}>🗑️</button>
+              </div>
+            ))}
+          </>
         )}
-        {formas.map(f => (
-          <div key={f.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--gold-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{getIcon(f.tipo)}</div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{getLabel(f.tipo)}</div>
-              <div style={{ fontSize: 12, color: "var(--text3)" }}>{getDesc(f)}</div>
-            </div>
-            <button onClick={() => remover(f.id)} style={{ background: "none", border: "none", color: "var(--red)", fontSize: 18, cursor: "pointer" }}>🗑️</button>
-          </div>
-        ))}
 
         <div className="card-title" style={{ marginTop: 24, marginBottom: 10 }}>Cartões salvos</div>
         {loadingCartoes ? <Loading /> : erroCartoes ? (
