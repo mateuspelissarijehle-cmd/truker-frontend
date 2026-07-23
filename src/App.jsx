@@ -5,7 +5,6 @@ import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
 // CONFIG
 // ─────────────────────────────────────────────
 const API_BASE = "https://truker-app-production.up.railway.app";
-const VAPID_PUBLIC_KEY = "BPXxf7PJkl_WSVBkmMFljhbNEZfZs61C7aPrPkL48U_Nk7T4OYOny6vPSJX6ny03qzdO4LvuvSP5sCg9u5JAFLg";
 
 // Chave pública do Mercado Pago (SDK react) — necessária para tokenizar cartão
 // no navegador (Card Payment Brick). Vem de variável de ambiente (Vite).
@@ -33,9 +32,13 @@ async function registrarPushNotifications(token) {
     // Cancela subscription antiga e cria nova para garantir validade
     const subExistente = await reg.pushManager.getSubscription();
     if (subExistente) await subExistente.unsubscribe();
+    // Chave pública buscada do backend (não hardcoded) -- fonte única de
+    // verdade é o VAPID_PUBLIC_KEY do .env do servidor, evita divergência
+    // silenciosa se a chave rotacionar um dia.
+    const { key: vapidPublicKey } = await api("GET", "/api/push/vapid-public-key");
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
     });
     await api("POST", "/api/push/subscribe", { subscription: sub.toJSON() }, token);
     console.log("[TRUKER] Push subscrito:", sub.endpoint);
