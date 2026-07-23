@@ -618,6 +618,38 @@ function criarIconeMotorista(comOrientacao, headingDeg) {
   });
 }
 
+// Carrega o script/CSS do Leaflet uma única vez, mesmo com vários mapas
+// montando ao mesmo tempo (ex.: telas com mapa em miniatura + navegação).
+// A promise é cacheada no módulo (singleton), então todo mundo que chama
+// isso — não importa quem montou primeiro — recebe o mesmo aviso de "pronto",
+// em vez de cada componente pisar no `script.onload` do anterior e travar
+// esperando um load que nunca vai chamar o initMap dele.
+let leafletLoadPromise = null;
+function carregarLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (leafletLoadPromise) return leafletLoadPromise;
+  leafletLoadPromise = new Promise((resolve, reject) => {
+    if (!document.querySelector("#leaflet-css")) {
+      const link = document.createElement("link");
+      link.id = "leaflet-css"; link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+    const existente = document.querySelector("#leaflet-js");
+    if (existente) {
+      existente.addEventListener("load", () => resolve());
+      existente.addEventListener("error", (e) => reject(e));
+      return;
+    }
+    const script = document.createElement("script");
+    script.id = "leaflet-js"; script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    script.onload = () => resolve();
+    script.onerror = (e) => reject(e);
+    document.head.appendChild(script);
+  });
+  return leafletLoadPromise;
+}
+
 // modoNavegacao: habilita zoom/seguimento ao vivo estilo GPS + botão de
 // recentralizar. mostrarOrientacao: além disso, calcula o rumo do motorista
 // e permite alternar entre "Norte sempre pra cima" (só a seta gira) e
@@ -789,20 +821,10 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
   };
 
   useEffect(() => {
-    if (window.L) { initMap(); return; }
-    if (!document.querySelector("#leaflet-css")) {
-      const link = document.createElement("link");
-      link.id = "leaflet-css"; link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
-    if (!document.querySelector("#leaflet-js")) {
-      const script = document.createElement("script");
-      script.id = "leaflet-js"; script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-      script.onload = initMap;
-      document.head.appendChild(script);
-    }
+    let cancelado = false;
+    carregarLeaflet().then(() => { if (!cancelado) initMap(); }).catch(() => {});
     return () => {
+      cancelado = true;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; marcadorRef.current = null; }
     };
   }, []);
