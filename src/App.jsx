@@ -1,10 +1,20 @@
 import { useState, useEffect, createContext, useContext, useRef } from "react";
+import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
 
 // ─────────────────────────────────────────────
 // CONFIG
 // ─────────────────────────────────────────────
 const API_BASE = "https://truker-app-production.up.railway.app";
 const VAPID_PUBLIC_KEY = "BPXxf7PJkl_WSVBkmMFljhbNEZfZs61C7aPrPkL48U_Nk7T4OYOny6vPSJX6ny03qzdO4LvuvSP5sCg9u5JAFLg";
+
+// Chave pública do Mercado Pago (SDK react) — necessária para tokenizar cartão
+// no navegador (Card Payment Brick). Vem de variável de ambiente (Vite).
+const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY || "";
+if (MP_PUBLIC_KEY) {
+  initMercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
+} else {
+  console.warn("[TRUKER] VITE_MP_PUBLIC_KEY não configurada — pagamento com cartão ficará indisponível.");
+}
 
 // ─── Registrar Service Worker e assinar push ──────────────────
 async function registrarPushNotifications(token) {
@@ -6730,6 +6740,7 @@ function FinancasContratante({ onNavigate }) {
 // PAGAMENTOS — CONTRATANTE
 // ─────────────────────────────────────────────
 function PagamentosScreen({ onNavigate }) {
+  const { token } = useAuth();
   const [formas, setFormas] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [tipo, setTipo] = useState("pix");
@@ -6739,22 +6750,44 @@ function PagamentosScreen({ onNavigate }) {
   const tiposForma = [
     { id: "pix", icon: "📱", label: "Pix", desc: "Transferência instantânea" },
     { id: "ted", icon: "🏦", label: "TED/DOC", desc: "Transferência bancária" },
-    { id: "cartao_credito", icon: "💳", label: "Cartão Crédito", desc: "Visa, Master, Elo, Amex" },
-    { id: "cartao_debito", icon: "💳", label: "Cartão Débito", desc: "Visa Débito, Master Débito" },
+    { id: "cartao", icon: "💳", label: "Cartão de Crédito/Débito", desc: "Visa, Master, Elo, Amex" },
     { id: "boleto", icon: "📄", label: "Boleto", desc: "Gerado automaticamente" },
     { id: "carteira", icon: "💰", label: "Carteira Digital", desc: "PicPay, Mercado Pago" },
   ];
   const adicionar = () => { setFormas(f => [...f, { tipo, form: { ...form }, id: Date.now() }]); setForm({}); setShowAdd(false); };
   const remover = (id) => setFormas(f => f.filter(x => x.id !== id));
-  const getIcon = t => ({ pix: "📱", ted: "🏦", cartao_credito: "💳", cartao_debito: "💳", boleto: "📄", carteira: "💰" }[t] || "💳");
+  const getIcon = t => ({ pix: "📱", ted: "🏦", cartao: "💳", boleto: "📄", carteira: "💰" }[t] || "💳");
   const getLabel = t => tiposForma.find(x => x.id === t)?.label || t;
   const getDesc = f => {
     if (f.tipo === "pix") return `Chave: ${f.form.chave || "—"}`;
     if (f.tipo === "ted") return `${(f.form.banco || "").split(" - ")[1] || "—"} · Ag: ${f.form.agencia || "—"} · CC: ${f.form.conta || "—"}`;
-    if (f.tipo === "cartao_credito" || f.tipo === "cartao_debito") return `${f.form.bandeira || "—"} ····${(f.form.numero || "").replace(/\s/g,"").slice(-4)}`;
     if (f.tipo === "carteira") return f.form.carteira || "—";
     return "Gerado automaticamente no pagamento";
   };
+
+  // Cartões salvos de verdade (tokenizados via Mercado Pago ao pagar um frete
+  // com "salvar cartão para próxima vez" marcado — ver PagamentoScreen).
+  const [cartoesSalvos, setCartoesSalvos] = useState([]);
+  const [loadingCartoes, setLoadingCartoes] = useState(true);
+  const [erroCartoes, setErroCartoes] = useState("");
+
+  useEffect(() => {
+    api("GET", "/api/pagamentos/cartoes", null, token)
+      .then(d => setCartoesSalvos(Array.isArray(d) ? d : []))
+      .catch(e => setErroCartoes(e.message))
+      .finally(() => setLoadingCartoes(false));
+  }, []);
+
+  const removerCartao = async (id) => {
+    if (!window.confirm("Remover este cartão salvo?")) return;
+    try {
+      await api("DELETE", `/api/pagamentos/cartoes/${id}`, null, token);
+      setCartoesSalvos(c => c.filter(x => x.id !== id));
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Pagamentos</h1></div>
@@ -6787,15 +6820,11 @@ function PagamentosScreen({ onNavigate }) {
               <div className="field"><label>CPF/CNPJ do titular</label><input value={form.cpf || ""} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" /></div>
               <div className="field"><label>Nome do titular</label><input value={form.titular || ""} onChange={e => set("titular", e.target.value)} placeholder="Nome completo" /></div>
             </>)}
-            {(tipo === "cartao_credito" || tipo === "cartao_debito") && (<>
-              <div className="field"><label>Número do cartão</label><input value={form.numero || ""} onChange={e => set("numero", e.target.value.replace(/\D/g,"").replace(/(.{4})/g,"$1 ").trim().slice(0,19))} placeholder="0000 0000 0000 0000" /></div>
-              <div className="field"><label>Nome no cartão</label><input value={form.titular || ""} onChange={e => set("titular", e.target.value.toUpperCase())} placeholder="NOME COMO NO CARTÃO" /></div>
-              <div className="grid-2">
-                <div className="field"><label>Validade</label><input value={form.validade || ""} onChange={e => set("validade", e.target.value.replace(/\D/g,"").replace(/^(\d{2})(\d)/,"$1/$2").slice(0,5))} placeholder="MM/AA" /></div>
-                <div className="field"><label>CVV</label><input type="password" value={form.cvv || ""} onChange={e => set("cvv", e.target.value.slice(0,4))} placeholder="000" /></div>
+            {tipo === "cartao" && (
+              <div className="alert alert-info">
+                💳 Cartões não são cadastrados por aqui digitando os dados. Por segurança, eles são salvos automaticamente quando você paga um frete e marca a opção <strong>"Salvar cartão para próximas vezes"</strong> na tela de pagamento. Os cartões já salvos aparecem na lista abaixo.
               </div>
-              <div className="field"><label>Bandeira</label><select value={form.bandeira || ""} onChange={e => set("bandeira", e.target.value)}><option value="">Selecione...</option>{["Visa","Mastercard","Elo","American Express","Hipercard","Diners"].map(b => <option key={b}>{b}</option>)}</select></div>
-            </>)}
+            )}
             {tipo === "boleto" && (<div className="alert alert-info">O boleto é gerado automaticamente no momento do pagamento do frete.</div>)}
             {tipo === "carteira" && (<>
               <div className="field"><label>Carteira digital</label><select value={form.carteira || ""} onChange={e => set("carteira", e.target.value)}><option value="">Selecione...</option>{["PicPay","Mercado Pago","PayPal","RecargaPay","AME Digital"].map(c => <option key={c}>{c}</option>)}</select></div>
@@ -6803,7 +6832,9 @@ function PagamentosScreen({ onNavigate }) {
             </>)}
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
               <button className="btn btn-secondary btn-sm" onClick={() => { setShowAdd(false); setForm({}); }}>Cancelar</button>
-              <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={adicionar}>Adicionar</button>
+              {tipo !== "cartao" && (
+                <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={adicionar}>Adicionar</button>
+              )}
             </div>
           </div>
         )}
@@ -6811,7 +6842,7 @@ function PagamentosScreen({ onNavigate }) {
           <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>💳</div>
             <p style={{ fontWeight: 700, fontSize: 16 }}>Nenhuma forma de pagamento</p>
-            <p style={{ fontSize: 13, marginTop: 6 }}>Adicione Pix, cartão, TED ou boleto para pagar seus fretes.</p>
+            <p style={{ fontSize: 13, marginTop: 6 }}>Adicione Pix, TED, boleto ou carteira digital para pagar seus fretes.</p>
           </div>
         )}
         {formas.map(f => (
@@ -6824,6 +6855,27 @@ function PagamentosScreen({ onNavigate }) {
             <button onClick={() => remover(f.id)} style={{ background: "none", border: "none", color: "var(--red)", fontSize: 18, cursor: "pointer" }}>🗑️</button>
           </div>
         ))}
+
+        <div className="card-title" style={{ marginTop: 24, marginBottom: 10 }}>Cartões salvos</div>
+        {loadingCartoes ? <Loading /> : erroCartoes ? (
+          <div className="alert alert-error">{erroCartoes}</div>
+        ) : cartoesSalvos.length === 0 ? (
+          <div className="card" style={{ textAlign: "center", padding: 24, color: "var(--text3)" }}>
+            <div style={{ fontSize: 36, marginBottom: 8 }}>💳</div>
+            <p style={{ fontSize: 13 }}>Nenhum cartão salvo ainda.<br/>Cartões são salvos automaticamente quando você paga um frete com a opção "salvar para próxima vez".</p>
+          </div>
+        ) : (
+          cartoesSalvos.map(c => (
+            <div key={c.id} className="card" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--gold-light)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>💳</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{c.bandeira || "Cartão"} ····{c.ultimos_digitos}</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Validade {String(c.validade_mes || "").padStart(2, "0")}/{c.validade_ano}</div>
+              </div>
+              <button onClick={() => removerCartao(c.id)} style={{ background: "none", border: "none", color: "var(--red)", fontSize: 18, cursor: "pointer" }}>🗑️</button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -6931,37 +6983,49 @@ function AvaliacoesScreen({ onNavigate }) {
 // PAGAMENTO PIX — MercadoPago
 // ─────────────────────────────────────────────
 function PagamentoScreen({ data, onNavigate }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const freteId = data?.freteId;
   const valorInicial = data?.valor || 0;
+  const [metodo, setMetodo] = useState("pix"); // "pix" | "cartao"
+
+  // ── Estado do fluxo Pix ──
   const [qrCode, setQrCode] = useState(null);
   const [pixKey, setPixKey] = useState(null);
-  const [status, setStatus] = useState("criando");
+  const [statusPix, setStatusPix] = useState("criando"); // criando | pending | approved | erro
   const [valor, setValor] = useState(valorInicial);
   const [copiado, setCopiado] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erroPix, setErroPix] = useState("");
   const intervalRef = useRef(null);
 
+  // ── Estado do fluxo Cartão ──
+  const [salvarCartao, setSalvarCartao] = useState(true);
+  const [statusCartao, setStatusCartao] = useState("idle"); // idle | approved
+  const [erroCartao, setErroCartao] = useState("");
+
+  const pago = statusPix === "approved" || statusCartao === "approved";
+
   useEffect(() => {
-    if (!freteId) { setErro("Frete não identificado"); setStatus("erro"); return; }
+    if (metodo !== "pix") return;
+    if (!freteId) { setErroPix("Frete não identificado"); setStatusPix("erro"); return; }
+    if (qrCode || statusPix === "approved") return; // já criado, não recriar ao trocar de aba
     api("POST", `/api/pagamentos/criar-pix/${freteId}`, {}, token)
       .then(d => {
         setQrCode(d.qr_code);
         setPixKey(d.pix_key);
         setValor(d.valor || valorInicial);
-        setStatus(d.status === "approved" ? "approved" : "pending");
+        setStatusPix(d.status === "approved" ? "approved" : "pending");
         if (d.status !== "approved" && d.payment_id) {
           intervalRef.current = setInterval(async () => {
             try {
               const s = await api("GET", `/api/pagamentos/status/${d.payment_id}`, null, token);
-              if (s.status === "approved") { setStatus("approved"); clearInterval(intervalRef.current); }
+              if (s.status === "approved") { setStatusPix("approved"); clearInterval(intervalRef.current); }
             } catch {}
           }, 5000);
         }
       })
-      .catch(e => { setErro(e.message); setStatus("erro"); });
+      .catch(e => { setErroPix(e.message); setStatusPix("erro"); });
     return () => clearInterval(intervalRef.current);
-  }, [freteId]);
+  }, [metodo, freteId]);
 
   const copiar = () => {
     if (!pixKey) return;
@@ -6972,7 +7036,40 @@ function PagamentoScreen({ data, onNavigate }) {
     } catch {}
   };
 
-  if (status === "approved") return (
+  // Chamado pelo Card Payment Brick do Mercado Pago já com o token gerado no
+  // navegador (número/validade/CVV nunca passam pelo nosso backend). Resolver
+  // a promise = sucesso (Brick reseta o botão); rejeitar = falha (idem, mas o
+  // Brick mostra o próprio aviso genérico — por isso também mostramos o nosso
+  // alerta detalhado logo acima do formulário).
+  const onCardSubmit = (formData) => new Promise(async (resolve, reject) => {
+    setErroCartao("");
+    try {
+      const resp = await api("POST", `/api/pagamentos/criar-cartao/${freteId}`, {
+        token: formData.token,
+        payment_method_id: formData.payment_method_id,
+        installments: formData.installments,
+        issuer_id: formData.issuer_id,
+        payer: formData.payer,
+        salvarCartao,
+      }, token);
+      if (resp.status === "approved") {
+        setStatusCartao("approved");
+        resolve();
+        return;
+      }
+      if (resp.status === "rejected") {
+        setErroCartao("Pagamento recusado pela operadora do cartão. Verifique os dados ou tente outro cartão.");
+      } else {
+        setErroCartao(`Pagamento em análise (${resp.status_detail || resp.status}). Você será avisado quando for confirmado.`);
+      }
+      reject(new Error("Pagamento não aprovado"));
+    } catch (e) {
+      setErroCartao(e.message || "Erro ao processar pagamento com cartão.");
+      reject(e);
+    }
+  });
+
+  if (pago) return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate("meus-fretes")}>←</button><h1>Pagamento</h1></div>
       <div className="content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
@@ -6986,40 +7083,83 @@ function PagamentoScreen({ data, onNavigate }) {
 
   return (
     <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Pagar via Pix</h1></div>
+      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Pagar Frete</h1></div>
       <div className="content">
-        {status === "criando" && <Loading />}
-        {erro && <div className="alert alert-error">{erro}</div>}
-        {status === "pending" && qrCode && (
-          <>
-            <div className="card" style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>Valor a pagar</div>
-              <div style={{ fontSize: 40, fontWeight: 900, color: "var(--gold)", marginBottom: 20 }}>{formatMoney(valor)}</div>
-              <img src={`data:image/png;base64,${qrCode}`} alt="QR Code Pix" style={{ width: 220, height: 220, margin: "0 auto 16px", display: "block", borderRadius: 12, border: "2px solid var(--border)" }} />
-              <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 14 }}>Escaneie com o app do seu banco ou copie a chave</p>
-              <button className="btn btn-primary" onClick={copiar}>
-                {copiado ? "✅ Copiado!" : "📋 Copiar Chave Pix"}
-              </button>
-            </div>
-            <div className="card" style={{ borderLeft: "4px solid var(--gold)" }}>
-              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14 }}>Como pagar:</div>
-              <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.8 }}>
-                1. Abra o app do seu banco<br/>
-                2. Escolha <strong>Pix → Pagar</strong><br/>
-                3. Leia o QR Code ou cole a chave copiada<br/>
-                4. Confirme o pagamento de <strong>{formatMoney(valor)}</strong><br/>
-                5. Esta tela confirma automaticamente ✓
+        <div className="carga-grid" style={{ marginBottom: 16, gridTemplateColumns: "1fr 1fr" }}>
+          <div className={`carga-item ${metodo === "pix" ? "selected" : ""}`} onClick={() => setMetodo("pix")}>
+            <div className="ci-icon">📱</div>
+            <div className="ci-label" style={{ fontSize: 12 }}>Pix</div>
+          </div>
+          <div className={`carga-item ${metodo === "cartao" ? "selected" : ""}`} onClick={() => setMetodo("cartao")}>
+            <div className="ci-icon">💳</div>
+            <div className="ci-label" style={{ fontSize: 12 }}>Cartão</div>
+          </div>
+        </div>
+
+        {metodo === "pix" && (<>
+          {statusPix === "criando" && <Loading />}
+          {erroPix && <div className="alert alert-error">{erroPix}</div>}
+          {statusPix === "pending" && qrCode && (
+            <>
+              <div className="card" style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>Valor a pagar</div>
+                <div style={{ fontSize: 40, fontWeight: 900, color: "var(--gold)", marginBottom: 20 }}>{formatMoney(valor)}</div>
+                <img src={`data:image/png;base64,${qrCode}`} alt="QR Code Pix" style={{ width: 220, height: 220, margin: "0 auto 16px", display: "block", borderRadius: 12, border: "2px solid var(--border)" }} />
+                <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 14 }}>Escaneie com o app do seu banco ou copie a chave</p>
+                <button className="btn btn-primary" onClick={copiar}>
+                  {copiado ? "✅ Copiado!" : "📋 Copiar Chave Pix"}
+                </button>
+              </div>
+              <div className="card" style={{ borderLeft: "4px solid var(--gold)" }}>
+                <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 14 }}>Como pagar:</div>
+                <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.8 }}>
+                  1. Abra o app do seu banco<br/>
+                  2. Escolha <strong>Pix → Pagar</strong><br/>
+                  3. Leia o QR Code ou cole a chave copiada<br/>
+                  4. Confirme o pagamento de <strong>{formatMoney(valor)}</strong><br/>
+                  5. Esta tela confirma automaticamente ✓
+                </div>
+              </div>
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "var(--text3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", opacity: 0.7 }} />
+                Aguardando confirmação do pagamento...
+              </div>
+              <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "var(--text3)" }}>
+                Powered by MercadoPago
+              </div>
+            </>
+          )}
+        </>)}
+
+        {metodo === "cartao" && (<>
+          <div className="card" style={{ textAlign: "center", marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>Valor a pagar</div>
+            <div style={{ fontSize: 32, fontWeight: 900, color: "var(--gold)" }}>{formatMoney(valorInicial)}</div>
+          </div>
+
+          {erroCartao && <div className="alert alert-error">{erroCartao}</div>}
+
+          {!MP_PUBLIC_KEY && (
+            <div className="alert alert-error">Pagamento com cartão indisponível no momento: chave pública do Mercado Pago não configurada.</div>
+          )}
+
+          {MP_PUBLIC_KEY && freteId && (
+            <div className="card">
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={salvarCartao} onChange={e => setSalvarCartao(e.target.checked)} />
+                Salvar cartão para próximas vezes
+              </label>
+              <CardPayment
+                initialization={{ amount: valorInicial, payer: { email: user?.email || "" } }}
+                onSubmit={onCardSubmit}
+                onError={(err) => console.error("[MP CardPayment]", err)}
+              />
+              <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "var(--text3)" }}>
+                Powered by MercadoPago
               </div>
             </div>
-            <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "var(--text3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", opacity: 0.7 }} />
-              Aguardando confirmação do pagamento...
-            </div>
-            <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "var(--text3)" }}>
-              Powered by MercadoPago
-            </div>
-          </>
-        )}
+          )}
+        </>)}
       </div>
     </div>
   );
