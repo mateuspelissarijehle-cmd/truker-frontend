@@ -6065,8 +6065,12 @@ function DadosCaminhaoMotorista({ onNavigate }) {
               <option value="">Selecione...</option>
               {carroceriasDisp.map(c => <option key={c.id} value={c.id}>{ICONE_CARROCERIA[c.id] || ""} {c.label}</option>)}
             </select>
-            {!form.tipoVeiculo && (
+            {!form.tipoVeiculo ? (
               <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>Selecione o chassi acima primeiro.</div>
+            ) : (
+              <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                Só vale pro matching de fretes se você <strong>não</strong> tiver um conjunto de carretas ativo em "Composição Veicular" logo abaixo — assim que você ativa um conjunto lá, é ele que passa a decidir quais fretes aparecem pra você, e este campo é ignorado.
+              </div>
             )}
           </div>
         </div>
