@@ -14,16 +14,17 @@ import {
 } from "./data/catalogos";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { css } from "./styles/css";
+import { StatusBadge } from "./components/StatusBadge";
+import { Loading } from "./components/Loading";
+import { PasswordInput } from "./components/PasswordInput";
+import { TrukerLogo } from "./components/TrukerLogo";
+import { BottomNavContratante } from "./components/BottomNavContratante";
+import { BottomNavMotorista } from "./components/BottomNavMotorista";
+import { OpcoesMenu } from "./components/OpcoesMenu";
 
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
-function StatusBadge({ status }) {
-  const map = { aguardando: ["badge-pending", "Aguardando"], aceito: ["badge-active", "Aceito"], coletando: ["badge-active", "Coletando"], em_rota: ["badge-active", "Em Rota"], entregue: ["badge-done", "Entregue"], cancelado: ["badge-cancel", "Cancelado"] };
-  const [cls, label] = map[status] || ["badge-pending", status];
-  return <span className={`badge ${cls}`}>{label}</span>;
-}
-function Loading() { return <div className="loading"><div className="spinner" />Carregando...</div>; }
 
 // Campo de cidade com autocomplete (Google Places, restrito a cidades via
 // GET /api/maps/autocomplete). Controlado — value/onChange ficam com quem chama,
@@ -452,46 +453,9 @@ function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], orige
     </div>
   );
 }
-function PasswordInput({ value, onChange, placeholder, inputStyle }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="input-eye">
-      <input type={show ? "text" : "password"} value={value} onChange={onChange} placeholder={placeholder || "••••••••"} style={inputStyle} />
-      <button className="eye" type="button" onClick={() => setShow(!show)}>{show ? "🙈" : "👁"}</button>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────────
 // SPLASH
 // ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-// LOGO COMPONENT
-// ─────────────────────────────────────────────
-function TrukerLogo({ size = "md", noTagline = false }) {
-  const sizes = {
-    sm: { t: 28, box: 52, name: 16, tagline: false },
-    md: { t: 44, box: 80, name: 26, tagline: true },
-    lg: { t: 64, box: 112, name: 38, tagline: true },
-  };
-  const s = sizes[size] || sizes.md;
-  return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{
-        width: s.box, height: s.box, borderRadius: s.box * 0.22,
-        background: "linear-gradient(145deg, #D4A843, #9A7930, #C9A84C)",
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        marginBottom: 10,
-        boxShadow: "0 4px 20px rgba(168,135,58,0.4), inset 0 1px 0 rgba(255,255,255,0.2)",
-      }}>
-        <span style={{ fontSize: s.t, fontWeight: 800, color: "#1A1209", fontFamily: "Inter, sans-serif", lineHeight: 1, letterSpacing: -2 }}>T</span>
-      </div>
-      <div style={{ fontSize: s.name, fontWeight: 700, letterSpacing: 7, color: "#1A1209", fontFamily: "Inter, sans-serif", textTransform: "uppercase" }}>TRUKER</div>
-      {s.tagline && !noTagline && <div style={{ fontSize: 12, color: "#8A7E6E", marginTop: 5, letterSpacing: 0.5 }}>Fretes pesados, sem km vazio</div>}
-    </div>
-  );
-}
-
 function SplashScreen({ onNavigate }) {
   const { user } = useAuth();
   useEffect(() => {
@@ -4806,108 +4770,8 @@ function AvaliarScreen({ data, onNavigate }) {
 }
 
 // ─────────────────────────────────────────────
-// SVG ICONS para Bottom Nav
-// ─────────────────────────────────────────────
-function IconHome({ active }) {
-  const c = active ? "#C9A84C" : "#A09282";
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H15V15H9V21H4C3.45 21 3 20.55 3 20V9.5Z" fill={c}/></svg>;
-}
-function IconActivity({ active }) {
-  const c = active ? "#C9A84C" : "#A09282";
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="2" rx="1" fill={c}/><rect x="3" y="9" width="14" height="2" rx="1" fill={c}/><rect x="3" y="14" width="18" height="2" rx="1" fill={c}/><rect x="3" y="19" width="10" height="2" rx="1" fill={c}/></svg>;
-}
-function IconAccount({ active }) {
-  const c = active ? "#C9A84C" : "#A09282";
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill={c}/><path d="M4 20C4 16.69 7.58 14 12 14C16.42 14 20 16.69 20 20" stroke={c} strokeWidth="2" strokeLinecap="round"/></svg>;
-}
-function IconOptions({ active }) {
-  const c = active ? "#C9A84C" : "#A09282";
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="5" r="2" fill={c}/><circle cx="12" cy="12" r="2" fill={c}/><circle cx="12" cy="19" r="2" fill={c}/></svg>;
-}
-
-// ─────────────────────────────────────────────
-// BOTTOM NAVS — estilo Uber 4 abas
-// ─────────────────────────────────────────────
-function BottomNavContratante({ active, onNavigate }) {
-  const tabs = [
-    { id: "inicio", label: "Início", screen: "home-contratante", Icon: IconHome },
-    { id: "atividade", label: "Atividade", screen: "meus-fretes", Icon: IconActivity },
-    { id: "conta", label: "Conta", screen: "perfil", Icon: IconAccount },
-    { id: "opcoes", label: "Opções", screen: "opcoes-contratante", Icon: IconOptions },
-  ];
-  return (
-    <nav className="bottom-nav">
-      {tabs.map(({ id, label, screen, Icon }) => (
-        <button key={id} className={`nav-item ${active === id ? "active" : ""}`} onClick={() => onNavigate(screen)}>
-          <Icon active={active === id} />
-          <span style={{ fontSize: 9 }}>{label}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-function BottomNavMotorista({ active, onNavigate }) {
-  const tabs = [
-    { id: "inicio", label: "Início", screen: "home-motorista", Icon: IconHome },
-    { id: "atividade", label: "Atividade", screen: "meus-fretes-motorista", Icon: IconActivity },
-    { id: "conta", label: "Conta", screen: "perfil-motorista", Icon: IconAccount },
-    { id: "opcoes", label: "Opções", screen: "opcoes-motorista", Icon: IconOptions },
-  ];
-  return (
-    <nav className="bottom-nav">
-      {tabs.map(({ id, label, screen, Icon }) => (
-        <button key={id} className={`nav-item ${active === id ? "active" : ""}`} onClick={() => onNavigate(screen)}>
-          <Icon active={active === id} />
-          <span style={{ fontSize: 9 }}>{label}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
-
-// ─────────────────────────────────────────────
-// PLACEHOLDER
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
 // TELA OPÇÕES — Motorista
 // ─────────────────────────────────────────────
-// Corpo comum das telas de Opções (motorista/contratante): cabeçalho do
-// usuário + lista de itens navegáveis. A bottom nav varia por perfil, então
-// fica a cargo de quem usa (via children).
-function OpcoesMenu({ itens, onNavigate, children }) {
-  const { user } = useAuth();
-  return (
-    <div className="screen">
-      <div className="header"><h1>Opções</h1></div>
-      <div className="content">
-        <div style={{ textAlign: "center", padding: "20px 0 24px" }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
-            <span style={{ fontSize: 22, fontWeight: 800, color: "#1A1209" }}>T</span>
-          </div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text)" }}>{user?.nome}</div>
-          <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>{user?.email}</div>
-        </div>
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          {itens.map((item, i) => (
-            <div key={i} onClick={() => item.screen && onNavigate(item.screen)}
-              style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", borderBottom: i < itens.length - 1 ? "1px solid var(--border)" : "none", cursor: item.screen ? "pointer" : "default" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "var(--surface2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{item.icon}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{item.label}</div>
-                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 1 }}>{item.sub}</div>
-              </div>
-              {item.screen && <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-      {children}
-    </div>
-  );
-}
-
 function OpcoesMotorista({ onNavigate }) {
   const itens = [
     { icon: "📨", label: "Minhas Propostas", sub: "Acompanhe negociações de valor", screen: "minhas-propostas" },
