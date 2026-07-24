@@ -1,296 +1,18 @@
 import { useState, useEffect, createContext, useContext, useRef } from "react";
-import { initMercadoPago, CardPayment } from "@mercadopago/sdk-react";
-
-// ─────────────────────────────────────────────
-// CONFIG
-// ─────────────────────────────────────────────
-const API_BASE = "https://truker-app-production.up.railway.app";
-
-// Chave pública do Mercado Pago (SDK react) — necessária para tokenizar cartão
-// no navegador (Card Payment Brick). Vem de variável de ambiente (Vite).
-const MP_PUBLIC_KEY = import.meta.env.VITE_MP_PUBLIC_KEY || "";
-if (MP_PUBLIC_KEY) {
-  initMercadoPago(MP_PUBLIC_KEY, { locale: "pt-BR" });
-} else {
-  console.warn("[TRUKER] VITE_MP_PUBLIC_KEY não configurada — pagamento com cartão ficará indisponível.");
-}
-
-// ─── Registrar Service Worker e assinar push ──────────────────
-async function registrarPushNotifications(token) {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    console.warn("[TRUKER] Push não suportado neste browser");
-    return;
-  }
-  try {
-    const reg = await navigator.serviceWorker.register("/sw.js");
-    await navigator.serviceWorker.ready;
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      console.warn("[TRUKER] Permissão de notificação negada");
-      return;
-    }
-    // Cancela subscription antiga e cria nova para garantir validade
-    const subExistente = await reg.pushManager.getSubscription();
-    if (subExistente) await subExistente.unsubscribe();
-    // Chave pública buscada do backend (não hardcoded) -- fonte única de
-    // verdade é o VAPID_PUBLIC_KEY do .env do servidor, evita divergência
-    // silenciosa se a chave rotacionar um dia.
-    const { key: vapidPublicKey } = await api("GET", "/api/push/vapid-public-key");
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    });
-    await api("POST", "/api/push/subscribe", { subscription: sub.toJSON() }, token);
-    console.log("[TRUKER] Push subscrito:", sub.endpoint);
-  } catch (err) {
-    console.error("[TRUKER] Push registration error:", err);
-  }
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = atob(base64);
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
-}
-
-// Timeout de rede pro fetch — sem isso, uma conexão que trava no meio do
-// caminho (comum em rede de celular/estrada) deixa a promise pendurada pra
-// sempre: nunca resolve, nunca rejeita, e qualquer loading state (ex: botão
-// "Aceitando...") fica preso indefinidamente sem erro nenhum pro usuário ver.
-const API_TIMEOUT_MS = 20000;
-
-async function api(method, path, body, token) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-  let res;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.");
-    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.");
-  } finally {
-    clearTimeout(timeoutId);
-  }
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || data.message || "Erro na requisição");
-  return data;
-}
-
-// Envia arquivo(s) via multipart/form-data (upload de documento/comprovante). Não
-// define Content-Type manualmente -- o browser precisa gerar o boundary do
-// multipart sozinho; `api()` acima força application/json, por isso não serve
-// pra upload de arquivo (era parte do motivo do botão de CNH não funcionar: não
-// existia nem um jeito de mandar o arquivo pro backend).
-async function apiUpload(method, path, formData, token) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-  let res;
-  try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method,
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      body: formData,
-      signal: controller.signal,
-    });
-  } catch (err) {
-    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.");
-    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.");
-  } finally {
-    clearTimeout(timeoutId);
-  }
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || data.message || "Erro na requisição");
-  return data;
-}
-
-// Baixa um arquivo binário autenticado (ex: PDF de contrato) e abre em nova aba.
-// O endpoint só aceita token via header Authorization, então não dá pra usar
-// window.open(url) direto — buscamos como blob e abrimos uma URL local.
-// A aba é aberta ANTES do fetch (síncrono, dentro do clique do usuário) e só
-// redirecionada depois — abrir só no final, após o await, é bloqueado como
-// pop-up pela maioria dos navegadores por perder o gesto do usuário.
-async function abrirArquivoAutenticado(path, token) {
-  const novaJanela = window.open("", "_blank");
-  try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      let msg = "Não foi possível abrir o arquivo";
-      try { const data = await res.json(); msg = data.error || msg; } catch {}
-      throw new Error(msg);
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    if (novaJanela) novaJanela.location.href = url;
-    else window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch (e) {
-    if (novaJanela) novaJanela.close();
-    throw e;
-  }
-}
-
-// ─────────────────────────────────────────────
-// TIPOS DE CARGA
-// ─────────────────────────────────────────────
-const TIPOS_CARGA = [
-  { id: "carga_seca", label: "Carga Seca", icon: "📦", desc: "Paletes, caixas, embalagens gerais" },
-  { id: "graneleiro", label: "Graneleiro", icon: "🌾", desc: "Grãos, cereais, farinha" },
-  { id: "refrigerada", label: "Refrigerada", icon: "❄️", desc: "Alimentos perecíveis, laticínios" },
-  { id: "frigorifico", label: "Frigorífico", icon: "🥩", desc: "Carnes, aves, embutidos" },
-  { id: "mudanca", label: "Mudança", icon: "🏠", desc: "Móveis, eletrodomésticos" },
-  { id: "carga_viva", label: "Carga Viva", icon: "🐄", desc: "Animais vivos" },
-  { id: "liquidos", label: "Líquidos", icon: "💧", desc: "Água, sucos, bebidas" },
-  { id: "inflamavel", label: "Inflamável", icon: "🔥", desc: "Combustíveis, solventes" },
-  { id: "perigosa", label: "Perigosa/IMOS", icon: "⚠️", desc: "Produtos químicos, explosivos" },
-  { id: "farmaceutico", label: "Farmacêutico", icon: "💊", desc: "Medicamentos, insumos" },
-  { id: "eletronicos", label: "Eletrônicos", icon: "💻", desc: "Computadores, celulares, TVs" },
-  { id: "alimentos", label: "Alimentos Secos", icon: "🥫", desc: "Enlatados, grãos embalados" },
-  { id: "bebidas", label: "Bebidas", icon: "🍺", desc: "Cerveja, refrigerante, água" },
-  { id: "construcao", label: "Construção", icon: "🧱", desc: "Cimento, areia, tijolos" },
-  { id: "maquinario", label: "Maquinário", icon: "⚙️", desc: "Máquinas agrícolas, equipamentos" },
-  { id: "superdimensionado", label: "Superdimensionado", icon: "🏗️", desc: "Cargas indivisíveis, oversized" },
-  { id: "residuos", label: "Resíduos/Sucata", icon: "♻️", desc: "Recicláveis, resíduos industriais" },
-  { id: "veiculos", label: "Veículos", icon: "🚗", desc: "Carros, motos, caminhões" },
-  { id: "classificados", label: "Classificados", icon: "🔒", desc: "Valores, documentos, escolta" },
-  { id: "madeira", label: "Madeira", icon: "🪵", desc: "Toras, compensados, móveis" },
-];
-
-// Regras de formulário dinâmico por tipo de carga:
-//  - dimensoes: mostrar campos comprimento/largura/altura?
-//  - especial:  campo extra específico ("animal" | "itens" | "material" | null)
-// Peso é SEMPRE obrigatório (não entra aqui). Espelha a lógica do backend.
-const REGRAS_CARGA = {
-  carga_seca:        { dimensoes: true,  especial: null },
-  graneleiro:        { dimensoes: false, especial: null },
-  refrigerada:       { dimensoes: true,  especial: null },
-  frigorifico:       { dimensoes: true,  especial: null },
-  mudanca:           { dimensoes: false, especial: "itens" },
-  carga_viva:        { dimensoes: false, especial: "animal" },
-  liquidos:          { dimensoes: false, especial: null },
-  inflamavel:        { dimensoes: false, especial: null },
-  perigosa:          { dimensoes: true,  especial: null },
-  farmaceutico:      { dimensoes: true,  especial: null },
-  eletronicos:       { dimensoes: true,  especial: null },
-  alimentos:         { dimensoes: true,  especial: null },
-  bebidas:           { dimensoes: true,  especial: null },
-  construcao:        { dimensoes: false, especial: "material" },
-  maquinario:        { dimensoes: true,  especial: null },
-  superdimensionado: { dimensoes: true,  especial: null },
-  residuos:          { dimensoes: false, especial: null },
-  veiculos:          { dimensoes: true,  especial: null },
-  classificados:     { dimensoes: true,  especial: null },
-  madeira:           { dimensoes: true,  especial: null },
-};
-const regrasCarga = (id) => REGRAS_CARGA[id] || { dimensoes: true, especial: null };
-
-const TIPOS_ANIMAL = ["Bovino", "Suíno", "Aves", "Equino", "Ovino/Caprino", "Outros"];
-const TIPOS_MATERIAL = ["Cimento", "Areia", "Brita", "Tijolo/Bloco", "Vergalhão/Aço", "Madeira", "Telhas", "Outros"];
-
-// TIPOS_VEICULO = CHASSI real (o que determina o número de eixos, base do
-// piso mínimo ANTT — services/antt.js VEICULOS é a mesma lista, mesmos ids).
-// NÃO confundir com carroceria (o que vai montado em cima: graneleiro, tanque,
-// prancha, munck, frigorífico — isso é escolhido separadamente, ver
-// CARROCERIAS_ESPECIAIS abaixo e o campo "carroceria" nos formulários).
-// Corrigido em 14/07/2026: antes esta lista misturava os dois conceitos.
-const TIPOS_VEICULO = [
-  { id: "furgao", label: "Furgão", icon: "🚐", cap: "1,5t", eixosPadrao: 2 },
-  { id: "vuc", label: "VUC", icon: "🚚", cap: "3t", eixosPadrao: 2 },
-  { id: "toco", label: "Toco", icon: "🚛", cap: "6t", eixosPadrao: 2 },
-  { id: "truck", label: "Truck", icon: "🚛", cap: "14t", eixosPadrao: 3 },
-  { id: "carreta", label: "Carreta", icon: "🚛", cap: "25t", eixosPadrao: 4 },
-  { id: "bitrem", label: "Bitrem", icon: "🚛", cap: "45t", eixosPadrao: 6 },
-  { id: "rodotrem", label: "Rodotrem", icon: "🚛", cap: "57t", eixosPadrao: 9 },
-];
-function eixosPadraoDoChassi(tipoVeiculoId) {
-  return TIPOS_VEICULO.find(v => v.id === tipoVeiculoId)?.eixosPadrao ?? 4;
-}
-
-// CARROCERIA — o que vai montado no chassi, determina só compatibilidade de
-// carga (não o piso). O catálogo completo com labels vem de
-// GET /api/motoristas/carrocerias-disponiveis (services/matching.js
-// CARROCERIAS é a fonte única de verdade); esta lista curta é só pros ícones.
-const ICONE_CARROCERIA = {
-  bau: "📦", bau_frigorifico: "❄️", bau_refrigerado: "🧊", sider: "📦",
-  graneleiro: "🌾", grade_baixa: "📐", cacamba: "🪨", plataforma: "🛠️",
-  prancha: "🚧", tanque: "⛽", porta_container: "🚢", cegonha: "🚗",
-  gaiola: "🐄", munck: "🏗️",
-};
-
-// Nome do estado → sigla. O Google Places às vezes retorna o nome completo do
-// estado (ex: "Paraná") em vez da sigla nos terms do autocomplete de cidades —
-// essa tabela garante que a UF preenchida automaticamente sempre vira 2 letras,
-// igual ao padrão já usado no preenchimento por CEP.
-const UF_POR_NOME = {
-  "acre": "AC", "alagoas": "AL", "amapá": "AP", "amapa": "AP", "amazonas": "AM",
-  "bahia": "BA", "ceará": "CE", "ceara": "CE", "distrito federal": "DF",
-  "espírito santo": "ES", "espirito santo": "ES", "goiás": "GO", "goias": "GO",
-  "maranhão": "MA", "maranhao": "MA", "mato grosso": "MT", "mato grosso do sul": "MS",
-  "minas gerais": "MG", "pará": "PA", "para": "PA", "paraíba": "PB", "paraiba": "PB",
-  "paraná": "PR", "parana": "PR", "pernambuco": "PE", "piauí": "PI", "piaui": "PI",
-  "rio de janeiro": "RJ", "rio grande do norte": "RN", "rio grande do sul": "RS",
-  "rondônia": "RO", "rondonia": "RO", "roraima": "RR", "santa catarina": "SC",
-  "são paulo": "SP", "sao paulo": "SP", "sergipe": "SE", "tocantins": "TO",
-};
-// Resolve um termo de estado (sigla já pronta ou nome completo) pra sigla de 2 letras.
-function resolverUF(termo) {
-  if (!termo) return "";
-  const limpo = termo.trim();
-  if (limpo.length === 2) return limpo.toUpperCase();
-  return UF_POR_NOME[limpo.toLowerCase()] || "";
-}
-
-// Busca endereço por CEP na ViaCEP. Retorna null se o CEP for inválido,
-// não existir ou a requisição falhar.
-async function buscarEnderecoPorCep(cep) {
-  const clean = (cep || "").replace(/\D/g, "");
-  if (clean.length !== 8) return null;
-  try {
-    const r = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
-    const d = await r.json();
-    if (d.erro) return null;
-    return { logradouro: d.logradouro || "", bairro: d.bairro || "", cidade: d.localidade || "", uf: d.uf || "" };
-  } catch { return null; }
-}
-
-// Busca a rota real (OSRM, gratuito, sem API key) entre 2 pontos "lng,lat".
-// Retorna a rota (geometry + distance + duration) ou null se falhar.
-async function buscarRotaOSRM(start, end) {
-  try {
-    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`);
-    const data = await r.json();
-    return data.routes?.[0] || null;
-  } catch { return null; }
-}
-
-const TIPOS_FRETE = [
-  { id: "urbano", label: "Urbano", icon: "🏙️", desc: "Até 50km, dentro da cidade" },
-  { id: "intermunicipal", label: "Intermunicipal", icon: "🛣️", desc: "50 a 300km, entre cidades" },
-  { id: "interestadual", label: "Interestadual", icon: "🗺️", desc: "Acima de 300km, entre estados" },
-  { id: "internacional", label: "Internacional", icon: "🌎", desc: "Cruzando fronteiras" },
-];
-
-// Mapeamento frontend → categoria oficial ANTT (Tabela A, Resolução 5.867/2020 + Portaria SUROC 4/2026)
-// Categorias disponíveis: geral, frigorificado, perigoso, granel_liquido, granel_solido, neogranel, conteinerizado, granel_pressurizado
-const CARGA_BACKEND_MAP = {
-  carga_seca: "geral", graneleiro: "granel_solido", refrigerada: "frigorificado",
-  frigorifico: "frigorificado", mudanca: "geral", carga_viva: "geral",
-  liquidos: "granel_liquido", inflamavel: "perigoso", perigosa: "perigoso",
-  farmaceutico: "geral", eletronicos: "geral", alimentos: "geral",
-  bebidas: "geral", construcao: "granel_solido", maquinario: "geral",
-  superdimensionado: "geral", residuos: "granel_solido", veiculos: "geral",
-  classificados: "geral", madeira: "geral",
-};
+import { CardPayment } from "@mercadopago/sdk-react";
+import { MP_PUBLIC_KEY } from "./config";
+import { api, apiUpload, abrirArquivoAutenticado } from "./services/api";
+import { registrarPushNotifications } from "./services/push";
+import { buscarEnderecoPorCep } from "./services/viaCep";
+import { buscarRotaOSRM } from "./services/osrm";
+import { formatMoney, formatKm } from "./utils/format";
+import { mascararDado, mascararEmail, maskCep, maskPlaca } from "./utils/mask";
+import { resolverUF, distanciaMetros, calcularRumo } from "./utils/geo";
+import {
+  TIPOS_CARGA, REGRAS_CARGA, regrasCarga, TIPOS_ANIMAL, TIPOS_MATERIAL,
+  TIPOS_VEICULO, eixosPadraoDoChassi, ICONE_CARROCERIA, TIPOS_FRETE,
+  CARGA_BACKEND_MAP, TIPOS_DESPESA,
+} from "./data/catalogos";
 
 // ─────────────────────────────────────────────
 // AUTH CONTEXT
@@ -467,24 +189,6 @@ const css = `
 // ─────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────
-function formatMoney(v) { return "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 }); }
-function formatKm(v) { return Number(v || 0).toLocaleString("pt-BR") + " km"; }
-// Mascara um dado sensível antes de mandar pro backend (ex.: chave Pix, conta
-// bancária) — só os últimos dígitos ficam visíveis, o resto vira •. Usado pra
-// nunca persistir o dado completo em "formas de pagamento salvas".
-function mascararDado(valor, visiveis = 4) {
-  const v = (valor || "").toString().trim();
-  if (!v) return "";
-  if (v.length <= visiveis) return "•".repeat(v.length);
-  return "••••" + v.slice(-visiveis);
-}
-// Mesma ideia, mas pra email (mantém domínio visível — senão fica ilegível).
-function mascararEmail(valor) {
-  const v = (valor || "").trim();
-  const [usuario, dominio] = v.split("@");
-  if (!dominio) return mascararDado(v);
-  return `${usuario.slice(0, 1)}${"•".repeat(Math.max(usuario.length - 1, 3))}@${dominio}`;
-}
 function StatusBadge({ status }) {
   const map = { aguardando: ["badge-pending", "Aguardando"], aceito: ["badge-active", "Aceito"], coletando: ["badge-active", "Coletando"], em_rota: ["badge-active", "Em Rota"], entregue: ["badge-done", "Entregue"], cancelado: ["badge-cancel", "Cancelado"] };
   const [cls, label] = map[status] || ["badge-pending", status];
@@ -602,23 +306,6 @@ function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf, tipoVe
 // — é o que dirige o traçado de rota ao vivo (recalculado conforme lat/lng
 // mudam) e o ETA via onRotaInfo. Sem metaAoVivo, cai no comportamento antigo
 // (traçado único e estático entre origem e destino).
-// Distância (metros) e rumo (graus, 0-360 a partir do Norte) entre 2 pontos —
-// usados pro modo de navegação: decidir se moveu o suficiente pra recalcular
-// a direção (evita jitter do GPS parado) e pra rotacionar a seta do motorista.
-function distanciaMetros(lat1, lng1, lat2, lng2) {
-  const R = 6371000, toRad = d => d * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-function calcularRumo(lat1, lng1, lat2, lng2) {
-  const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
-  const dLng = toRad(lng2 - lng1);
-  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
-  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
-  return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
-
 // Ícone do motorista: bolinha simples (mapas sem orientação) ou seta
 // direcional rotacionável (modo navegação, ex.: tela "Em Trânsito").
 function criarIconeMotorista(comOrientacao, headingDeg) {
@@ -2512,20 +2199,6 @@ function ContratanteHome({ onNavigate }) {
 // ─────────────────────────────────────────────
 // SOLICITAR FRETE
 // ─────────────────────────────────────────────
-const maskCep = v => v.replace(/\D/g, "").slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
-
-// Máscara de placa BR: antigo ABC-1234 ou Mercosul ABC1D23
-const maskPlaca = v => {
-  const s = v.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
-  if (s.length <= 3) return s;
-  // Mercosul: 4ª posição é número, 5ª é letra
-  if (s.length >= 5 && /\d/.test(s[3]) && /[A-Z]/.test(s[4])) {
-    return s.slice(0, 3) + s.slice(3); // sem traço no Mercosul
-  }
-  // Antigo: ABC-1234
-  return s.slice(0, 3) + "-" + s.slice(3);
-};
-
 function SolicitarFreteScreen({ onNavigate, screenData }) {
   const { token } = useAuth();
   const [step, setStep] = useState(1);
@@ -5471,14 +5144,6 @@ function TermosScreen({ onNavigate }) {
     </div>
   );
 }
-
-const TIPOS_DESPESA = [
-  { id: "combustivel", icon: "⛽", label: "Combustível" }, { id: "manutencao", icon: "🔧", label: "Manutenção" },
-  { id: "pedagio", icon: "🛣️", label: "Pedágio" }, { id: "pneu", icon: "🔄", label: "Pneus" },
-  { id: "seguro", icon: "🛡️", label: "Seguro" }, { id: "multa", icon: "🚨", label: "Multa" },
-  { id: "alimentacao", icon: "🍽️", label: "Alimentação" }, { id: "hospedagem", icon: "🏨", label: "Hospedagem" },
-  { id: "outro", icon: "📦", label: "Outro" },
-];
 
 // Fonte única de verdade das despesas do motorista: busca a lista de despesas
 // registradas e o resumo de custos ANTT (/custos-resumo, que soma combustível +
