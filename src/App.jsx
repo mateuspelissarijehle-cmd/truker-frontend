@@ -1,27 +1,6 @@
-import { useState, useEffect, useRef } from "react";
-import { api, apiUpload, abrirArquivoAutenticado } from "./services/api";
-import { buscarEnderecoPorCep } from "./services/viaCep";
-import { formatMoney, formatKm } from "./utils/format";
-import { maskCep, maskPlaca } from "./utils/mask";
-import {
-  TIPOS_CARGA, REGRAS_CARGA, regrasCarga, TIPOS_ANIMAL, TIPOS_MATERIAL,
-  TIPOS_VEICULO, eixosPadraoDoChassi, ICONE_CARROCERIA, TIPOS_FRETE,
-  CARGA_BACKEND_MAP, TIPOS_DESPESA,
-} from "./data/catalogos";
+import { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { css } from "./styles/css";
-import { StatusBadge } from "./components/StatusBadge";
-import { Loading } from "./components/Loading";
-import { PasswordInput } from "./components/PasswordInput";
-import { TrukerLogo } from "./components/TrukerLogo";
-import { BottomNavContratante } from "./components/BottomNavContratante";
-import { BottomNavMotorista } from "./components/BottomNavMotorista";
-import { OpcoesMenu } from "./components/OpcoesMenu";
-import { CampoCidadeAutocomplete } from "./components/CampoCidadeAutocomplete";
-import { HistoricoPrecoRota } from "./components/HistoricoPrecoRota";
-import { MapaLeaflet } from "./components/MapaLeaflet";
-import { useRedefinicaoSenha } from "./hooks/useRedefinicaoSenha";
-import { useDespesasMotorista } from "./hooks/useDespesasMotorista";
 import { SuporteScreen } from "./screens/shared/SuporteScreen";
 import { SobreScreen } from "./screens/shared/SobreScreen";
 import { PrivacidadeScreen } from "./screens/shared/PrivacidadeScreen";
