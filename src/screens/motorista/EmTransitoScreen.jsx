@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { api, abrirArquivoAutenticado } from "../../services/api";
 import { formatMoney } from "../../utils/format";
+import { TIPOS_CARGA } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { MapaLeaflet } from "../../components/MapaLeaflet";
@@ -26,6 +27,8 @@ export function EmTransitoScreen({ frete, onNavigate }) {
   const [contratoLoading, setContratoLoading] = useState(false);
   const [posicaoAtual, setPosicaoAtual] = useState(null);
   const [etaInfo, setEtaInfo] = useState(null);
+  const [fretesRetorno, setFretesRetorno] = useState([]);
+  const [loadingFretesRetorno, setLoadingFretesRetorno] = useState(false);
   const posicaoRef = useRef(null);
 
   // GPS ao vivo desta tela — a Home também tem o próprio watch+envio, mas
@@ -109,6 +112,19 @@ export function EmTransitoScreen({ frete, onNavigate }) {
 
   useEffect(() => { carregarExtrato(); }, [frete?.id]);
 
+  // Sugestões de frete de retorno: fretes reais disponíveis com origem na
+  // cidade de destino desta entrega — mesma busca por cidade que a Home usa
+  // pra listar fretes disponíveis (GET /api/fretes/disponiveis), não dado
+  // inventado.
+  useEffect(() => {
+    if (!entregueOk || !frete?.dest_cidade || !token) return;
+    setLoadingFretesRetorno(true);
+    api("GET", `/api/fretes/disponiveis?busca_origem_cidade=${encodeURIComponent(frete.dest_cidade)}`, null, token)
+      .then(lista => setFretesRetorno(lista.filter(f => f.id !== frete.id)))
+      .catch(() => setFretesRetorno([]))
+      .finally(() => setLoadingFretesRetorno(false));
+  }, [entregueOk, frete?.dest_cidade, token]);
+
   const adicionarDespesa = async () => {
     if (!novaDespesa.valor) return;
     setSalvandoDespesa(true);
@@ -166,11 +182,6 @@ export function EmTransitoScreen({ frete, onNavigate }) {
     finally { setLoading(false); }
   };
 
-  const fretesRetorno = [
-    { id: "r1", origem: frete.dest_cidade || "SP", destino: frete.origem_cidade || "CWB", distancia: Math.round(frete.distancia_km * 0.95), valor: formatMoney(Math.round((frete.valor_motorista || 0) * 0.85)), tipo: "Carga Seca" },
-    { id: "r2", origem: frete.dest_cidade || "SP", destino: "Campinas, SP", distancia: 100, valor: "R$ 980,00", tipo: "Graneleiro" },
-  ];
-
   if (entregueOk) return (
     <div className="screen">
       <div className="header"><h1>Frete Ativo</h1></div>
@@ -180,15 +191,25 @@ export function EmTransitoScreen({ frete, onNavigate }) {
         <div style={{ color: "var(--text3)", textAlign: "center", marginBottom: 24 }}>Frete concluído com sucesso.<br/>Redirecionando...</div>
         <div style={{ width: "100%" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 8 }}>🎯 Fretes de retorno disponíveis:</div>
-          {fretesRetorno.map(fr => (
-            <div key={fr.id} className="frete-card" onClick={() => onNavigate("aceitar-frete", fr)}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, fontWeight: 700 }}>{fr.origem} → {fr.destino}</span>
-                <span style={{ color: "var(--gold)", fontWeight: 800 }}>{fr.valor}</span>
-              </div>
-              <div className="meta" style={{ marginTop: 4 }}><span>📦 {fr.tipo}</span><span>📏 {fr.distancia} km</span></div>
+          {loadingFretesRetorno && <Loading />}
+          {!loadingFretesRetorno && fretesRetorno.length === 0 && (
+            <div className="card" style={{ textAlign: "center", padding: 24, color: "var(--text2)" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>🔍</div>
+              <p style={{ fontSize: 13 }}>Nenhuma sugestão de retorno no momento</p>
             </div>
-          ))}
+          )}
+          {!loadingFretesRetorno && fretesRetorno.map(fr => {
+            const cargaObj = TIPOS_CARGA.find(c => c.id === fr.tipo_carga);
+            return (
+              <div key={fr.id} className="frete-card" onClick={() => onNavigate("aceitar-frete", fr)}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>{fr.origem_cidade || "—"} → {fr.dest_cidade || "—"}</span>
+                  <span style={{ color: "var(--gold)", fontWeight: 800 }}>{formatMoney(fr.valor_motorista || 0)}</span>
+                </div>
+                <div className="meta" style={{ marginTop: 4 }}><span>{cargaObj?.icon || "📦"} {cargaObj?.label || fr.tipo_carga}</span><span>📏 {fr.distancia_km} km</span></div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
