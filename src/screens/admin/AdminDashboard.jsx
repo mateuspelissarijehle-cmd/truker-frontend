@@ -62,7 +62,10 @@ export function AdminDashboard({ onNavigate }) {
     setExecutandoLimpeza(true);
     setErroLimpeza("");
     try {
-      const r = await api("POST", "/api/admin/limpeza/executar", null, token);
+      // Timeout bem maior que o padrão (20s) -- apaga em lotes no backend,
+      // mas o total ainda pode levar mais de um minuto com muitos milhares
+      // de fretes/avaliações.
+      const r = await api("POST", "/api/admin/limpeza/executar", null, token, 300000);
       setResultadoLimpeza(r);
       setRelatorioLimpeza(null);
     } catch (e) {

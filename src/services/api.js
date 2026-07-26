@@ -1,8 +1,8 @@
 import { API_BASE, API_TIMEOUT_MS } from "../config";
 
-export async function api(method, path, body, token) {
+export async function api(method, path, body, token, timeoutMs = API_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   let res;
   try {
     res = await fetch(`${API_BASE}${path}`, {
