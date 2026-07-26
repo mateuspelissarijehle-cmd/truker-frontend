@@ -124,6 +124,17 @@ export function AdminDashboard({ onNavigate }) {
             <div className="info-row"><span className="info-label">Rastreamento apagado</span><span className="info-value">{resultadoLimpeza.rastreamento_apagado}</span></div>
             <div className="info-row"><span className="info-label">Pagamentos apagados</span><span className="info-value">{resultadoLimpeza.pagamentos_apagados}</span></div>
             <div className="info-row"><span className="info-label">Cartões apagados</span><span className="info-value">{resultadoLimpeza.cartoes_apagados}</span></div>
+            {resultadoLimpeza.usuarios_mantidos_por_frete_misto > 0 && (
+              <>
+                <div className="info-row">
+                  <span className="info-label">Contas mantidas (frete misto)</span>
+                  <span className="info-value" style={{ color: "var(--orange)" }}>{resultadoLimpeza.usuarios_mantidos_por_frete_misto}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+                  {resultadoLimpeza.usuarios_mantidos_detalhe.map((u) => u.email).join(", ")}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -135,6 +146,17 @@ export function AdminDashboard({ onNavigate }) {
             <div className="info-row"><span className="info-label">Total de contas de teste</span><span className="info-value">{relatorioLimpeza.usuarios_teste.total_usuarios_teste}</span></div>
             <div className="info-row"><span className="info-label">Fretes seguros para apagar</span><span className="info-value" style={{ color: "var(--green)" }}>{relatorioLimpeza.fretes_seguros_para_apagar}</span></div>
             <div className="info-row"><span className="info-label">Avaliações seguras para apagar</span><span className="info-value" style={{ color: "var(--green)" }}>{relatorioLimpeza.avaliacoes_seguras_para_apagar}</span></div>
+            <div className="info-row">
+              <span className="info-label">Contas que serão mantidas (frete misto)</span>
+              <span className="info-value" style={{ color: relatorioLimpeza.usuarios_que_serao_mantidos_por_frete_misto.count > 0 ? "var(--orange)" : "var(--green)" }}>
+                {relatorioLimpeza.usuarios_que_serao_mantidos_por_frete_misto.count}
+              </span>
+            </div>
+            {relatorioLimpeza.usuarios_que_serao_mantidos_por_frete_misto.count > 0 && (
+              <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+                {relatorioLimpeza.usuarios_que_serao_mantidos_por_frete_misto.emails.join(", ")}
+              </div>
+            )}
             <div className="info-row">
               <span className="info-label">Contas com e-mail de bot sem conta_teste</span>
               <span className="info-value" style={{ color: relatorioLimpeza.anomalias_email_bot_sem_conta_teste.count > 0 ? "var(--red)" : "var(--green)" }}>
