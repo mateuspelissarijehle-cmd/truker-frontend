@@ -14,6 +14,11 @@ export function AdminDashboard({ onNavigate }) {
   const [motoristas, setMotoristas] = useState([]);
   const [fretes, setFretes] = useState([]);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [relatorioLimpeza, setRelatorioLimpeza] = useState(null);
+  const [loadingLimpeza, setLoadingLimpeza] = useState(false);
+  const [erroLimpeza, setErroLimpeza] = useState("");
+  const [executandoLimpeza, setExecutandoLimpeza] = useState(false);
+  const [resultadoLimpeza, setResultadoLimpeza] = useState(null);
 
   useEffect(() => {
     setLoadingStats(true);
@@ -25,6 +30,47 @@ export function AdminDashboard({ onNavigate }) {
       .catch(console.error)
       .finally(() => setLoadingStats(false));
   }, []);
+
+  async function carregarRelatorioLimpeza() {
+    setLoadingLimpeza(true);
+    setErroLimpeza("");
+    setResultadoLimpeza(null);
+    try {
+      const r = await api("GET", "/api/admin/limpeza/relatorio", null, token);
+      setRelatorioLimpeza(r);
+    } catch (e) {
+      setErroLimpeza(e.message);
+    } finally {
+      setLoadingLimpeza(false);
+    }
+  }
+
+  async function executarLimpeza() {
+    if (!relatorioLimpeza) return;
+    const confirmado = window.confirm(
+      `Isso vai apagar PERMANENTEMENTE:\n\n` +
+      `• ${relatorioLimpeza.usuarios_teste.total_usuarios_teste} contas de teste (${relatorioLimpeza.usuarios_teste.motoristas_teste} motoristas + ${relatorioLimpeza.usuarios_teste.contratantes_teste} contratantes)\n` +
+      `• ${relatorioLimpeza.fretes_seguros_para_apagar} fretes\n` +
+      `• ${relatorioLimpeza.avaliacoes_seguras_para_apagar} avaliações\n\n` +
+      (relatorioLimpeza.anomalias_email_bot_sem_conta_teste?.count > 0
+        ? `⚠️ Há ${relatorioLimpeza.anomalias_email_bot_sem_conta_teste.count} conta(s) com e-mail de bot mas NÃO marcadas como teste — essas NÃO serão apagadas.\n\n`
+        : "") +
+      `Contas/fretes reais não são afetados. Confirma?`
+    );
+    if (!confirmado) return;
+
+    setExecutandoLimpeza(true);
+    setErroLimpeza("");
+    try {
+      const r = await api("POST", "/api/admin/limpeza/executar", null, token);
+      setResultadoLimpeza(r);
+      setRelatorioLimpeza(null);
+    } catch (e) {
+      setErroLimpeza(e.message);
+    } finally {
+      setExecutandoLimpeza(false);
+    }
+  }
 
   const totalKmCarregado = motoristas.reduce((a, m) => a + Number(m.km_carregado || 0), 0);
   const eficiencia = stats ? Math.round((stats.fretes_entregues / Math.max(stats.total_fretes, 1)) * 100) : 0;
@@ -60,6 +106,69 @@ export function AdminDashboard({ onNavigate }) {
         <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-trocar-senha")}>
           🔑 Trocar Senha
         </button>
+        <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={carregarRelatorioLimpeza} disabled={loadingLimpeza}>
+          🧹 {loadingLimpeza ? "Carregando..." : "Ver Relatório de Limpeza de Bots"}
+        </button>
+
+        {erroLimpeza && <div className="alert alert-error">{erroLimpeza}</div>}
+
+        {resultadoLimpeza && (
+          <div className="card">
+            <div className="card-title">✅ Limpeza executada</div>
+            <div className="info-row"><span className="info-label">Contas apagadas</span><span className="info-value">{resultadoLimpeza.usuarios_apagados}</span></div>
+            <div className="info-row"><span className="info-label">Fretes apagados</span><span className="info-value">{resultadoLimpeza.fretes_apagados}</span></div>
+            <div className="info-row"><span className="info-label">Avaliações apagadas</span><span className="info-value">{resultadoLimpeza.avaliacoes_apagadas}</span></div>
+            <div className="info-row"><span className="info-label">Rastreamento apagado</span><span className="info-value">{resultadoLimpeza.rastreamento_apagado}</span></div>
+            <div className="info-row"><span className="info-label">Pagamentos apagados</span><span className="info-value">{resultadoLimpeza.pagamentos_apagados}</span></div>
+            <div className="info-row"><span className="info-label">Cartões apagados</span><span className="info-value">{resultadoLimpeza.cartoes_apagados}</span></div>
+          </div>
+        )}
+
+        {relatorioLimpeza && (
+          <div className="card">
+            <div className="card-title">🧹 Relatório de Limpeza de Bots</div>
+            <div className="info-row"><span className="info-label">Motoristas de teste</span><span className="info-value">{relatorioLimpeza.usuarios_teste.motoristas_teste}</span></div>
+            <div className="info-row"><span className="info-label">Contratantes de teste</span><span className="info-value">{relatorioLimpeza.usuarios_teste.contratantes_teste}</span></div>
+            <div className="info-row"><span className="info-label">Total de contas de teste</span><span className="info-value">{relatorioLimpeza.usuarios_teste.total_usuarios_teste}</span></div>
+            <div className="info-row"><span className="info-label">Fretes seguros para apagar</span><span className="info-value" style={{ color: "var(--green)" }}>{relatorioLimpeza.fretes_seguros_para_apagar}</span></div>
+            <div className="info-row"><span className="info-label">Avaliações seguras para apagar</span><span className="info-value" style={{ color: "var(--green)" }}>{relatorioLimpeza.avaliacoes_seguras_para_apagar}</span></div>
+            <div className="info-row">
+              <span className="info-label">Contas com e-mail de bot sem conta_teste</span>
+              <span className="info-value" style={{ color: relatorioLimpeza.anomalias_email_bot_sem_conta_teste.count > 0 ? "var(--red)" : "var(--green)" }}>
+                {relatorioLimpeza.anomalias_email_bot_sem_conta_teste.count}
+              </span>
+            </div>
+            {relatorioLimpeza.anomalias_email_bot_sem_conta_teste.count > 0 && (
+              <div style={{ fontSize: 12, color: "var(--red)", marginTop: 4 }}>
+                ⚠️ Não serão apagadas (revisar manualmente): {relatorioLimpeza.anomalias_email_bot_sem_conta_teste.emails.join(", ")}
+              </div>
+            )}
+
+            {relatorioLimpeza.fretes_mistos_NAO_apagados_amostra.length > 0 && (
+              <>
+                <div style={{ fontWeight: 700, fontSize: 13, marginTop: 14, marginBottom: 6, color: "var(--red)" }}>
+                  ⚠️ {relatorioLimpeza.fretes_mistos_NAO_apagados_amostra.length} frete(s) misto(s) — NÃO serão apagados
+                </div>
+                {relatorioLimpeza.fretes_mistos_NAO_apagados_amostra.map((f) => (
+                  <div key={f.id} className="admin-row">
+                    <div style={{ fontSize: 12 }}>
+                      <div>{f.id}</div>
+                      <div style={{ color: "var(--text3)" }}>
+                        Contratante: {f.contratante_email || "—"} ({f.contratante_teste ? "teste" : "real"}) ·
+                        {" "}Motorista: {f.motorista_email || "—"} ({f.motorista_teste == null ? "sem motorista" : f.motorista_teste ? "teste" : "real"})
+                      </div>
+                    </div>
+                    <span className="badge">{f.status}</span>
+                  </div>
+                ))}
+              </>
+            )}
+
+            <button className="btn btn-danger" style={{ marginTop: 14 }} onClick={executarLimpeza} disabled={executandoLimpeza}>
+              {executandoLimpeza ? "Executando..." : "🗑️ Executar Limpeza"}
+            </button>
+          </div>
+        )}
 
         {loadingStats && <Loading />}
 
