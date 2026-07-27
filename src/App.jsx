@@ -48,6 +48,7 @@ import { MotoristaHome } from "./screens/motorista/MotoristaHome";
 import { EmTransitoScreen } from "./screens/motorista/EmTransitoScreen";
 import { CadastroScreen } from "./screens/auth/CadastroScreen";
 import { SolicitarFreteScreen } from "./screens/contratante/SolicitarFreteScreen";
+import { SosButton } from "./components/SosButton";
 
 // ─────────────────────────────────────────────
 // ROUTER
@@ -77,55 +78,64 @@ function Router() {
 
   const p = { onNavigate: navigate };
 
-  switch (screen) {
-    case "splash": return <SplashScreen {...p} />;
-    case "entrada": return <EntradaScreen {...p} />;
-    case "login": return <LoginScreen {...p} />;
-    case "cadastro": return <CadastroScreen screenData={screenData} {...p} />;
-    case "login-admin": return <AdminLoginScreen {...p} />;
-    case "esqueci-senha": return <EsqueciSenhaScreen {...p} />;
-    case "admin-dashboard": return <AdminDashboard {...p} />;
-    case "admin-usuarios": return <AdminUsuarios {...p} />;
-    case "admin-motorista-teste": return <AdminMotoristaTeste {...p} />;
-    case "admin-seguradoras": return <AdminSeguradorasScreen {...p} />;
-    case "admin-trocar-senha": return <AdminTrocarSenha {...p} />;
-    case "home-contratante": return <ContratanteHome {...p} />;
-    case "solicitar-frete": return <SolicitarFreteScreen screenData={screenData} {...p} />;
-    case "buscar-motoristas": return <BuscarMotoristasScreen {...p} />;
-    case "meus-fretes": return <MeusFretes {...p} />;
-    case "detalhe-frete": return <DetalheFrete frete={screenData} {...p} />;
-    case "propostas-recebidas": return <PropostasRecebidasScreen frete={screenData} {...p} />;
-    case "perfil": return <PerfilContratante {...p} />;
-    case "dados-pessoais-contratante": return <DadosPessoaisContratante {...p} />;
-    case "pagamentos": return <PagamentosScreen {...p} />;
-    case "financas-contratante": return <FinancasContratante {...p} />;
-    case "home-motorista": return <MotoristaHome {...p} />;
-    case "aceitar-frete": return <AceitarFreteScreen frete={screenData} {...p} />;
-    case "disponibilidade-motorista": return <DisponibilidadeScreen {...p} />;
-    case "seguro-motorista": return <SeguroScreen {...p} />;
-    case "convites-motorista": return <ConvitesScreen {...p} />;
-    case "minhas-propostas": return <MinhasPropostasScreen {...p} />;
-    case "meus-fretes-motorista": return <MeusFretesMot {...p} />;
-    case "em-transito": return <EmTransitoScreen frete={screenData} {...p} />;
-    case "perfil-motorista": return <PerfilMotorista {...p} />;
-    case "dados-pessoais-motorista": return <DadosPessoaisMotorista {...p} />;
-    case "dados-caminhao": return <DadosCaminhaoMotorista {...p} />;
-    case "financas-motorista": return <FinancasMotorista {...p} />;
-    case "extrato-frete-motorista": return <ExtratoFreteMotoristaScreen dados={screenData} {...p} />;
-    case "chat": return <ChatScreen data={screenData} {...p} />;
-    case "avaliar": return <AvaliarScreen data={screenData} {...p} />;
-    case "opcoes-motorista": return <OpcoesMotorista {...p} />;
-    case "opcoes-contratante": return <OpcoesContratante {...p} />;
-    case "termos": return <TermosScreen {...p} />;
-    case "pagamento": return <PagamentoScreen data={screenData} {...p} />;
-    case "avaliacoes": return <AvaliacoesScreen {...p} />;
-    case "suporte": return <SuporteScreen {...p} />;
-    case "sobre": return <SobreScreen {...p} />;
-    case "privacidade": return <PrivacidadeScreen {...p} />;
-    case "alterar-senha": return <AlterarSenhaScreen {...p} />;
-    case "notificacoes": return <NotificacoesScreen {...p} />;
-    default: return <SplashScreen {...p} />;
-  }
+  const renderScreen = () => {
+    switch (screen) {
+      case "splash": return <SplashScreen {...p} />;
+      case "entrada": return <EntradaScreen {...p} />;
+      case "login": return <LoginScreen {...p} />;
+      case "cadastro": return <CadastroScreen screenData={screenData} {...p} />;
+      case "login-admin": return <AdminLoginScreen {...p} />;
+      case "esqueci-senha": return <EsqueciSenhaScreen {...p} />;
+      case "admin-dashboard": return <AdminDashboard {...p} />;
+      case "admin-usuarios": return <AdminUsuarios {...p} />;
+      case "admin-motorista-teste": return <AdminMotoristaTeste {...p} />;
+      case "admin-seguradoras": return <AdminSeguradorasScreen {...p} />;
+      case "admin-trocar-senha": return <AdminTrocarSenha {...p} />;
+      case "home-contratante": return <ContratanteHome {...p} />;
+      case "solicitar-frete": return <SolicitarFreteScreen screenData={screenData} {...p} />;
+      case "buscar-motoristas": return <BuscarMotoristasScreen {...p} />;
+      case "meus-fretes": return <MeusFretes {...p} />;
+      case "detalhe-frete": return <DetalheFrete frete={screenData} {...p} />;
+      case "propostas-recebidas": return <PropostasRecebidasScreen frete={screenData} {...p} />;
+      case "perfil": return <PerfilContratante {...p} />;
+      case "dados-pessoais-contratante": return <DadosPessoaisContratante {...p} />;
+      case "pagamentos": return <PagamentosScreen {...p} />;
+      case "financas-contratante": return <FinancasContratante {...p} />;
+      case "home-motorista": return <MotoristaHome {...p} />;
+      case "aceitar-frete": return <AceitarFreteScreen frete={screenData} {...p} />;
+      case "disponibilidade-motorista": return <DisponibilidadeScreen {...p} />;
+      case "seguro-motorista": return <SeguroScreen {...p} />;
+      case "convites-motorista": return <ConvitesScreen {...p} />;
+      case "minhas-propostas": return <MinhasPropostasScreen {...p} />;
+      case "meus-fretes-motorista": return <MeusFretesMot {...p} />;
+      case "em-transito": return <EmTransitoScreen frete={screenData} {...p} />;
+      case "perfil-motorista": return <PerfilMotorista {...p} />;
+      case "dados-pessoais-motorista": return <DadosPessoaisMotorista {...p} />;
+      case "dados-caminhao": return <DadosCaminhaoMotorista {...p} />;
+      case "financas-motorista": return <FinancasMotorista {...p} />;
+      case "extrato-frete-motorista": return <ExtratoFreteMotoristaScreen dados={screenData} {...p} />;
+      case "chat": return <ChatScreen data={screenData} {...p} />;
+      case "avaliar": return <AvaliarScreen data={screenData} {...p} />;
+      case "opcoes-motorista": return <OpcoesMotorista {...p} />;
+      case "opcoes-contratante": return <OpcoesContratante {...p} />;
+      case "termos": return <TermosScreen {...p} />;
+      case "pagamento": return <PagamentoScreen data={screenData} {...p} />;
+      case "avaliacoes": return <AvaliacoesScreen {...p} />;
+      case "suporte": return <SuporteScreen {...p} />;
+      case "sobre": return <SobreScreen {...p} />;
+      case "privacidade": return <PrivacidadeScreen {...p} />;
+      case "alterar-senha": return <AlterarSenhaScreen {...p} />;
+      case "notificacoes": return <NotificacoesScreen {...p} />;
+      default: return <SplashScreen {...p} />;
+    }
+  };
+
+  return (
+    <>
+      {renderScreen()}
+      {(user?.tipo === "motorista" || user?.tipo === "contratante") && <SosButton />}
+    </>
+  );
 }
 
 // ─────────────────────────────────────────────

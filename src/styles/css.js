@@ -126,4 +126,14 @@ export const css = `
   .tab-btn.active { background: linear-gradient(135deg, #C9A84C, #A8873A); color: #fff; }
   .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
   .admin-row:last-child { border-bottom: none; }
+
+  .sos-overlay { position: fixed; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; pointer-events: none; z-index: 200; }
+  .sos-fab-wrap { position: absolute; right: 16px; bottom: 96px; width: 64px; height: 64px; pointer-events: auto; }
+  .sos-ring { position: absolute; inset: 0; width: 64px; height: 64px; pointer-events: none; }
+  .sos-fab { position: absolute; inset: 6px; border-radius: 50%; background: linear-gradient(135deg, #E24C3D, #C0392B); color: #fff; border: none; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; cursor: pointer; box-shadow: 0 4px 14px rgba(192,57,43,0.5); touch-action: none; user-select: none; transition: transform 0.15s; }
+  .sos-fab.holding { transform: scale(0.9); }
+  .sos-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 300; }
+  .sos-modal { width: 100%; max-width: 430px; background: var(--surface); border-radius: 20px 20px 0 0; padding: 24px 20px 28px; }
+  .sos-modal-title { font-size: 18px; font-weight: 800; color: var(--red); margin-bottom: 14px; text-align: center; }
+  .sos-modal-status { font-size: 13px; color: var(--text2); margin-bottom: 10px; text-align: center; }
 `;

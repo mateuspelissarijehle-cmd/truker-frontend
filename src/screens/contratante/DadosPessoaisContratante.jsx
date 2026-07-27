@@ -11,7 +11,7 @@ import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplet
 // ─────────────────────────────────────────────
 export function DadosPessoaisContratante({ onNavigate }) {
   const { user, token, updateUserData } = useAuth();
-  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", documento: "", nomeEmpresa: "", inscricaoEstadual: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" });
+  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", documento: "", nomeEmpresa: "", inscricaoEstadual: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", contatoEmergenciaNome: "", contatoEmergenciaTelefone: "" });
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
@@ -21,7 +21,7 @@ export function DadosPessoaisContratante({ onNavigate }) {
   const carregarPerfil = async () => {
     try {
       const d = await api("GET", "/api/contratantes/perfil", null, token);
-      setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", documento: d.cpf_cnpj || "", nomeEmpresa: d.nome_empresa || "", inscricaoEstadual: d.inscricao_estadual || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "" });
+      setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", documento: d.cpf_cnpj || "", nomeEmpresa: d.nome_empresa || "", inscricaoEstadual: d.inscricao_estadual || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "", contatoEmergenciaNome: d.contato_emergencia_nome || "", contatoEmergenciaTelefone: d.contato_emergencia_telefone || "" });
     } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
     finally { setLoadingData(false); }
   };
@@ -40,6 +40,7 @@ export function DadosPessoaisContratante({ onNavigate }) {
         nomeEmpresa: form.nomeEmpresa, inscricaoEstadual: form.inscricaoEstadual,
         cep: form.cep, logradouro: form.logradouro, numero: form.numero,
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
+        contatoEmergenciaNome: form.contatoEmergenciaNome, contatoEmergenciaTelefone: form.contatoEmergenciaTelefone,
       }, token);
       updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone });
       await carregarPerfil();
@@ -71,6 +72,14 @@ export function DadosPessoaisContratante({ onNavigate }) {
           <div className="card-title">Contato</div>
           <div className="field"><label>Email</label><input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="seu@email.com" /></div>
           <div className="field"><label>Telefone / WhatsApp</label><input value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+        </div>
+        <div className="card">
+          <div className="card-title">🆘 Contato de Emergência</div>
+          <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+            Usado pelo botão de SOS pra avisar alguém com sua localização em caso de emergência.
+          </p>
+          <div className="field"><label>Nome</label><input value={form.contatoEmergenciaNome} onChange={e => set("contatoEmergenciaNome", e.target.value)} placeholder="Nome do contato" /></div>
+          <div className="field"><label>Telefone</label><input value={form.contatoEmergenciaTelefone} onChange={e => set("contatoEmergenciaTelefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
         </div>
         <div className="card">
           <div className="card-title">Endereço</div>
