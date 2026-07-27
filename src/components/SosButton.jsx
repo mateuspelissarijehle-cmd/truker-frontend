@@ -66,8 +66,6 @@ export function SosButton() {
     }
   };
 
-  // Nomes de campo (contato_emergencia_nome/telefone) combinados como
-  // placeholder — ajustar aqui se o backend confirmar nomes diferentes.
   const carregarContato = async () => {
     if (!user || !token) { setContatoStatus("error"); return; }
     setContatoStatus("loading");
@@ -84,13 +82,11 @@ export function SosButton() {
     }
   };
 
-  // TODO: endpoint placeholder (POST /api/sos, body { lat, lng }) — ajustar
-  // quando a outra sessão confirmar o nome/formato definitivo da rota.
   // Falha aqui não bloqueia ligar pra polícia nem avisar o contato.
   const registrarAlerta = async (c) => {
     setAlertStatus("loading");
     try {
-      await api("POST", "/api/sos", { lat: c?.lat ?? null, lng: c?.lng ?? null }, token);
+      await api("POST", "/api/usuarios/sos", { latitude: c?.lat ?? null, longitude: c?.lng ?? null }, token);
       setAlertStatus("ok");
     } catch {
       setAlertStatus("error");

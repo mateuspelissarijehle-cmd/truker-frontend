@@ -74,7 +74,9 @@ export function DadosPessoaisMotorista({ onNavigate }) {
         cnh: form.cnh, rntrc: form.rntrc,
         cep: form.cep, logradouro: form.logradouro, numero: form.numero,
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
-        contatoEmergenciaNome: form.contatoEmergenciaNome, contatoEmergenciaTelefone: form.contatoEmergenciaTelefone,
+      }, token);
+      await api("PATCH", "/api/usuarios/contato-emergencia", {
+        nome: form.contatoEmergenciaNome, telefone: form.contatoEmergenciaTelefone,
       }, token);
       updateUserData({ nome: form.nome, email: form.email, telefone: form.telefone });
       // Re-carrega para confirmar os dados salvos
