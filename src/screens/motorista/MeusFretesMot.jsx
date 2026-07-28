@@ -5,6 +5,7 @@ import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { BottomNavMotorista } from "../../components/BottomNavMotorista";
+import { DetalheFreteMotoristaModal } from "./DetalheFreteMotoristaModal";
 
 // ─────────────────────────────────────────────
 // MEUS FRETES MOTORISTA
@@ -16,6 +17,7 @@ export function MeusFretesMot({ onNavigate }) {
   const [filtro, setFiltro] = useState("todos");
   const [contratoLoadingId, setContratoLoadingId] = useState(null);
   const [contratoError, setContratoError] = useState("");
+  const [detalheFrete, setDetalheFrete] = useState(null);
 
   useEffect(() => {
     api("GET", "/api/fretes", null, token).then(setFretes).catch(() => setFretes([])).finally(() => setLoading(false));
@@ -61,8 +63,9 @@ export function MeusFretesMot({ onNavigate }) {
         ) : filtrados.map(f => {
           const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
           const emAndamento = ["aceito", "em_rota", "coletando"].includes(f.status);
+          const finalizado = f.status === "entregue";
           return (
-            <div key={f.id} className="frete-card">
+            <div key={f.id} className="frete-card" onClick={finalizado ? () => setDetalheFrete(f) : undefined} style={{ cursor: finalizado ? "pointer" : "default" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <StatusBadge status={f.status} />
                 <div style={{ fontWeight: 800, color: "var(--green)", fontSize: 18 }}>{formatMoney(f.valor_motorista || f.valor_antt || 0)}</div>
@@ -72,8 +75,8 @@ export function MeusFretesMot({ onNavigate }) {
               {emAndamento && (
                 <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("em-transito", f)}>📍 Ver em trânsito</button>
               )}
-              {f.status === "entregue" && (
-                <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => verContrato(f.id)} disabled={contratoLoadingId === f.id}>
+              {finalizado && (
+                <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={(e) => { e.stopPropagation(); verContrato(f.id); }} disabled={contratoLoadingId === f.id}>
                   {contratoLoadingId === f.id ? "Abrindo contrato..." : "📄 Ver Contrato"}
                 </button>
               )}
@@ -81,6 +84,15 @@ export function MeusFretesMot({ onNavigate }) {
           );
         })}
       </div>
+      {detalheFrete && (
+        <DetalheFreteMotoristaModal
+          frete={detalheFrete}
+          token={token}
+          onClose={() => setDetalheFrete(null)}
+          onVerContrato={verContrato}
+          contratoLoadingId={contratoLoadingId}
+        />
+      )}
       <BottomNavMotorista active="atividade" onNavigate={onNavigate} />
     </div>
   );

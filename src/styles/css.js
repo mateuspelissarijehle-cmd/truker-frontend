@@ -136,4 +136,10 @@ export const css = `
   .sos-modal { width: 100%; max-width: 430px; background: var(--surface); border-radius: 20px 20px 0 0; padding: 24px 20px 28px; }
   .sos-modal-title { font-size: 18px; font-weight: 800; color: var(--red); margin-bottom: 14px; text-align: center; }
   .sos-modal-status { font-size: 13px; color: var(--text2); margin-bottom: 10px; text-align: center; }
+
+  .detalhe-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 250; }
+  .detalhe-modal { width: 100%; max-width: 430px; max-height: 88vh; overflow-y: auto; background: var(--black); border-radius: 20px 20px 0 0; padding: 18px 16px 24px; }
+  .detalhe-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; position: sticky; top: 0; }
+  .detalhe-modal-title { font-size: 17px; font-weight: 800; color: var(--text); }
+  .detalhe-modal-close { background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
 `;
