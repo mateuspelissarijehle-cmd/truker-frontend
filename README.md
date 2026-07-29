@@ -1,3 +1,5 @@
+> Pra gerar o app Android/iOS nativo (.apk/.aab) a partir deste projeto, veja [NATIVO.md](./NATIVO.md).
+
 # React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
