@@ -19,6 +19,11 @@ export function DadosPessoaisMotorista({ onNavigate }) {
   const [cnhUrl, setCnhUrl] = useState(null);
   const [enviandoCnh, setEnviandoCnh] = useState(false);
   const [cnhErro, setCnhErro] = useState("");
+  const [docs, setDocs] = useState({
+    cpf: { url: null, enviando: false, erro: "" },
+    comprovante_endereco: { url: null, enviando: false, erro: "" },
+    rntrc_documento: { url: null, enviando: false, erro: "" },
+  });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const carregarPerfil = async () => {
@@ -34,6 +39,11 @@ export function DadosPessoaisMotorista({ onNavigate }) {
         contatoEmergenciaTelefone: d.contato_emergencia_telefone || "",
       });
       setCnhUrl(d.cnh_url || null);
+      setDocs({
+        cpf: { url: d.cpf_documento_url || null, enviando: false, erro: "" },
+        comprovante_endereco: { url: d.comprovante_endereco_url || null, enviando: false, erro: "" },
+        rntrc_documento: { url: d.rntrc_documento_url || null, enviando: false, erro: "" },
+      });
     } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
     finally { setLoadingData(false); }
   };
@@ -57,6 +67,28 @@ export function DadosPessoaisMotorista({ onNavigate }) {
       setCnhErro(err.message);
     } finally {
       setEnviandoCnh(false);
+      e.target.value = "";
+    }
+  };
+
+  const DOCS_CONFIG = [
+    { campo: "cpf", urlKey: "cpf_documento_url", label: "🪪 CPF", botao: "Enviar CPF" },
+    { campo: "comprovante_endereco", urlKey: "comprovante_endereco_url", label: "📋 Comprovante de endereço", botao: "Enviar comprovante de endereço" },
+    { campo: "rntrc_documento", urlKey: "rntrc_documento_url", label: "📝 RNTRC / ANTT", botao: "Enviar RNTRC" },
+  ];
+
+  const enviarDocumento = async (campo, urlKey, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setDocs(d => ({ ...d, [campo]: { ...d[campo], erro: "", enviando: true } }));
+    try {
+      const formData = new FormData();
+      formData.append(campo, file);
+      const resp = await apiUpload("POST", "/api/motoristas/documentos", formData, token);
+      setDocs(d => ({ ...d, [campo]: { ...d[campo], url: resp.urls?.[urlKey] || null, enviando: false } }));
+    } catch (err) {
+      setDocs(d => ({ ...d, [campo]: { ...d[campo], erro: err.message, enviando: false } }));
+    } finally {
       e.target.value = "";
     }
   };
@@ -141,10 +173,10 @@ export function DadosPessoaisMotorista({ onNavigate }) {
             <span className="info-label" style={{ fontSize: 13 }}>📄 CNH (frente e verso)</span>
             <span className={`badge ${cnhUrl ? "badge-active" : "badge-pending"}`}>{cnhUrl ? "Enviada" : "Pendente"}</span>
           </div>
-          {["🪪 CPF", "📋 Comprovante de endereço", "📝 RNTRC / ANTT"].map((doc, i) => (
-            <div key={i} className="info-row">
-              <span className="info-label" style={{ fontSize: 13 }}>{doc}</span>
-              <span className="badge badge-pending">Pendente</span>
+          {DOCS_CONFIG.map(({ campo, label }) => (
+            <div key={campo} className="info-row">
+              <span className="info-label" style={{ fontSize: 13 }}>{label}</span>
+              <span className={`badge ${docs[campo].url ? "badge-active" : "badge-pending"}`}>{docs[campo].url ? "Enviada" : "Pendente"}</span>
             </div>
           ))}
           {cnhErro && <div className="alert alert-error" style={{ marginTop: 10 }}>{cnhErro}</div>}
@@ -156,9 +188,19 @@ export function DadosPessoaisMotorista({ onNavigate }) {
               onChange={enviarCnh}
             />
           </label>
-          <p style={{ fontSize: 11, color: "var(--text3)", marginTop: 6 }}>
-            Os outros documentos (CPF, comprovante de endereço, RNTRC) ainda não têm envio pelo app — em breve.
-          </p>
+          {DOCS_CONFIG.map(({ campo, urlKey, botao }) => (
+            <div key={campo}>
+              {docs[campo].erro && <div className="alert alert-error" style={{ marginTop: 10 }}>{docs[campo].erro}</div>}
+              <label className="upload-area" style={{ display: "block", marginTop: 14, cursor: docs[campo].enviando ? "default" : "pointer", opacity: docs[campo].enviando ? 0.6 : 1 }}>
+                {docs[campo].enviando ? "Enviando..." : `📤 ${botao}`}
+                <input
+                  type="file" accept="image/*,.pdf,.heic,.heif" style={{ display: "none" }}
+                  disabled={docs[campo].enviando}
+                  onChange={e => enviarDocumento(campo, urlKey, e)}
+                />
+              </label>
+            </div>
+          ))}
         </div>
         <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
         </>}
