@@ -214,28 +214,42 @@ experiência de câmera mais customizada (ex: preview antes de confirmar).
 
 ### Notificações push — `src/services/push.js`
 
-Esse é o ponto que **precisa de mais trabalho** antes de funcionar bem no
-app nativo. Hoje o push usa a Web Push API padrão (`PushManager` + chave
-VAPID), que depende do navegador. Dentro de um app Android embalado pelo
-Capacitor, esse mecanismo **não é confiável** — o caminho nativo correto é:
-1. Adicionar o plugin `@capacitor/push-notifications`.
-2. Criar um projeto no **Firebase** (gratuito) e configurar o Firebase Cloud
-   Messaging (FCM) pro app Android — isso gera um arquivo `google-services.json`
-   que precisa ir em `android/app/`.
-3. Ajustar o backend pra também conseguir mandar notificações via FCM (além
-   ou no lugar do VAPID/web-push atual), guardando o token de dispositivo
-   que o plugin do Capacitor devolve.
+**✅ Migrado (código) / ⏳ falta o Mateus criar o projeto Firebase.**
+`src/services/push.js` agora detecta a plataforma (`Capacitor.isNativePlatform()`,
+mesmo padrão de `geolocation.js` acima) e escolhe o canal certo:
 
-Essa parte não foi implementada agora porque envolve criar uma conta/projeto
-Firebase e mudar o backend — decisão que vale alinhar com o Mateus antes.
+- **No navegador/PWA**: continua usando Web Push (VAPID) exatamente como
+  antes, sem nenhuma mudança de comportamento.
+- **No app nativo Android/iOS**: usa o plugin `@capacitor/push-notifications`
+  (já instalado) para pedir permissão, registrar o dispositivo no Firebase
+  Cloud Messaging (FCM) e mandar o token pro backend em
+  `POST /api/push/subscribe-fcm` — um endpoint novo, separado do
+  `/api/push/subscribe` (Web Push), pra não interferir em quem ainda usa o
+  navegador.
+
+No backend (`truker-app`), `services/firebase.js` inicializa o Firebase
+Admin SDK só se a variável `FIREBASE_SERVICE_ACCOUNT_JSON` estiver
+configurada; `routes/push.js` tenta mandar via FCM primeiro pra quem tem um
+token FCM salvo, e cai automaticamente no Web Push pra quem não tem — sem
+essa variável configurada, o sistema simplesmente continua funcionando só
+com Web Push, do jeito que já funcionava antes (nada quebra).
+
+O que falta é 100% fora do alcance de quem só mexe em código: criar a conta
+gratuita no Firebase Console, baixar o `google-services.json` (vai em
+`android/app/`) e a chave de service account (vai no `.env` do backend).
+Isso está documentado passo a passo, sem jargão técnico, em
+**`FIREBASE_SETUP.md`** na raiz deste projeto — é só o Mateus seguir aquele
+guia sozinho.
 
 ## Resumo rápido pro Mateus
 
 - ✅ O projeto já está pronto pra virar um app Android instalável.
 - ⏳ Falta só compilar numa máquina com Android Studio (passo a passo acima)
   pra sair o primeiro `.apk` de teste.
-- ⚠️ O push notification vai precisar de um trabalho extra (Firebase) antes
-  de funcionar 100% dentro do app — hoje ele deve simplesmente não notificar
-  nada quando empacotado, então não é bloqueante pro sideload inicial, mas é
-  bloqueante pra experiência completa.
+- ⚠️ O push notification já está pronto no código — falta só você criar o
+  projeto gratuito no Firebase e baixar 2 arquivos, seguindo o passo a passo
+  em `FIREBASE_SETUP.md`. Enquanto isso não for feito, o app simplesmente
+  continua notificando do jeito antigo (só funciona bem no navegador), sem
+  quebrar nada — não é bloqueante pro sideload inicial, mas é bloqueante pra
+  notificação funcionar 100% dentro do app instalado.
 - 📱 iOS fica pra depois, quando houver acesso a um Mac.
