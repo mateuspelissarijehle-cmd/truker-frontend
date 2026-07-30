@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../services/api";
+import { getCurrentPosition } from "../services/geolocation";
 
 // ─────────────────────────────────────────────
 // SOS GLOBAL — botão flutuante com confirmação por "segurar",
@@ -41,22 +42,10 @@ export function SosButton() {
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
   };
 
-  // Mesmo padrão de captura de GPS com timeout redundante usado em
-  // AceitarFreteScreen — getCurrentPosition às vezes nunca resolve nem rejeita
-  // em WebViews com localização desligada.
   const capturarGPS = async () => {
     setLocStatus("loading");
-    if (!navigator.geolocation) { setLocStatus("error"); return null; }
     try {
-      const pos = await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("GPS timeout")), 8000);
-        navigator.geolocation.getCurrentPosition(
-          (p) => { clearTimeout(timer); resolve(p); },
-          (err) => { clearTimeout(timer); reject(err); },
-          { timeout: 7000, enableHighAccuracy: true, maximumAge: 0 }
-        );
-      });
-      const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      const c = await getCurrentPosition({ timeoutMs: 8000 });
       setCoords(c);
       setLocStatus("ok");
       return c;

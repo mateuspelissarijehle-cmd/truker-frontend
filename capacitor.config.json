@@ -1,5 +1,8 @@
 {
   "appId": "com.truker.app",
   "appName": "TRUKER",
-  "webDir": "dist"
+  "webDir": "dist",
+  "android": {
+    "useLegacyBridge": true
+  }
 }

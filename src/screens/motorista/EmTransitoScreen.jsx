@@ -6,6 +6,7 @@ import { TIPOS_CARGA } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { MapaLeaflet } from "../../components/MapaLeaflet";
+import { watchPosition, clearWatch } from "../../services/geolocation";
 
 // ─────────────────────────────────────────────
 // EM TRÂNSITO — sem mapa próprio (mapa fica na aba Início)
@@ -37,17 +38,14 @@ export function EmTransitoScreen({ frete, onNavigate }) {
   // envio de posição parava assim que o motorista saísse da Home — bem no
   // momento em que ele mais fica nesta tela durante uma entrega de verdade.
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition(
-      pos => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setPosicaoAtual(coords);
-        posicaoRef.current = coords;
-      },
-      err => console.error("GPS em-transito:", err),
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
+    let handle = null;
+    let cancelado = false;
+    watchPosition(
+      coords => { setPosicaoAtual(coords); posicaoRef.current = coords; },
+      err => console.error("GPS em-transito:", err)
+    ).then(h => { if (cancelado) clearWatch(h); else handle = h; })
+      .catch(err => console.error("GPS em-transito (start):", err.message));
+    return () => { cancelado = true; if (handle) clearWatch(handle); };
   }, []);
 
   useEffect(() => {

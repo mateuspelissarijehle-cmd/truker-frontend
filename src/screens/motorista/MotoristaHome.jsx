@@ -8,6 +8,7 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { MapaLeaflet } from "../../components/MapaLeaflet";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { BottomNavMotorista } from "../../components/BottomNavMotorista";
+import { watchPosition, clearWatch } from "../../services/geolocation";
 
 // ─────────────────────────────────────────────
 // MOTORISTA HOME — ✅ toggle online chama API
@@ -71,17 +72,14 @@ export function MotoristaHome({ onNavigate }) {
 
   // GPS para mostrar no mapa
   useEffect(() => {
-    if (!navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition(
-      pos => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setPosicaoAtual(coords);
-        posicaoRef.current = coords;
-      },
-      err => console.error("GPS home:", err),
-      { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
+    let handle = null;
+    let cancelado = false;
+    watchPosition(
+      coords => { setPosicaoAtual(coords); posicaoRef.current = coords; },
+      err => console.error("GPS home:", err)
+    ).then(h => { if (cancelado) clearWatch(h); else handle = h; })
+      .catch(err => console.error("GPS home (start):", err.message));
+    return () => { cancelado = true; if (handle) clearWatch(handle); };
   }, []);
 
   // Envia posição para o backend a cada 30s para todos os fretes ativos

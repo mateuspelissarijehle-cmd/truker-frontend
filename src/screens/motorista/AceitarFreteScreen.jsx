@@ -5,6 +5,7 @@ import { formatMoney } from "../../utils/format";
 import { TIPOS_CARGA, TIPOS_VEICULO, ICONE_CARROCERIA } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
 import { HistoricoPrecoRota } from "../../components/HistoricoPrecoRota";
+import { getCurrentPosition } from "../../services/geolocation";
 
 // ─────────────────────────────────────────────
 // ACEITAR FRETE
@@ -20,26 +21,12 @@ export function AceitarFreteScreen({ frete, onNavigate }) {
   const cargaObj = TIPOS_CARGA.find(c => c.id === frete.tipo_carga);
 
   const capturarGPS = async () => {
-    let lat = null, lng = null;
-    if (navigator.geolocation) {
-      try {
-        // A opção `timeout` do getCurrentPosition é só um pedido pro navegador —
-        // em alguns WebViews/Android com localização do aparelho desligada, nem
-        // sucesso nem erro nunca chega, e a promise fica pendurada pra sempre.
-        // Por isso um timeout nosso por fora, redundante mas garantido.
-        const pos = await new Promise((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error("GPS timeout")), 6000);
-          navigator.geolocation.getCurrentPosition(
-            (p) => { clearTimeout(timer); resolve(p); },
-            (err) => { clearTimeout(timer); reject(err); },
-            { timeout: 5000, enableHighAccuracy: true }
-          );
-        });
-        lat = pos.coords.latitude;
-        lng = pos.coords.longitude;
-      } catch {} // GPS indisponível — segue sem lat/lng
+    try {
+      const { lat, lng } = await getCurrentPosition({ timeoutMs: 6000 });
+      return { lat, lng };
+    } catch {
+      return { lat: null, lng: null }; // GPS indisponível — segue sem lat/lng
     }
-    return { lat, lng };
   };
 
   const aceitar = async () => {

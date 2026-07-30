@@ -38,4 +38,20 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Rastreamento de localização (@capacitor/geolocation +
+         @capacitor-community/background-geolocation). O plugin de
+         background já mescla essas mesmas permissões automaticamente via
+         o próprio AndroidManifest.xml dele (merge padrão do Gradle), mas
+         ficam declaradas aqui também pra clareza. Não usamos
+         ACCESS_BACKGROUND_LOCATION de propósito: o rastreamento em segundo
+         plano é feito via foreground service com notificação persistente
+         (FOREGROUND_SERVICE_LOCATION), que é isento dessa permissão
+         especial e do processo de revisão extra que ela exige na Play
+         Store — ver NATIVO.md. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

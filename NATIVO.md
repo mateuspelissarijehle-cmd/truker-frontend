@@ -124,21 +124,85 @@ Capacitor, têm comportamento diferente:
 ### Geolocalização (GPS) — usada em `SosButton`, `AceitarFreteScreen`,
 `EmTransitoScreen`, `MotoristaHome`
 
-Hoje usa `navigator.geolocation` (API padrão do navegador). Isso **funciona**
-dentro do WebView do Capacitor, mas com duas ressalvas importantes:
-- O Android vai pedir a permissão de localização automaticamente na primeira
-  vez que o app tentar usar o GPS — isso é normal.
-- `EmTransitoScreen` e `MotoristaHome` usam `watchPosition` (rastreamento
-  contínuo). Em Android moderno (10+), rastrear localização com o app **em
-  segundo plano** (tela apagada, app minimizado) exige a permissão especial
-  "Localização o tempo todo" e configuração adicional — a API web sozinha só
-  garante o rastreio com o app aberto e em primeiro plano.
-- **Recomendação pra depois:** migrar essas telas pro plugin
-  `@capacitor/geolocation`, que dá controle explícito sobre essas permissões
-  e funciona de forma mais confiável dentro do app nativo do que a API web
-  pura (os comentários no próprio código, em `SosButton.jsx` e
-  `AceitarFreteScreen.jsx`, já mencionam bugs conhecidos de `getCurrentPosition`
-  travando em WebViews — isso reforça que vale a pena trocar).
+**✅ Migrado.** Toda a captura de localização passa agora por
+`src/services/geolocation.js`, um wrapper único usado pelas quatro telas
+acima (nenhuma chama mais `navigator.geolocation` diretamente):
+
+- `watchPosition(onPosition, onError)` — rastreamento contínuo, usado em
+  `EmTransitoScreen` e `MotoristaHome`.
+- `getCurrentPosition({ timeoutMs })` — captura pontual (uma posição só),
+  usado em `SosButton` e `AceitarFreteScreen`. Mantém o mesmo padrão de
+  timeout redundante por fora que já existia (WebViews Android às vezes
+  travam o `getCurrentPosition` sem nunca resolver nem rejeitar).
+
+O wrapper detecta a plataforma (`Capacitor.isNativePlatform()`) e escolhe a
+implementação automaticamente:
+
+- **No navegador/PWA** (`isNativePlatform() === false`): usa
+  `@capacitor/geolocation`, que por baixo dos panos chama a Geolocation API
+  padrão do navegador. Comportamento idêntico ao de antes — só funciona com
+  a aba em primeiro plano.
+- **No app nativo Android** (`isNativePlatform() === true`): usa
+  `@capacitor-community/background-geolocation` para o rastreio contínuo,
+  que mantém o GPS ativo com o **app em segundo plano ou a tela apagada**
+  (essencial pro motorista em viagem longa com o celular no bolso). Pra
+  captura pontual (`getCurrentPosition`), continua usando
+  `@capacitor/geolocation`, que já funciona nativamente sem precisar de
+  segundo plano.
+
+**Por que `@capacitor-community/background-geolocation` e não outro plugin:**
+pesquisei as opções mais usadas pra background location em Capacitor. As
+soluções da Transistorsoft (`cordova-plugin-background-geolocation` e
+`@transistorsoft/capacitor-background-geolocation`), que são as mais
+conhecidas e robustas do mercado, **exigem licença paga pra uso comercial**
+(só são gratuitas para desenvolvimento/teste) — como o TRUKER é comercial,
+descartei essas pra não gerar uma cobrança surpresa. O
+`@capacitor-community/background-geolocation` é open source, licença MIT,
+mantido pela comunidade Ionic/Capacitor, sem conta nem licença nenhuma —
+por isso foi o escolhido.
+
+**Como o rastreio em segundo plano funciona no Android:** o plugin sobe um
+*foreground service* nativo com uma **notificação persistente e obrigatória**
+("TRUKER — rastreamento ativo") enquanto o rastreamento estiver ligado — o
+próprio Android exige essa notificação visível pra permitir GPS contínuo em
+segundo plano; não tem como esconder. Justamente por usar foreground service
+(e não a permissão especial "Localização o tempo todo"), o app **não pede**
+a permissão `ACCESS_BACKGROUND_LOCATION` — isso é uma decisão deliberada:
+essa permissão especial exige um processo de revisão manual extra da Play
+Store (formulário justificando o uso) quando for publicar, e o foreground
+service é isento dela. Ficou mais simples e evita esse processo extra.
+
+Foi adicionado `"android": { "useLegacyBridge": true }` em
+`capacitor.config.json` — exigência documentada do próprio plugin, sem isso
+as atualizações de localização param de chegar em segundo plano depois de
+~5 minutos (é o modo de bridge que mantém o JS respondendo aos callbacks
+nativos mesmo com a tela apagada).
+
+`android/app/src/main/AndroidManifest.xml` recebeu as permissões
+`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`, `FOREGROUND_SERVICE`,
+`FOREGROUND_SERVICE_LOCATION` e `POST_NOTIFICATIONS` (essa última exigida
+pelo Android 13+ pra mostrar a notificação do foreground service). O plugin
+já mescla essas mesmas permissões automaticamente no manifest final via
+merge do Gradle, mas foram declaradas explicitamente também pra clareza.
+
+**⚠️ Limitação importante — não testado em dispositivo real:** este ambiente
+onde o Claude trabalhou não tem Android SDK/emulador, só Node.js (mesma
+limitação já descrita na seção "O que NÃO foi possível fazer aqui" acima).
+`npm run build` e `npx cap sync android` rodaram sem erro e os plugins foram
+registrados corretamente no projeto Android (`capacitor.build.gradle`), mas
+**o comportamento de segundo plano em si — GPS continuando com o app
+minimizado ou a tela apagada, a notificação aparecendo, a permissão sendo
+pedida corretamente — só pode ser validado rodando o app de verdade num
+celular ou emulador Android**, seguindo o passo a passo da seção acima
+("Passo a passo pra gerar o APK"). Ao testar, vale conferir:
+1. Se a notificação "TRUKER — rastreamento ativo" aparece assim que o
+   motorista entra em uma tela com rastreio (`MotoristaHome` ou
+   `EmTransitoScreen`).
+2. Se a posição enviada ao backend (`PATCH /api/motoristas/localizacao`)
+   continua atualizando a cada ~30s com o app minimizado e com a tela
+   apagada por alguns minutos.
+3. Se o Android pede a permissão de localização (e de notificações, no
+   Android 13+) corretamente na primeira vez.
 
 ### Upload de arquivo (NF) — usado em `FinancasMotorista`/`DespesasTab`
 
