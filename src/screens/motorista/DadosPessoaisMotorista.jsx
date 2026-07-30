@@ -11,7 +11,7 @@ import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplet
 // ─────────────────────────────────────────────
 export function DadosPessoaisMotorista({ onNavigate }) {
   const { user, token, updateUserData } = useAuth();
-  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: "", cnh: "", rntrc: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", contatoEmergenciaNome: "", contatoEmergenciaTelefone: "" });
+  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: "", cnh: "", rntrc: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", contatoEmergenciaNome: "", contatoEmergenciaTelefone: "", chavePix: "", chavePixTipo: "" });
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
@@ -37,6 +37,7 @@ export function DadosPessoaisMotorista({ onNavigate }) {
         cidade: d.cidade || "", uf: d.uf || "",
         contatoEmergenciaNome: d.contato_emergencia_nome || "",
         contatoEmergenciaTelefone: d.contato_emergencia_telefone || "",
+        chavePix: d.chave_pix || "", chavePixTipo: d.chave_pix_tipo || "",
       });
       setCnhUrl(d.cnh_url || null);
       setDocs({
@@ -106,6 +107,7 @@ export function DadosPessoaisMotorista({ onNavigate }) {
         cnh: form.cnh, rntrc: form.rntrc,
         cep: form.cep, logradouro: form.logradouro, numero: form.numero,
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
+        chavePix: form.chavePix, chavePixTipo: form.chavePixTipo,
       }, token);
       await api("PATCH", "/api/usuarios/contato-emergencia", {
         nome: form.contatoEmergenciaNome, telefone: form.contatoEmergenciaTelefone,
@@ -148,6 +150,24 @@ export function DadosPessoaisMotorista({ onNavigate }) {
           </p>
           <div className="field"><label>Nome</label><input value={form.contatoEmergenciaNome} onChange={e => set("contatoEmergenciaNome", e.target.value)} placeholder="Nome do contato" /></div>
           <div className="field"><label>Telefone</label><input value={form.contatoEmergenciaTelefone} onChange={e => set("contatoEmergenciaTelefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+        </div>
+        <div className="card">
+          <div className="card-title">💰 Chave Pix</div>
+          <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+            Usada pro repasse automático dos seus ganhos.
+          </p>
+          <div className="field">
+            <label>Tipo de chave</label>
+            <select value={form.chavePixTipo} onChange={e => set("chavePixTipo", e.target.value)}>
+              <option value="">Selecione...</option>
+              <option value="cpf">CPF</option>
+              <option value="cnpj">CNPJ</option>
+              <option value="email">E-mail</option>
+              <option value="telefone">Telefone</option>
+              <option value="aleatoria">Chave aleatória</option>
+            </select>
+          </div>
+          <div className="field"><label>Chave Pix</label><input value={form.chavePix} onChange={e => set("chavePix", e.target.value)} placeholder="Digite a chave" /></div>
         </div>
         <div className="card">
           <div className="card-title">Endereço</div>
