@@ -36,7 +36,7 @@ export function DadosPessoaisContratante({ onNavigate }) {
     setError(""); setLoading(true);
     try {
       await api("PATCH", "/api/contratantes/perfil", {
-        nome: form.nome, telefone: form.telefone,
+        nome: form.nome, telefone: form.telefone, documento: form.documento,
         nomeEmpresa: form.nomeEmpresa, inscricaoEstadual: form.inscricaoEstadual,
         cep: form.cep, logradouro: form.logradouro, numero: form.numero,
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
