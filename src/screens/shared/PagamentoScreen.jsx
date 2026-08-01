@@ -1,16 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { CardPayment } from "@mercadopago/sdk-react";
-import { MP_PUBLIC_KEY } from "../../config";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 
 // ─────────────────────────────────────────────
-// PAGAMENTO PIX — MercadoPago
+// PAGAMENTO PIX/CARTÃO — Asaas
 // ─────────────────────────────────────────────
 export function PagamentoScreen({ data, onNavigate }) {
-  const { token, user } = useAuth();
+  const { token } = useAuth();
   const freteId = data?.freteId;
   const valorInicial = data?.valor || 0;
   const [metodo, setMetodo] = useState("pix"); // "pix" | "cartao"
@@ -24,12 +22,7 @@ export function PagamentoScreen({ data, onNavigate }) {
   const [erroPix, setErroPix] = useState("");
   const intervalRef = useRef(null);
 
-  // ── Estado do fluxo Cartão ──
-  const [salvarCartao, setSalvarCartao] = useState(true);
-  const [statusCartao, setStatusCartao] = useState("idle"); // idle | approved
-  const [erroCartao, setErroCartao] = useState("");
-
-  const pago = statusPix === "approved" || statusCartao === "approved";
+  const pago = statusPix === "approved";
 
   useEffect(() => {
     if (metodo !== "pix") return;
@@ -63,46 +56,13 @@ export function PagamentoScreen({ data, onNavigate }) {
     } catch {}
   };
 
-  // Chamado pelo Card Payment Brick do Mercado Pago já com o token gerado no
-  // navegador (número/validade/CVV nunca passam pelo nosso backend). Resolver
-  // a promise = sucesso (Brick reseta o botão); rejeitar = falha (idem, mas o
-  // Brick mostra o próprio aviso genérico — por isso também mostramos o nosso
-  // alerta detalhado logo acima do formulário).
-  const onCardSubmit = (formData) => new Promise(async (resolve, reject) => {
-    setErroCartao("");
-    try {
-      const resp = await api("POST", `/api/pagamentos/criar-cartao/${freteId}`, {
-        token: formData.token,
-        payment_method_id: formData.payment_method_id,
-        installments: formData.installments,
-        issuer_id: formData.issuer_id,
-        payer: formData.payer,
-        salvarCartao,
-      }, token);
-      if (resp.status === "approved") {
-        setStatusCartao("approved");
-        resolve();
-        return;
-      }
-      if (resp.status === "rejected") {
-        setErroCartao("Pagamento recusado pela operadora do cartão. Verifique os dados ou tente outro cartão.");
-      } else {
-        setErroCartao(`Pagamento em análise (${resp.status_detail || resp.status}). Você será avisado quando for confirmado.`);
-      }
-      reject(new Error("Pagamento não aprovado"));
-    } catch (e) {
-      setErroCartao(e.message || "Erro ao processar pagamento com cartão.");
-      reject(e);
-    }
-  });
-
   if (pago) return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate("meus-fretes")}>←</button><h1>Pagamento</h1></div>
       <div className="content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
         <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
         <div style={{ fontSize: 26, fontWeight: 800, color: "var(--green)", marginBottom: 8 }}>Pago!</div>
-        <div style={{ color: "var(--text3)", marginBottom: 32, textAlign: "center" }}>Pagamento confirmado pelo MercadoPago.<br/>Aguardando motorista disponível.</div>
+        <div style={{ color: "var(--text3)", marginBottom: 32, textAlign: "center" }}>Pagamento confirmado.<br/>Aguardando motorista disponível.</div>
         <button className="btn btn-primary" onClick={() => onNavigate("meus-fretes")}>Ver Meus Fretes</button>
       </div>
     </div>
@@ -151,42 +111,21 @@ export function PagamentoScreen({ data, onNavigate }) {
                 <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", opacity: 0.7 }} />
                 Aguardando confirmação do pagamento...
               </div>
-              <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "var(--text3)" }}>
-                Powered by MercadoPago
-              </div>
             </>
           )}
         </>)}
 
-        {metodo === "cartao" && (<>
-          <div className="card" style={{ textAlign: "center", marginBottom: 14 }}>
+        {metodo === "cartao" && (
+          <div className="card" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>Valor a pagar</div>
-            <div style={{ fontSize: 32, fontWeight: 900, color: "var(--gold)" }}>{formatMoney(valorInicial)}</div>
-          </div>
-
-          {erroCartao && <div className="alert alert-error">{erroCartao}</div>}
-
-          {!MP_PUBLIC_KEY && (
-            <div className="alert alert-error">Pagamento com cartão indisponível no momento: chave pública do Mercado Pago não configurada.</div>
-          )}
-
-          {MP_PUBLIC_KEY && freteId && (
-            <div className="card">
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 13, cursor: "pointer" }}>
-                <input type="checkbox" checked={salvarCartao} onChange={e => setSalvarCartao(e.target.checked)} />
-                Salvar cartão para próximas vezes
-              </label>
-              <CardPayment
-                initialization={{ amount: valorInicial, payer: { email: user?.email || "" } }}
-                onSubmit={onCardSubmit}
-                onError={(err) => console.error("[MP CardPayment]", err)}
-              />
-              <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "var(--text3)" }}>
-                Powered by MercadoPago
-              </div>
+            <div style={{ fontSize: 32, fontWeight: 900, color: "var(--gold)", marginBottom: 20 }}>{formatMoney(valorInicial)}</div>
+            <div className="alert alert-error">
+              Pagamento com cartão está temporariamente indisponível enquanto migramos o processador
+              de pagamento. Use o Pix por enquanto — assim que o novo fluxo de cartão estiver pronto,
+              esta tela será atualizada.
             </div>
-          )}
-        </>)}
+          </div>
+        )}
       </div>
     </div>
   );

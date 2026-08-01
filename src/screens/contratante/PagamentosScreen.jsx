@@ -95,8 +95,10 @@ export function PagamentosScreen({ onNavigate }) {
     return "Gerado automaticamente no pagamento";
   };
 
-  // Cartões salvos de verdade (tokenizados via Mercado Pago ao pagar um frete
-  // com "salvar cartão para próxima vez" marcado — ver PagamentoScreen).
+  // Cartões salvos de verdade (tokenizados pelo backend ao pagar um frete
+  // com "salvar cartão para próxima vez" marcado — ver PagamentoScreen). Pagamento com
+  // cartão está temporariamente indisponível (migração pro Asaas), então esta lista só
+  // mostra cartões salvos antes disso até o fluxo novo ser reativado.
   const [cartoesSalvos, setCartoesSalvos] = useState([]);
   const [loadingCartoes, setLoadingCartoes] = useState(true);
   const [erroCartoes, setErroCartoes] = useState("");
