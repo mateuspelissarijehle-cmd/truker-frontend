@@ -17,6 +17,8 @@ import { AdminUsuarios } from "./screens/admin/AdminUsuarios";
 import { AdminMotoristaTeste } from "./screens/admin/AdminMotoristaTeste";
 import { AdminSeguradorasScreen } from "./screens/admin/AdminSeguradorasScreen";
 import { AdminTrocarSenha } from "./screens/admin/AdminTrocarSenha";
+import { AdminFretesProblemaScreen } from "./screens/admin/AdminFretesProblemaScreen";
+import { AdminCancelamentosScreen } from "./screens/admin/AdminCancelamentosScreen";
 import { ChatScreen } from "./screens/shared/ChatScreen";
 import { AvaliarScreen } from "./screens/shared/AvaliarScreen";
 import { OpcoesMotorista } from "./screens/motorista/OpcoesMotorista";
@@ -91,6 +93,8 @@ function Router() {
       case "admin-motorista-teste": return <AdminMotoristaTeste {...p} />;
       case "admin-seguradoras": return <AdminSeguradorasScreen {...p} />;
       case "admin-trocar-senha": return <AdminTrocarSenha {...p} />;
+      case "admin-fretes-problema": return <AdminFretesProblemaScreen {...p} />;
+      case "admin-cancelamentos": return <AdminCancelamentosScreen {...p} />;
       case "home-contratante": return <ContratanteHome {...p} />;
       case "solicitar-frete": return <SolicitarFreteScreen screenData={screenData} {...p} />;
       case "buscar-motoristas": return <BuscarMotoristasScreen {...p} />;

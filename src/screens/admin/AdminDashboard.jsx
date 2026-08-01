@@ -19,6 +19,8 @@ export function AdminDashboard({ onNavigate }) {
   const [erroLimpeza, setErroLimpeza] = useState("");
   const [executandoLimpeza, setExecutandoLimpeza] = useState(false);
   const [resultadoLimpeza, setResultadoLimpeza] = useState(null);
+  const [totalFretesProblema, setTotalFretesProblema] = useState(0);
+  const [totalCancelamentosPendentes, setTotalCancelamentosPendentes] = useState(0);
 
   useEffect(() => {
     setLoadingStats(true);
@@ -29,6 +31,15 @@ export function AdminDashboard({ onNavigate }) {
     ]).then(([s, m, f]) => { setStats(s); setMotoristas(m); setFretes(f); })
       .catch(console.error)
       .finally(() => setLoadingStats(false));
+
+    // Badges de alerta -- carregados à parte pra não travar o dashboard
+    // principal se um desses endpoints falhar.
+    api("GET", "/api/admin/fretes-problema", null, token)
+      .then(r => setTotalFretesProblema(r.length))
+      .catch(() => {});
+    api("GET", "/api/admin/cancelamentos-pendentes", null, token)
+      .then(r => setTotalCancelamentosPendentes(r.totalItens))
+      .catch(() => {});
   }, []);
 
   async function carregarRelatorioLimpeza() {
@@ -99,6 +110,12 @@ export function AdminDashboard({ onNavigate }) {
 
         <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-usuarios")}>
           🔧 Gerenciar Usuários (Master)
+        </button>
+        <button className={`btn ${totalFretesProblema > 0 ? "btn-danger" : "btn-secondary"}`} style={{ marginBottom: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }} onClick={() => onNavigate("admin-fretes-problema")}>
+          ⚠️ Fretes com Problema {totalFretesProblema > 0 && <span className="badge badge-admin" style={{ marginLeft: 4 }}>{totalFretesProblema}</span>}
+        </button>
+        <button className={`btn ${totalCancelamentosPendentes > 0 ? "btn-danger" : "btn-secondary"}`} style={{ marginBottom: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }} onClick={() => onNavigate("admin-cancelamentos")}>
+          💸 Cancelamentos Pendentes {totalCancelamentosPendentes > 0 && <span className="badge badge-admin" style={{ marginLeft: 4 }}>{totalCancelamentosPendentes}</span>}
         </button>
         <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-motorista-teste")}>
           🚛 Criar Motorista de Teste

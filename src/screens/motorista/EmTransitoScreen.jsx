@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { api, abrirArquivoAutenticado } from "../../services/api";
+import { api, apiUpload, abrirArquivoAutenticado } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
@@ -30,6 +30,10 @@ export function EmTransitoScreen({ frete, onNavigate }) {
   const [etaInfo, setEtaInfo] = useState(null);
   const [fretesRetorno, setFretesRetorno] = useState([]);
   const [loadingFretesRetorno, setLoadingFretesRetorno] = useState(false);
+  const [showProblema, setShowProblema] = useState(false);
+  const [problema, setProblema] = useState({ motivo: "acidente", descricao: "", arquivo: null });
+  const [enviandoProblema, setEnviandoProblema] = useState(false);
+  const [erroProblema, setErroProblema] = useState("");
   const posicaoRef = useRef(null);
 
   // GPS ao vivo desta tela — a Home também tem o próprio watch+envio, mas
@@ -179,6 +183,37 @@ export function EmTransitoScreen({ frete, onNavigate }) {
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
+
+  const reportarProblema = async () => {
+    setEnviandoProblema(true); setErroProblema("");
+    try {
+      const formData = new FormData();
+      formData.append("motivo", problema.motivo);
+      if (problema.descricao) formData.append("descricao", problema.descricao);
+      if (problema.arquivo) formData.append("foto", problema.arquivo);
+      await apiUpload("POST", `/api/fretes/${frete.id}/reportar-problema`, formData, token);
+      setFreteStatus("problema_entrega");
+      setShowProblema(false);
+    } catch (e) { setErroProblema(e.message); }
+    finally { setEnviandoProblema(false); }
+  };
+
+  if (freteStatus === "problema_entrega") return (
+    <div className="screen">
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button>
+        <h1>Frete Ativo</h1>
+      </div>
+      <div className="content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, textAlign: "center" }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>⚠️</div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: "var(--red)", marginBottom: 8 }}>Problema reportado</div>
+        <p style={{ color: "var(--text3)", marginBottom: 24, lineHeight: 1.6 }}>
+          O suporte TRUKER e o contratante já foram avisados. Este frete ficou travado até o time entrar em contato com você.
+        </p>
+        <button className="btn btn-secondary" onClick={() => onNavigate("chat", { frete })}>💬 Falar com o Contratante</button>
+      </div>
+    </div>
+  );
 
   if (entregueOk) return (
     <div className="screen">
@@ -349,6 +384,43 @@ export function EmTransitoScreen({ frete, onNavigate }) {
           )}
         </div>
         <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat com Contratante</button>
+
+        {["coletando", "em_rota"].includes(freteStatus) && !showProblema && (
+          <button className="btn btn-danger" style={{ marginBottom: 10 }} onClick={() => setShowProblema(true)}>⚠️ Reportar problema na entrega</button>
+        )}
+        {["coletando", "em_rota"].includes(freteStatus) && showProblema && (
+          <div className="card" style={{ borderLeft: "4px solid var(--red)", marginBottom: 10 }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>⚠️ Reportar problema</div>
+            <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 12, lineHeight: 1.6 }}>
+              Use isso só em caso de acidente, roubo/furto ou impossibilidade real de entregar a carga. O frete vai travar imediatamente e o suporte TRUKER e o contratante serão avisados.
+            </p>
+            {erroProblema && <div className="alert alert-error">{erroProblema}</div>}
+            <div className="field">
+              <label>Motivo</label>
+              <select value={problema.motivo} onChange={e => setProblema(p => ({ ...p, motivo: e.target.value }))}>
+                <option value="acidente">Acidente</option>
+                <option value="roubo">Roubo/furto</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Descrição (opcional)</label>
+              <textarea rows={3} value={problema.descricao} onChange={e => setProblema(p => ({ ...p, descricao: e.target.value }))} placeholder="Descreva o que aconteceu" />
+            </div>
+            <label className="upload-area" style={{ display: "block", marginBottom: 12, cursor: "pointer" }}>
+              {problema.arquivo ? `📎 ${problema.arquivo.name}` : "📤 Anexar foto (opcional)"}
+              <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }}
+                onChange={e => setProblema(p => ({ ...p, arquivo: e.target.files[0] || null }))} />
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn btn-danger" onClick={reportarProblema} disabled={enviandoProblema}>
+                {enviandoProblema ? "Enviando..." : "Confirmar problema"}
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowProblema(false)} disabled={enviandoProblema}>Cancelar</button>
+            </div>
+          </div>
+        )}
+
         {freteStatus === "aceito" && frete.status_pagamento === "approved" && (
           <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => atualizarStatus("coletando")} disabled={loading}>🚛 Iniciar Coleta</button>
         )}
