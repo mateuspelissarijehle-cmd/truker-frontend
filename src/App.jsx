@@ -21,7 +21,6 @@ import { AdminFretesProblemaScreen } from "./screens/admin/AdminFretesProblemaSc
 import { AdminCancelamentosScreen } from "./screens/admin/AdminCancelamentosScreen";
 import { ChatScreen } from "./screens/shared/ChatScreen";
 import { AvaliarScreen } from "./screens/shared/AvaliarScreen";
-import { OpcoesMotorista } from "./screens/motorista/OpcoesMotorista";
 import { OpcoesContratante } from "./screens/contratante/OpcoesContratante";
 import { ContratanteHome } from "./screens/contratante/ContratanteHome";
 import { BuscarMotoristasScreen } from "./screens/contratante/BuscarMotoristasScreen";
@@ -38,7 +37,6 @@ import { ConvitesScreen } from "./screens/motorista/ConvitesScreen";
 import { AceitarFreteScreen } from "./screens/motorista/AceitarFreteScreen";
 import { MinhasPropostasScreen } from "./screens/motorista/MinhasPropostasScreen";
 import { MeusFretesMot } from "./screens/motorista/MeusFretesMot";
-import { DespesasTab } from "./screens/motorista/DespesasTab";
 import { DadosPessoaisContratante } from "./screens/contratante/DadosPessoaisContratante";
 import { DadosPessoaisMotorista } from "./screens/motorista/DadosPessoaisMotorista";
 import { ExtratoFreteMotoristaScreen } from "./screens/motorista/ExtratoFreteMotoristaScreen";
@@ -120,7 +118,6 @@ function Router() {
       case "extrato-frete-motorista": return <ExtratoFreteMotoristaScreen dados={screenData} {...p} />;
       case "chat": return <ChatScreen data={screenData} {...p} />;
       case "avaliar": return <AvaliarScreen data={screenData} {...p} />;
-      case "opcoes-motorista": return <OpcoesMotorista {...p} />;
       case "opcoes-contratante": return <OpcoesContratante {...p} />;
       case "termos": return <TermosScreen {...p} />;
       case "pagamento": return <PagamentoScreen data={screenData} {...p} />;

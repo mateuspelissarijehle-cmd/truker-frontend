@@ -1,11 +1,10 @@
-import { IconHome, IconActivity, IconAccount, IconOptions } from "./NavIcons";
+import { IconHome, IconActivity, IconAccount } from "./NavIcons";
 
 export function BottomNavMotorista({ active, onNavigate }) {
   const tabs = [
     { id: "inicio", label: "Início", screen: "home-motorista", Icon: IconHome },
     { id: "atividade", label: "Atividade", screen: "meus-fretes-motorista", Icon: IconActivity },
     { id: "conta", label: "Conta", screen: "perfil-motorista", Icon: IconAccount },
-    { id: "opcoes", label: "Opções", screen: "opcoes-motorista", Icon: IconOptions },
   ];
   return (
     <nav className="bottom-nav">

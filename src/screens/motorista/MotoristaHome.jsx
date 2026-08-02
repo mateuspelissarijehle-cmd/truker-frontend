@@ -182,7 +182,6 @@ export function MotoristaHome({ onNavigate }) {
             <input type="checkbox" checked={online} onChange={e => toggleOnline(e.target.checked)} />
             <span className="toggle-slider" />
           </label>
-          <span style={{ fontSize: 22, cursor: "pointer" }} onClick={() => onNavigate("perfil-motorista")}>👤</span>
         </div>
       </div>
       <div className="content">
@@ -199,42 +198,30 @@ export function MotoristaHome({ onNavigate }) {
             </div>
           </div>
         )}
-        {propostasPendentes > 0 && (
-          <div className="card" style={{ borderColor: "var(--gold)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("minhas-propostas")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 24 }}>📨</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>Você tem {propostasPendentes} contraproposta{propostasPendentes > 1 ? "s" : ""} para responder</div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>Toque para ver e decidir</div>
-              </div>
-              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Oportunidades</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div className="card" style={{ flex: 1, textAlign: "center", padding: "12px 6px", cursor: "pointer", position: "relative" }} onClick={() => onNavigate("minhas-propostas")}>
+              {propostasPendentes > 0 && (
+                <span style={{ position: "absolute", top: 6, right: 6, background: "var(--red)", color: "#fff", borderRadius: 10, fontSize: 10, fontWeight: 800, padding: "1px 6px", minWidth: 16 }}>{propostasPendentes}</span>
+              )}
+              <div style={{ fontSize: 22, marginBottom: 4 }}>📨</div>
+              <div style={{ fontSize: 11, fontWeight: 700 }}>Propostas</div>
+            </div>
+            <div className="card" style={{ flex: 1, textAlign: "center", padding: "12px 6px", cursor: "pointer", position: "relative" }} onClick={() => onNavigate("convites-motorista")}>
+              {convitesPendentes > 0 && (
+                <span style={{ position: "absolute", top: 6, right: 6, background: "var(--red)", color: "#fff", borderRadius: 10, fontSize: 10, fontWeight: 800, padding: "1px 6px", minWidth: 16 }}>{convitesPendentes}</span>
+              )}
+              <div style={{ fontSize: 22, marginBottom: 4 }}>🎯</div>
+              <div style={{ fontSize: 11, fontWeight: 700 }}>Convites</div>
+            </div>
+            <div className="card" style={{ flex: 1, textAlign: "center", padding: "12px 6px", cursor: "pointer" }} onClick={() => onNavigate("disponibilidade-motorista")}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>📢</div>
+              <div style={{ fontSize: 11, fontWeight: 700 }}>Disponibilidade</div>
+              {temDisponibilidadeAtiva && <div style={{ fontSize: 9, color: "var(--green)", marginTop: 2, fontWeight: 700 }}>● ativa</div>}
             </div>
           </div>
-        )}
-        {convitesPendentes > 0 && (
-          <div className="card" style={{ borderColor: "var(--gold)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("convites-motorista")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 24 }}>🎯</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>Você tem {convitesPendentes} convite{convitesPendentes > 1 ? "s" : ""} direto{convitesPendentes > 1 ? "s" : ""} de contratante{convitesPendentes > 1 ? "s" : ""}</div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>Toque para ver e decidir</div>
-              </div>
-              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
-            </div>
-          </div>
-        )}
-        {fretesAtivos.length === 0 && !temDisponibilidadeAtiva && (
-          <div className="card" style={{ cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("disponibilidade-motorista")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 24 }}>📢</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>Sem frete agora? Anuncie sua disponibilidade</div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>Contratantes da sua região podem te convidar direto</div>
-              </div>
-              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
-            </div>
-          </div>
-        )}
+        </div>
         <div className="km-vazio-bar">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>📊 KM VAZIO HOJE</span>

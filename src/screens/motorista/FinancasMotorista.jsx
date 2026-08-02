@@ -16,7 +16,13 @@ export function FinancasMotorista({ onNavigate }) {
   const [extrato, setExtrato] = useState(null);
   const [loadingExtrato, setLoadingExtrato] = useState(true);
   const [loadingGanhos, setLoadingGanhos] = useState(true);
+  const [metaKmVazio, setMetaKmVazio] = useState(800);
+  const [editMeta, setEditMeta] = useState(false);
+  const [novaMeta, setNovaMeta] = useState("800");
   const tiposDespesa = TIPOS_DESPESA;
+
+  const kmVazio = Number(ganhos?.km_vazio_total || 0);
+  const pctMeta = Math.min(100, Math.round((kmVazio / metaKmVazio) * 100));
 
   // Mesma fonte de verdade da aba Despesas do Perfil — antes esta tela somava
   // só o valor bruto das despesas registradas manualmente, sem o resumo ANTT
@@ -55,7 +61,7 @@ export function FinancasMotorista({ onNavigate }) {
           <div style={{ fontSize: 28, fontWeight: 800, color: saldo >= 0 ? "var(--green)" : "var(--red)" }}>{formatMoney(saldo)}</div>
         </div>
         <div className="tab-bar" style={{ marginBottom: 14 }}>
-          {[["despesas","💸 Despesas"],["receitas","💰 Receitas"]].map(([id, label]) => (
+          {[["despesas","💸 Despesas"],["receitas","💰 Receitas"],["km-vazio","🛣️ KM Vazio"]].map(([id, label]) => (
             <button key={id} className={`tab-btn ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}>{label}</button>
           ))}
         </div>
@@ -192,6 +198,61 @@ export function FinancasMotorista({ onNavigate }) {
               </>
             )}
           </>
+        )}
+        {tab === "km-vazio" && (
+          loadingGanhos && !ganhos ? <Loading /> : (
+          <>
+            <div className="card">
+              <div className="card-title">Meta de KM Vazio (mensal)</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 800, color: pctMeta > 100 ? "var(--red)" : pctMeta > 75 ? "var(--orange)" : "var(--green)" }}>{formatKm(kmVazio)}</div>
+                  <div style={{ fontSize: 12, color: "var(--text2)" }}>rodado vazio este mês</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  {!editMeta ? (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>Meta: {formatKm(metaKmVazio)}</div>
+                      <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => setEditMeta(true)}>✏️ Editar</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <input type="number" value={novaMeta} onChange={e => setNovaMeta(e.target.value)} style={{ width: 80, background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", color: "var(--white)", fontSize: 14, fontFamily: "Inter, sans-serif" }} />
+                      <button className="btn btn-primary btn-sm" onClick={() => { setMetaKmVazio(Number(novaMeta)); setEditMeta(false); }}>OK</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="progress-bar" style={{ height: 10 }}>
+                <div className={`progress-fill ${pctMeta > 100 ? "red" : pctMeta > 75 ? "" : "green"}`} style={{ width: `${Math.min(pctMeta, 100)}%` }} />
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 6 }}>
+                {pctMeta >= 100 ? "⚠️ Meta ultrapassada! Aceite fretes de retorno." : pctMeta > 75 ? "⚡ Atenção: próximo da meta." : `✅ ${formatKm(metaKmVazio - kmVazio)} restantes até a meta`}
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-title">KM Vazio por tipo de carga</div>
+              <div style={{ textAlign: "center", padding: "16px 8px", color: "var(--text3)" }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>📊</div>
+                <p style={{ fontSize: 13 }}>Ainda não temos esse detalhamento por tipo de carga.</p>
+                <p style={{ fontSize: 12, marginTop: 4 }}>Em breve você poderá ver aqui em quais tipos de carga está rodando mais vazio.</p>
+              </div>
+            </div>
+            <div className="card">
+              <div className="card-title">Eficiência geral</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: "var(--green)" }}>✅ Carregado: {ganhos ? formatKm(ganhos.km_carregado) : "—"}</span>
+                <span style={{ fontSize: 13, color: "var(--red)" }}>⬜ Vazio: {formatKm(kmVazio)}</span>
+              </div>
+              <div className="progress-bar" style={{ height: 10 }}>
+                <div className="progress-fill green" style={{ width: `${ganhos ? Math.round((Number(ganhos.km_carregado) / Math.max(Number(ganhos.km_carregado) + kmVazio, 1)) * 100) : 0}%` }} />
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginTop: 8, color: "var(--green)" }}>
+                {ganhos ? `${Math.round((Number(ganhos.km_carregado) / Math.max(Number(ganhos.km_carregado) + kmVazio, 1)) * 100)}% de eficiência` : "—"}
+              </div>
+            </div>
+          </>
+          )
         )}
       </div>
     </div>
