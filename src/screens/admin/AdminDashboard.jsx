@@ -21,6 +21,14 @@ export function AdminDashboard({ onNavigate }) {
   const [resultadoLimpeza, setResultadoLimpeza] = useState(null);
   const [totalFretesProblema, setTotalFretesProblema] = useState(0);
   const [totalCancelamentosPendentes, setTotalCancelamentosPendentes] = useState(0);
+  const [pisoAntt, setPisoAntt] = useState(null);
+  const [marcandoPisoAntt, setMarcandoPisoAntt] = useState(false);
+
+  function carregarPisoAntt() {
+    api("GET", "/api/admin/piso-antt/status", null, token)
+      .then(setPisoAntt)
+      .catch(() => {});
+  }
 
   useEffect(() => {
     setLoadingStats(true);
@@ -40,7 +48,20 @@ export function AdminDashboard({ onNavigate }) {
     api("GET", "/api/admin/cancelamentos-pendentes", null, token)
       .then(r => setTotalCancelamentosPendentes(r.totalItens))
       .catch(() => {});
+    carregarPisoAntt();
   }, []);
+
+  async function marcarPisoAnttRevisado() {
+    setMarcandoPisoAntt(true);
+    try {
+      await api("POST", "/api/admin/piso-antt/marcar-revisado", null, token);
+      carregarPisoAntt();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setMarcandoPisoAntt(false);
+    }
+  }
 
   async function carregarRelatorioLimpeza() {
     setLoadingLimpeza(true);
@@ -228,6 +249,28 @@ export function AdminDashboard({ onNavigate }) {
               <div className="info-row"><span className="info-label">Pago aos motoristas</span><span className="info-value" style={{ color: "var(--green)" }}>{formatMoney(stats.valor_pago_motoristas)}</span></div>
               <div className="info-row"><span className="info-label">Receita TRUKER</span><span className="info-value" style={{ color: "var(--orange)" }}>{formatMoney(stats.receita_truker)}</span></div>
             </div>
+            {pisoAntt && (
+              <div className="card">
+                <div className="card-title">📐 Piso ANTT</div>
+                <div className="info-row">
+                  <span className="info-label">Última revisão</span>
+                  <span className="info-value">{pisoAntt.revisadoEm ? new Date(pisoAntt.revisadoEm).toLocaleDateString("pt-BR") : "Nunca revisado"}</span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Status</span>
+                  <span className="info-value" style={{ color: pisoAntt.vencido ? "var(--red)" : "var(--green)" }}>
+                    {pisoAntt.vencido ? `⚠️ Vencido (>${pisoAntt.intervaloDias} dias)` : `✅ Em dia (${pisoAntt.diasDesdeRevisao}/${pisoAntt.intervaloDias} dias)`}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4, marginBottom: 10 }}>
+                  Compare os valores configurados com{" "}
+                  <a href={pisoAntt.urlAntt} target="_blank" rel="noreferrer" style={{ color: "var(--orange)" }}>{pisoAntt.urlAntt}</a>. Se a ANTT reajustou os coeficientes, atualize <code>TABELA_ANTT</code> no backend.
+                </div>
+                <button className="btn btn-secondary" onClick={marcarPisoAnttRevisado} disabled={marcandoPisoAntt}>
+                  {marcandoPisoAntt ? "Salvando..." : "✅ Marcar como revisado hoje"}
+                </button>
+              </div>
+            )}
             <div className="card">
               <div className="card-title">Status dos Fretes</div>
               {[["Aguardando", stats.fretes_aguardando, "var(--orange)"], ["Aceitos / Em Rota", stats.fretes_aceito + stats.fretes_em_rota, "var(--blue)"], ["Entregues", stats.fretes_entregues, "var(--green)"], ["Cancelados", stats.fretes_cancelados, "var(--red)"]].map(([label, val, cor]) => (
