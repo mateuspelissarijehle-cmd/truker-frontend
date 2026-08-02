@@ -5,7 +5,7 @@ import { getCurrentPosition } from "../services/geolocation";
 
 // ─────────────────────────────────────────────
 // SOS GLOBAL — botão flutuante com confirmação por "segurar",
-// visível em qualquer tela pra motorista/contratante logados.
+// visível em qualquer tela pro motorista logado (contratante não usa este botão).
 // ─────────────────────────────────────────────
 const HOLD_MS = 2200;
 const RING_R = 26;
@@ -121,7 +121,7 @@ export function SosButton() {
 
   const fechar = () => setPanelOpen(false);
 
-  if (!user || (user.tipo !== "motorista" && user.tipo !== "contratante")) return null;
+  if (!user || user.tipo !== "motorista") return null;
 
   return (
     <>

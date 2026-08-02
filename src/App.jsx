@@ -137,7 +137,7 @@ function Router() {
   return (
     <>
       {renderScreen()}
-      {(user?.tipo === "motorista" || user?.tipo === "contratante") && <SosButton />}
+      {user?.tipo === "motorista" && <SosButton />}
     </>
   );
 }

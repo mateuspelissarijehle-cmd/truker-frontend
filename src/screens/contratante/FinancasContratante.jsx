@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { api } from "../../services/api";
+import { api, baixarArquivoAutenticado } from "../../services/api";
 import { formatMoney, formatKm } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
@@ -16,6 +16,18 @@ export function FinancasContratante({ onNavigate }) {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(false);
   const [aba, setAba] = useState("mes");
+  const [exportando, setExportando] = useState(false);
+
+  const exportarExcel = async () => {
+    setExportando(true);
+    try {
+      await baixarArquivoAutenticado("/api/fretes/exportar-excel", token, "fretes-truker.xlsx");
+    } catch (e) {
+      alert(e.message || "Não foi possível exportar a planilha");
+    } finally {
+      setExportando(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -43,6 +55,10 @@ export function FinancasContratante({ onNavigate }) {
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Painel Financeiro</h1></div>
       <div className="content">
+        <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={exportarExcel} disabled={exportando}>
+          {exportando ? "Gerando planilha..." : "📥 Exportar Excel"}
+        </button>
+
         <div className="tab-bar" style={{ marginBottom: 14 }}>
           {[["12m", "Últimos 12 meses"], ["desde_inicio", "Desde o início"]].map(([id, label]) => (
             <button key={id} className={`tab-btn ${periodo === id ? "active" : ""}`} onClick={() => setPeriodo(id)}>{label}</button>

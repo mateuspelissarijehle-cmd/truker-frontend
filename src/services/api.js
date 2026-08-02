@@ -58,6 +58,34 @@ export async function apiUpload(method, path, formData, token) {
 // A aba é aberta ANTES do fetch (síncrono, dentro do clique do usuário) e só
 // redirecionada depois — abrir só no final, após o await, é bloqueado como
 // pop-up pela maioria dos navegadores por perder o gesto do usuário.
+// Baixa um arquivo binário autenticado (ex: planilha .xlsx) forçando o download
+// direto pro dispositivo, em vez de abrir em nova aba -- diferente de
+// abrirArquivoAutenticado acima, que serve pra arquivos que fazem sentido
+// visualizar no navegador (PDF). Extrai o nome sugerido do header
+// Content-Disposition quando disponível.
+export async function baixarArquivoAutenticado(path, token, nomePadrao) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    let msg = "Não foi possível baixar o arquivo";
+    try { const data = await res.json(); msg = data.error || msg; } catch {}
+    throw new Error(msg);
+  }
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  const nomeArquivo = match ? match[1] : nomePadrao;
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 export async function abrirArquivoAutenticado(path, token) {
   const novaJanela = window.open("", "_blank");
   try {
