@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "891242805231",
+    "project_id": "truker-299ee",
+    "storage_bucket": "truker-299ee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:891242805231:android:434824c355f51cbff5681a",
+        "android_client_info": {
+          "package_name": "com.truker.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1k5sd_yjy-ArxXQWmqDXvAmB6xHGTjsU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
