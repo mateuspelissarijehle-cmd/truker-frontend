@@ -24,11 +24,21 @@ export function ContratanteHome({ onNavigate }) {
     entregues: fretes.filter(f => f.status === "entregue").length,
   };
 
+  const cpfCnpjLimpo = String(user?.cpf_cnpj || "").replace(/\D/g, "");
+  const isPJ = cpfCnpjLimpo.length === 14;
+  const nomeDestaque = isPJ && user?.nome_empresa ? user.nome_empresa : (user?.nome?.split(" ")[0] || "Contratante");
+
   return (
     <div className="screen">
-      <div className="header">
-        <div><div style={{ fontSize: 11, color: "var(--text2)" }}>Olá,</div><h1>{user?.nome?.split(" ")[0] || "Contratante"}</h1></div>
-        <div style={{ marginLeft: "auto", fontSize: 24, cursor: "pointer" }} onClick={() => onNavigate("perfil")}>👤</div>
+      <div className="header" style={{ alignItems: "flex-start" }}>
+        <div style={{ textAlign: "left" }}>
+          <div style={{ fontSize: 11, color: "var(--text2)" }}>Olá,</div>
+          <h1>{nomeDestaque}</h1>
+          {isPJ && user?.nome_empresa && (
+            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>{user?.nome?.split(" ")[0] || ""}</div>
+          )}
+        </div>
+        <div style={{ marginLeft: "auto", fontSize: 24, cursor: "pointer", paddingTop: 2 }} onClick={() => onNavigate("perfil")}>👤</div>
       </div>
       <div className="content">
         <div className="grid-3" style={{ marginBottom: 16 }}>

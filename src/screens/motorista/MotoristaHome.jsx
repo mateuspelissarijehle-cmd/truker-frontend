@@ -40,7 +40,19 @@ export function MotoristaHome({ onNavigate }) {
   const [convitesPendentes, setConvitesPendentes] = useState(0);
   const [temDisponibilidadeAtiva, setTemDisponibilidadeAtiva] = useState(false);
   const [seguroValido, setSeguroValido] = useState(true);
+  const [placaCavalo, setPlacaCavalo] = useState("");
+  const [conjuntoAtivo, setConjuntoAtivo] = useState(null);
   const posicaoRef = useRef(null);
+
+  // Placa do cavalo mecânico + conjunto (carroceria) ativo, pro resumo no header
+  useEffect(() => {
+    api("GET", "/api/motoristas/perfil", null, token)
+      .then(d => setPlacaCavalo(d.placa_veiculo || ""))
+      .catch(() => {});
+    api("GET", "/api/motoristas/conjuntos", null, token)
+      .then(lista => setConjuntoAtivo(Array.isArray(lista) ? (lista.find(c => c.ativo) || null) : null))
+      .catch(() => setConjuntoAtivo(null));
+  }, [token]);
 
   // Verifica se há contrapropostas do contratante aguardando resposta do motorista
   useEffect(() => {
@@ -169,15 +181,21 @@ export function MotoristaHome({ onNavigate }) {
 
   return (
     <div className="screen">
-      <div className="header">
-        <div>
+      <div className="header" style={{ alignItems: "flex-start" }}>
+        <div style={{ textAlign: "left" }}>
           <div style={{ fontSize: 11, color: "var(--text2)", display: "flex", alignItems: "center" }}>
             <span className={online ? "online-dot" : "offline-dot"} />
             {online ? "Online — aceitando fretes" : "Offline"}
           </div>
           <h1>{user?.nome?.split(" ")[0] || "Motorista"}</h1>
+          {(placaCavalo || conjuntoAtivo) && (
+            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>
+              🚛 {placaCavalo || "cavalo não cadastrado"}
+              {conjuntoAtivo ? ` · ${conjuntoAtivo.carroceria_label || conjuntoAtivo.nome}` : ""}
+            </div>
+          )}
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12, paddingTop: 2 }}>
           <label className="toggle">
             <input type="checkbox" checked={online} onChange={e => toggleOnline(e.target.checked)} />
             <span className="toggle-slider" />
