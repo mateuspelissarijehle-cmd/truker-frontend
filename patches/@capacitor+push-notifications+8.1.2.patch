@@ -1,0 +1,53 @@
+diff --git a/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java b/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java
+index 6d339d6..7e42b38 100644
+--- a/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java
++++ b/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java
+@@ -100,23 +100,36 @@ public class PushNotificationsPlugin extends Plugin {
+ 
+     @PluginMethod
+     public void register(PluginCall call) {
+-        FirebaseMessaging.getInstance().setAutoInitEnabled(true);
+-        FirebaseMessaging.getInstance()
+-            .getToken()
+-            .addOnCompleteListener((task) -> {
+-                if (!task.isSuccessful()) {
+-                    sendError(task.getException().getLocalizedMessage());
+-                    return;
+-                }
+-                sendToken(task.getResult());
+-            });
++        try {
++            FirebaseMessaging.getInstance().setAutoInitEnabled(true);
++            FirebaseMessaging.getInstance()
++                .getToken()
++                .addOnCompleteListener((task) -> {
++                    if (!task.isSuccessful()) {
++                        sendError(task.getException().getLocalizedMessage());
++                        return;
++                    }
++                    sendToken(task.getResult());
++                });
++        } catch (IllegalStateException e) {
++            // google-services.json ausente (Firebase real ainda nao configurado) faz
++            // FirebaseApp.getInstance() lancar em vez de retornar -- sem este catch,
++            // essa excecao sobe sem tratamento pelo Bridge do Capacitor (so pega
++            // PluginLoadException/InvalidPluginMethodException) e derruba o app
++            // inteiro assim que o usuario concede a permissao de notificacao.
++            sendError(e.getLocalizedMessage());
++        }
+         call.resolve();
+     }
+ 
+     @PluginMethod
+     public void unregister(PluginCall call) {
+-        FirebaseMessaging.getInstance().setAutoInitEnabled(false);
+-        FirebaseMessaging.getInstance().deleteToken();
++        try {
++            FirebaseMessaging.getInstance().setAutoInitEnabled(false);
++            FirebaseMessaging.getInstance().deleteToken();
++        } catch (IllegalStateException e) {
++            sendError(e.getLocalizedMessage());
++        }
+         call.resolve();
+     }
+ 
