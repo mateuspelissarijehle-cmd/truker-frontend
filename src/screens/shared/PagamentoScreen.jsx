@@ -1,8 +1,20 @@
 import { useState, useEffect, useRef } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 import { useAuth } from "../../context/AuthContext";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
+
+const isNative = Capacitor.isNativePlatform();
+
+// Abre a página hospedada do Checkout Asaas -- no app nativo via plugin @capacitor/browser
+// (abre num navegador in-app e devolve o foco pro TRUKER ao fechar); no navegador/PWA numa
+// nova aba, senão o redirect direto perderia a tela de pagamento.
+async function abrirUrlCheckout(url) {
+  if (isNative) await Browser.open({ url });
+  else window.open(url, "_blank");
+}
 
 // ─────────────────────────────────────────────
 // PAGAMENTO PIX/CARTÃO — Asaas
@@ -22,7 +34,52 @@ export function PagamentoScreen({ data, onNavigate }) {
   const [erroPix, setErroPix] = useState("");
   const intervalRef = useRef(null);
 
-  const pago = statusPix === "approved";
+  // ── Estado do fluxo Cartão (Checkout Asaas hospedado) ──
+  const [statusCartao, setStatusCartao] = useState("idle"); // idle | criando | aguardando | approved | erro
+  const [erroCartao, setErroCartao] = useState("");
+  const checkoutAbertoRef = useRef(false);
+
+  const pago = statusPix === "approved" || statusCartao === "approved";
+
+  const abrirCheckoutCartao = async () => {
+    if (!freteId) { setErroCartao("Frete não identificado"); setStatusCartao("erro"); return; }
+    setErroCartao("");
+    setStatusCartao("criando");
+    try {
+      const d = await api("POST", `/api/pagamentos/checkout-cartao/${freteId}`, {}, token);
+      if (d.status === "approved") { setStatusCartao("approved"); return; } // conta_teste (QA)
+      if (!d.checkout_url) throw new Error("Checkout não retornou URL de pagamento");
+      checkoutAbertoRef.current = true;
+      setStatusCartao("aguardando");
+      await abrirUrlCheckout(d.checkout_url);
+    } catch (e) {
+      setErroCartao(e.message);
+      setStatusCartao("erro");
+    }
+  };
+
+  // A confirmação real do pagamento chega via webhook (evento CHECKOUT_PAID), não existe
+  // payment_id no cliente antes disso -- então ao voltar o foco pro app (o pagador fechou/voltou
+  // da aba ou do navegador in-app do checkout), reconsulta a lista de fretes e olha
+  // status_pagamento pelo freteId, mesma fonte que as outras telas já usam.
+  const reconsultarStatusCartao = async () => {
+    if (!checkoutAbertoRef.current || !freteId) return;
+    try {
+      const fretes = await api("GET", "/api/fretes", null, token);
+      const frete = Array.isArray(fretes) ? fretes.find(f => String(f.id) === String(freteId)) : null;
+      if (frete?.status_pagamento === "approved") setStatusCartao("approved");
+    } catch {}
+  };
+
+  useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState === "visible") reconsultarStatusCartao(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", reconsultarStatusCartao);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", reconsultarStatusCartao);
+    };
+  }, [freteId, token]);
 
   useEffect(() => {
     if (metodo !== "pix") return;
@@ -119,11 +176,30 @@ export function PagamentoScreen({ data, onNavigate }) {
           <div className="card" style={{ textAlign: "center" }}>
             <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>Valor a pagar</div>
             <div style={{ fontSize: 32, fontWeight: 900, color: "var(--gold)", marginBottom: 20 }}>{formatMoney(valorInicial)}</div>
-            <div className="alert alert-error">
-              Pagamento com cartão está temporariamente indisponível enquanto migramos o processador
-              de pagamento. Use o Pix por enquanto — assim que o novo fluxo de cartão estiver pronto,
-              esta tela será atualizada.
-            </div>
+
+            {erroCartao && <div className="alert alert-error" style={{ marginBottom: 16 }}>{erroCartao}</div>}
+
+            {statusCartao === "criando" && <Loading />}
+
+            {(statusCartao === "idle" || statusCartao === "erro") && (
+              <button className="btn btn-primary" onClick={abrirCheckoutCartao}>
+                💳 Pagar com Cartão
+              </button>
+            )}
+
+            {statusCartao === "aguardando" && (
+              <>
+                <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.8, marginBottom: 16 }}>
+                  Complete o pagamento na página que abriu (à vista ou parcelado em até 6x).<br/>
+                  Assim que confirmarmos, esta tela atualiza sozinha.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 16 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--gold)", opacity: 0.7 }} />
+                  Aguardando confirmação do pagamento...
+                </div>
+                <button className="btn btn-secondary" onClick={reconsultarStatusCartao}>Já paguei, verificar</button>
+              </>
+            )}
           </div>
         )}
       </div>
