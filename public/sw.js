@@ -30,7 +30,7 @@ self.addEventListener("notificationclick", event => {
 });
 
 // Cache básico para PWA
-self.addEventListener("install", event => {
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
