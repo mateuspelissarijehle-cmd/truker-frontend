@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
@@ -16,7 +16,7 @@ export function ConvitesScreen({ onNavigate }) {
   useEffect(() => {
     api("GET", "/api/fretes/convidados", null, token)
       .then(setConvites).catch(() => setConvites([])).finally(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   return (
     <div className="screen">

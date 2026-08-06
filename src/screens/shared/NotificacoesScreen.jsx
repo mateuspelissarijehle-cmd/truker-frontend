@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
 
@@ -18,7 +18,7 @@ export function NotificacoesScreen({ onNavigate }) {
       .then(setPrefs)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   const alternar = async (categoria, valor) => {
     setPrefs(p => ({ ...p, [categoria]: valor }));

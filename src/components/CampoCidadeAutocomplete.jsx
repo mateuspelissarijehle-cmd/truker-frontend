@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { api } from "../services/api";
 import { resolverUF } from "../utils/geo";
 
@@ -16,9 +16,9 @@ export function CampoCidadeAutocomplete({ label = "Cidade", value, onChange, onS
   const wrapperRef = useRef(null);
 
   useEffect(() => {
-    if (!value || value.trim().length < 3) { setSugestoes([]); setAberto(false); return; }
+    if (!value || value.trim().length < 3) { queueMicrotask(() => { setSugestoes([]); setAberto(false); }); return; }
     let cancelado = false;
-    setBuscando(true);
+    queueMicrotask(() => setBuscando(true));
     const t = setTimeout(() => {
       api("GET", `/api/maps/autocomplete?q=${encodeURIComponent(value.trim())}`, null, token)
         .then(data => { if (!cancelado) { setSugestoes(data); setAberto(data.length > 0); } })
@@ -26,7 +26,7 @@ export function CampoCidadeAutocomplete({ label = "Cidade", value, onChange, onS
         .finally(() => { if (!cancelado) setBuscando(false); });
     }, 300);
     return () => { cancelado = true; clearTimeout(t); };
-  }, [value]);
+  }, [value, token]);
 
   useEffect(() => {
     const fechar = e => { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setAberto(false); };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api, baixarArquivoAutenticado } from "../../services/api";
 import { formatMoney, formatKm } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
@@ -30,8 +30,7 @@ export function FinancasContratante({ onNavigate }) {
   };
 
   useEffect(() => {
-    setLoading(true);
-    setErro(false);
+    queueMicrotask(() => { setLoading(true); setErro(false); });
     api("GET", `/api/contratantes/financeiro?periodo=${periodo}`, null, token)
       .then(setDados)
       .catch(() => setErro(true))

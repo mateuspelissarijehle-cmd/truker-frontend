@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -16,7 +16,7 @@ export function ContratanteHome({ onNavigate }) {
 
   useEffect(() => {
     api("GET", "/api/fretes", null, token).then(setFretes).catch(() => setFretes([])).finally(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   const stats = {
     pendentes: fretes.filter(f => f.status === "aguardando").length,

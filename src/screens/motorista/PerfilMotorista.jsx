@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatKm } from "../../utils/format";
 import { TIPOS_VEICULO } from "../../data/catalogos";
@@ -20,16 +20,16 @@ export function PerfilMotorista({ onNavigate }) {
     api("GET", "/api/motoristas/perfil", null, token)
       .then(setPerfil)
       .catch(() => {});
-  }, []);
+  }, [token]);
 
   // Busca ganhos reais ao entrar na tela (usados nos cards de resumo)
   useEffect(() => {
-    setLoadingGanhos(true);
+    queueMicrotask(() => setLoadingGanhos(true));
     api("GET", "/api/motoristas/ganhos", null, token)
       .then(setGanhos)
       .catch(() => setGanhos(null))
       .finally(() => setLoadingGanhos(false));
-  }, []);
+  }, [token]);
 
   return (
     <div className="screen">

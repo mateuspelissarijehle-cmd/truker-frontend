@@ -1,4 +1,4 @@
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 // Corpo comum das telas de Opções (motorista/contratante): cabeçalho do
 // usuário + lista de itens navegáveis. A bottom nav varia por perfil, então

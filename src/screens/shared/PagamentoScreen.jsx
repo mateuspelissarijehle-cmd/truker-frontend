@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -62,14 +62,14 @@ export function PagamentoScreen({ data, onNavigate }) {
   // payment_id no cliente antes disso -- então ao voltar o foco pro app (o pagador fechou/voltou
   // da aba ou do navegador in-app do checkout), reconsulta a lista de fretes e olha
   // status_pagamento pelo freteId, mesma fonte que as outras telas já usam.
-  const reconsultarStatusCartao = async () => {
+  const reconsultarStatusCartao = useCallback(async () => {
     if (!checkoutAbertoRef.current || !freteId) return;
     try {
       const fretes = await api("GET", "/api/fretes", null, token);
       const frete = Array.isArray(fretes) ? fretes.find(f => String(f.id) === String(freteId)) : null;
       if (frete?.status_pagamento === "approved") setStatusCartao("approved");
-    } catch {}
-  };
+    } catch { /* reconsulta best-effort ao voltar o foco; falha silenciosa não bloqueia o usuário */ }
+  }, [freteId, token]);
 
   useEffect(() => {
     const onVisibility = () => { if (document.visibilityState === "visible") reconsultarStatusCartao(); };
@@ -79,11 +79,12 @@ export function PagamentoScreen({ data, onNavigate }) {
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", reconsultarStatusCartao);
     };
-  }, [freteId, token]);
+  }, [reconsultarStatusCartao]);
 
+  // Sem freteId não há o que fazer -- nesse caso a mensagem de erro é derivada
+  // direto no render (ver `semFreteId` abaixo), sem precisar de estado/efeito.
   useEffect(() => {
-    if (metodo !== "pix") return;
-    if (!freteId) { setErroPix("Frete não identificado"); setStatusPix("erro"); return; }
+    if (metodo !== "pix" || !freteId) return;
     if (qrCode || statusPix === "approved") return; // já criado, não recriar ao trocar de aba
     api("POST", `/api/pagamentos/criar-pix/${freteId}`, {}, token)
       .then(d => {
@@ -96,13 +97,19 @@ export function PagamentoScreen({ data, onNavigate }) {
             try {
               const s = await api("GET", `/api/pagamentos/status/${d.payment_id}`, null, token);
               if (s.status === "approved") { setStatusPix("approved"); clearInterval(intervalRef.current); }
-            } catch {}
+            } catch { /* poll de status falhou, tenta de novo no próximo intervalo */ }
           }, 5000);
         }
       })
       .catch(e => { setErroPix(e.message); setStatusPix("erro"); });
     return () => clearInterval(intervalRef.current);
-  }, [metodo, freteId]);
+    // `qrCode`/`statusPix` são lidos só como guarda anti-recriação (não recriar o Pix ao
+    // trocar de aba e voltar) -- incluí-los faria o efeito reagir à SUA PRÓPRIA escrita
+    // (setQrCode/setStatusPix logo abaixo), recriando o efeito e derrubando o interval de
+    // polling quase imediatamente após criado. `valorInicial` só é usado como fallback
+    // dentro do .then() e raramente muda depois do mount; deixado de fora de propósito.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metodo, freteId, token]);
 
   const copiar = () => {
     if (!pixKey) return;
@@ -110,7 +117,7 @@ export function PagamentoScreen({ data, onNavigate }) {
       navigator.clipboard.writeText(pixKey);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2500);
-    } catch {}
+    } catch { /* clipboard indisponível/negado, ignora */ }
   };
 
   if (pago) return (
@@ -141,8 +148,8 @@ export function PagamentoScreen({ data, onNavigate }) {
         </div>
 
         {metodo === "pix" && (<>
-          {statusPix === "criando" && <Loading />}
-          {erroPix && <div className="alert alert-error">{erroPix}</div>}
+          {statusPix === "criando" && freteId && <Loading />}
+          {(erroPix || !freteId) && <div className="alert alert-error">{erroPix || "Frete não identificado"}</div>}
           {statusPix === "pending" && qrCode && (
             <>
               <div className="card" style={{ textAlign: "center" }}>

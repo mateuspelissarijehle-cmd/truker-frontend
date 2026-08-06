@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { TrukerLogo } from "../../components/TrukerLogo";
 import { PasswordInput } from "../../components/PasswordInput";

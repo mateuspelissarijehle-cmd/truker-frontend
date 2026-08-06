@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney, formatKm } from "../../utils/format";
 import { TIPOS_DESPESA } from "../../data/catalogos";
@@ -35,10 +35,9 @@ export function FinancasMotorista({ onNavigate }) {
 
   // Carrega ganhos e extrato de transações do banco já ao montar a tela (não só ao clicar na aba)
   useEffect(() => {
-    setLoadingGanhos(true);
+    queueMicrotask(() => { setLoadingGanhos(true); setLoadingExtrato(true); });
     api("GET", "/api/motoristas/ganhos", null, token)
       .then(setGanhos).catch(() => setGanhos(null)).finally(() => setLoadingGanhos(false));
-    setLoadingExtrato(true);
     api("GET", "/api/motoristas/extrato", null, token)
       .then(d => setExtrato(d.transacoes || []))
       .catch(() => setExtrato([]))

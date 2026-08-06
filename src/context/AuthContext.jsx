@@ -1,12 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { AuthContext } from "./useAuth";
 import { registrarPushNotifications } from "../services/push";
 
 // ─────────────────────────────────────────────
-// AUTH CONTEXT
+// AUTH PROVIDER
+// (o context object e o hook `useAuth` ficam em ./useAuth.js -- ver comentário lá)
 // ─────────────────────────────────────────────
-export const AuthContext = createContext(null);
-export function useAuth() { return useContext(AuthContext); }
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => { try { return JSON.parse(localStorage.getItem("truker_user")); } catch { return null; } });
   const [token, setToken] = useState(() => localStorage.getItem("truker_token") || null);
@@ -38,7 +37,7 @@ export function AuthProvider({ children }) {
         console.error("[TRUKER] Push registration ERRO:", err);
       });
     }
-  }, [user?.id, token]);
+  }, [user?.id, user?.tipo, user?.email, token]);
 
   return <AuthContext.Provider value={{ user, token, login, logout, updateUserData }}>{children}</AuthContext.Provider>;
 }

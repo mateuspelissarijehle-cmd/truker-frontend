@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 
 // ─────────────────────────────────────────────
 // CHAT
 // ─────────────────────────────────────────────
 export function ChatScreen({ data, onNavigate }) {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const frete = data?.frete;
   const freteId = frete?.id;
   const [msgs, setMsgs] = useState([]);
@@ -18,20 +18,20 @@ export function ChatScreen({ data, onNavigate }) {
   const bottomRef = useRef(null);
   const intervalRef = useRef(null);
 
-  const carregarMsgs = async () => {
+  const carregarMsgs = useCallback(async () => {
     if (!freteId) { setLoading(false); return; }
     try {
       const res = await api("GET", `/api/chat/${freteId}`, null, token);
       if (Array.isArray(res)) { setMsgs(res); setErroLoad(""); }
     } catch(e) { setErroLoad(e.message); }
     finally { setLoading(false); }
-  };
+  }, [freteId, token]);
 
   useEffect(() => {
-    carregarMsgs();
+    queueMicrotask(carregarMsgs);
     intervalRef.current = setInterval(carregarMsgs, 5000);
     return () => clearInterval(intervalRef.current);
-  }, [freteId]);
+  }, [carregarMsgs]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 

@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
+
+function Estrelas({ nota }) {
+  return (
+    <div style={{ display: "flex", gap: 2 }}>
+      {[1,2,3,4,5].map(n => (
+        <span key={n} style={{ fontSize: 16, color: n <= nota ? "#C9A84C" : "var(--border)" }}>★</span>
+      ))}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 // AVALIAÇÕES — lista de avaliações recebidas/dadas
@@ -28,15 +38,7 @@ export function AvaliacoesScreen({ onNavigate }) {
       })
       .catch(() => setAvaliacoes([]))
       .finally(() => setLoading(false));
-  }, []);
-
-  const Estrelas = ({ nota }) => (
-    <div style={{ display: "flex", gap: 2 }}>
-      {[1,2,3,4,5].map(n => (
-        <span key={n} style={{ fontSize: 16, color: n <= nota ? "#C9A84C" : "var(--border)" }}>★</span>
-      ))}
-    </div>
-  );
+  }, [isMot, token]);
 
   return (
     <div className="screen">

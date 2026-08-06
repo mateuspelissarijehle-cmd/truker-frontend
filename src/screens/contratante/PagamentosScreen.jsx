@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { mascararDado, mascararEmail } from "../../utils/mask";
 import { Loading } from "../../components/Loading";
@@ -34,7 +34,7 @@ export function PagamentosScreen({ onNavigate }) {
       .then(d => setFormas(Array.isArray(d) ? d : []))
       .catch(e => setErroFormas(e.message))
       .finally(() => setLoadingFormas(false));
-  }, []);
+  }, [token]);
 
   const adicionar = async () => {
     let dados = {};
@@ -108,7 +108,7 @@ export function PagamentosScreen({ onNavigate }) {
       .then(d => setCartoesSalvos(Array.isArray(d) ? d : []))
       .catch(e => setErroCartoes(e.message))
       .finally(() => setLoadingCartoes(false));
-  }, []);
+  }, [token]);
 
   const removerCartao = async (id) => {
     if (!window.confirm("Remover este cartão salvo?")) return;

@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { AuthProvider, useAuth } from "./context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/useAuth";
 import { css } from "./styles/css";
 import { SuporteScreen } from "./screens/shared/SuporteScreen";
 import { SobreScreen } from "./screens/shared/SobreScreen";
@@ -59,22 +60,24 @@ function Router() {
   const [screenData, setScreenData] = useState(null);
 
   useEffect(() => {
-    if (user) {
-      if (user.tipo === "admin") setScreen("admin-dashboard");
-      else if (user.tipo === "motorista") setScreen("home-motorista");
-      else setScreen("home-contratante");
-    } else {
-      // ?admin=1 é a única forma de chegar na tela de login admin — não existe
-      // link nenhum na interface, de propósito (não expor pra visitante comum).
-      const params = new URLSearchParams(window.location.search);
-      setScreen(params.get("admin") === "1" ? "login-admin" : "entrada");
-    }
-  }, [user?.id, user?.tipo]);
+    queueMicrotask(() => {
+      if (user) {
+        if (user.tipo === "admin") setScreen("admin-dashboard");
+        else if (user.tipo === "motorista") setScreen("home-motorista");
+        else setScreen("home-contratante");
+      } else {
+        // ?admin=1 é a única forma de chegar na tela de login admin — não existe
+        // link nenhum na interface, de propósito (não expor pra visitante comum).
+        const params = new URLSearchParams(window.location.search);
+        setScreen(params.get("admin") === "1" ? "login-admin" : "entrada");
+      }
+    });
+  }, [user]);
 
-  const navigate = (to, data = null) => {
+  const navigate = useCallback((to, data = null) => {
     if (to === -1) { setScreen(user?.tipo === "motorista" ? "home-motorista" : user?.tipo === "admin" ? "admin-dashboard" : "home-contratante"); return; }
     setScreenData(data); setScreen(to); window.scrollTo(0, 0);
-  };
+  }, [user]);
 
   const p = { onNavigate: navigate };
 

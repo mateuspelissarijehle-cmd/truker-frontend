@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { TrukerLogo } from "../../components/TrukerLogo";
 
 // ─────────────────────────────────────────────
@@ -18,7 +18,7 @@ export function SplashScreen({ onNavigate }) {
       }
     }, 1800);
     return () => clearTimeout(t);
-  }, []);
+  }, [user, onNavigate]);
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", background: "linear-gradient(180deg, #F5F0E8 0%, #EFE9DC 100%)" }}>
       <TrukerLogo size="lg" />

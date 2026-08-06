@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
 
@@ -16,15 +16,15 @@ export function AdminSeguradorasScreen({ onNavigate }) {
   const [salvando, setSalvando] = useState(false);
   const [atualizandoId, setAtualizandoId] = useState(null);
 
-  const carregar = () => {
+  const carregar = useCallback(() => {
     setLoading(true);
     api("GET", "/api/admin/seguradoras", null, token)
       .then(setSeguradoras)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [token]);
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { queueMicrotask(carregar); }, [carregar]);
 
   const criar = async () => {
     if (!nova.nome.trim()) return setError("Informe o nome da seguradora");

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api, apiUpload } from "../../services/api";
 import { buscarEnderecoPorCep } from "../../services/viaCep";
 import { maskCep } from "../../utils/mask";
@@ -26,7 +26,7 @@ export function DadosPessoaisMotorista({ onNavigate }) {
   });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const carregarPerfil = async () => {
+  const carregarPerfil = useCallback(async () => {
     try {
       const d = await api("GET", "/api/motoristas/perfil", null, token);
       setForm({
@@ -47,9 +47,9 @@ export function DadosPessoaisMotorista({ onNavigate }) {
       });
     } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
     finally { setLoadingData(false); }
-  };
+  }, [token]);
 
-  useEffect(() => { carregarPerfil(); }, []);
+  useEffect(() => { carregarPerfil(); }, [carregarPerfil]);
 
   // Bug real relatado: o botão de subir a CNH não fazia nada -- não existia input de
   // arquivo nem chamada pro backend, era só um <div> decorativo. Agora envia de verdade

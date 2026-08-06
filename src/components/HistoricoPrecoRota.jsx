@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { api } from "../services/api";
 import { formatMoney } from "../utils/format";
 
@@ -9,7 +9,7 @@ export function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf,
   const [historico, setHistorico] = useState(null);
 
   useEffect(() => {
-    if (!origemCidade || !origemUf || !destCidade || !destUf) { setHistorico(null); return; }
+    if (!origemCidade || !origemUf || !destCidade || !destUf) { queueMicrotask(() => setHistorico(null)); return; }
     let cancelado = false;
     const params = new URLSearchParams({ origem_cidade: origemCidade, origem_uf: origemUf, dest_cidade: destCidade, dest_uf: destUf });
     if (tipoVeiculo) params.set("tipo_veiculo", tipoVeiculo);
@@ -19,7 +19,7 @@ export function HistoricoPrecoRota({ origemCidade, origemUf, destCidade, destUf,
       .then(data => { if (!cancelado) setHistorico(data); })
       .catch(() => { if (!cancelado) setHistorico(null); });
     return () => { cancelado = true; };
-  }, [origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga, numeroEixos]);
+  }, [origemCidade, origemUf, destCidade, destUf, tipoVeiculo, tipoCarga, numeroEixos, token]);
 
   if (!historico) return null;
   const temMedia = historico.mediaMercado != null;

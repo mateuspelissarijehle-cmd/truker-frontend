@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../context/useAuth";
 import { api, apiUpload } from "../services/api";
 
 // Fonte única de verdade das despesas do motorista: busca a lista de despesas
@@ -19,16 +19,16 @@ export function useDespesasMotorista() {
   const [nfAviso, setNfAviso] = useState("");
   const setN = (k, v) => setNova(f => ({ ...f, [k]: v }));
 
-  const carregarResumoCustos = () => {
+  const carregarResumoCustos = useCallback(() => {
     api("GET", "/api/motoristas/custos-resumo", null, token)
       .then(setResumoCustos).catch(() => setResumoCustos(null));
-  };
+  }, [token]);
 
   useEffect(() => {
     api("GET", "/api/motoristas/despesas", null, token)
       .then(setDespesas).catch(() => {});
     carregarResumoCustos();
-  }, [token]);
+  }, [token, carregarResumoCustos]);
 
   const total = resumoCustos ? resumoCustos.totalGeral : despesas.reduce((a, d) => a + Number(d.valor || 0), 0);
 

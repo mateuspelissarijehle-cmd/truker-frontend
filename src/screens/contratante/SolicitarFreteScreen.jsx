@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { buscarEnderecoPorCep } from "../../services/viaCep";
 import { formatMoney } from "../../utils/format";
@@ -49,14 +49,27 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const FR = useRef(null);
-  if (!FR.current) FR.current = {
-    origemCep:{current:null}, origemLogradouro:{current:null}, origemNumero:{current:null},
-    origemComplemento:{current:null}, origemBairro:{current:null},
-    destCep:{current:null}, destLogradouro:{current:null}, destNumero:{current:null},
-    destComplemento:{current:null}, destBairro:{current:null},
+  // Inputs não-controlados (defaultValue + ref) pra não re-renderizar a tela inteira
+  // a cada tecla digitada em endereço -- só lidos na hora de enviar (rv) ou preenchidos
+  // via CEP (fillCep). `FR` é um objeto plano (não um ref) só pra poder indexar por
+  // chave dinâmica (`${tipo}${campo}`); os refs em si (useRef) são os valores estáveis.
+  const origemCepRef = useRef(null);
+  const origemLogradouroRef = useRef(null);
+  const origemNumeroRef = useRef(null);
+  const origemComplementoRef = useRef(null);
+  const origemBairroRef = useRef(null);
+  const destCepRef = useRef(null);
+  const destLogradouroRef = useRef(null);
+  const destNumeroRef = useRef(null);
+  const destComplementoRef = useRef(null);
+  const destBairroRef = useRef(null);
+  const FR = {
+    origemCep: origemCepRef, origemLogradouro: origemLogradouroRef, origemNumero: origemNumeroRef,
+    origemComplemento: origemComplementoRef, origemBairro: origemBairroRef,
+    destCep: destCepRef, destLogradouro: destLogradouroRef, destNumero: destNumeroRef,
+    destComplemento: destComplementoRef, destBairro: destBairroRef,
   };
-  const rv = k => FR.current[k]?.current?.value?.trim() || "";
+  const rv = k => FR[k]?.current?.value?.trim() || "";
 
   const set = (k, val) => setForm(f => ({ ...f, [k]: val }));
   const tipoCargaObj = TIPOS_CARGA.find(c => c.id === form.tipoCarga);
@@ -70,7 +83,7 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   // chassi escolhido, filtrado pelas que aceitam o tipo de carga selecionado
   // (mesmo catálogo que o motorista usa em "Meu Caminhão", services/matching.js).
   useEffect(() => {
-    if (!form.tipoVeiculo || !token) { setCarroceriasDisp([]); return; }
+    if (!form.tipoVeiculo || !token) { queueMicrotask(() => setCarroceriasDisp([])); return; }
     api("GET", `/api/motoristas/carrocerias-disponiveis?veiculo=${form.tipoVeiculo}`, null, token)
       .then(lista => {
         const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
@@ -85,7 +98,7 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     const endereco = await buscarEnderecoPorCep(cep);
     if (!endereco) return;
     [["Logradouro", endereco.logradouro], ["Bairro", endereco.bairro]].forEach(([f, val]) => {
-      if (FR.current[`${tipo}${f}`]?.current) FR.current[`${tipo}${f}`].current.value = val || "";
+      if (FR[`${tipo}${f}`]?.current) FR[`${tipo}${f}`].current.value = val || "";
     });
     if (tipo === "origem") { setOrigemCidade(endereco.cidade); setOrigemUF(endereco.uf); }
     else { setDestCidade(endereco.cidade); setDestUF(endereco.uf); }
@@ -216,16 +229,16 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
             <div className="card">
               <div className="card-title">📍 Endereço de Coleta</div>
               <div className="field"><label>CEP</label>
-                <input ref={FR.current.origemCep} defaultValue={addr.origemCep} placeholder="00000-000"
+                <input ref={origemCepRef} defaultValue={addr.origemCep} placeholder="00000-000"
                   onChange={e => { e.target.value = maskCep(e.target.value); if (e.target.value.replace(/\D/g,"").length===8) fillCep(e.target.value,"origem"); }} /></div>
               <div className="field"><label>Logradouro</label>
-                <input ref={FR.current.origemLogradouro} defaultValue={addr.origemLogradouro} placeholder="Rua, Avenida, Rodovia..." /></div>
+                <input ref={origemLogradouroRef} defaultValue={addr.origemLogradouro} placeholder="Rua, Avenida, Rodovia..." /></div>
               <div className="grid-2">
-                <div className="field"><label>Número</label><input ref={FR.current.origemNumero} defaultValue={addr.origemNumero} placeholder="123" /></div>
-                <div className="field"><label>Complemento</label><input ref={FR.current.origemComplemento} defaultValue={addr.origemComplemento} placeholder="Galpão, Sala..." /></div>
+                <div className="field"><label>Número</label><input ref={origemNumeroRef} defaultValue={addr.origemNumero} placeholder="123" /></div>
+                <div className="field"><label>Complemento</label><input ref={origemComplementoRef} defaultValue={addr.origemComplemento} placeholder="Galpão, Sala..." /></div>
               </div>
               <div className="field"><label>Bairro / Distrito</label>
-                <input ref={FR.current.origemBairro} defaultValue={addr.origemBairro} placeholder="Bairro" /></div>
+                <input ref={origemBairroRef} defaultValue={addr.origemBairro} placeholder="Bairro" /></div>
               <div className="grid-2">
                 <CampoCidadeAutocomplete
                   value={origemCidade} onChange={setOrigemCidade}
@@ -238,16 +251,16 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
             <div className="card">
               <div className="card-title">🏁 Endereço de Entrega</div>
               <div className="field"><label>CEP</label>
-                <input ref={FR.current.destCep} defaultValue={addr.destCep} placeholder="00000-000"
+                <input ref={destCepRef} defaultValue={addr.destCep} placeholder="00000-000"
                   onChange={e => { e.target.value = maskCep(e.target.value); if (e.target.value.replace(/\D/g,"").length===8) fillCep(e.target.value,"dest"); }} /></div>
               <div className="field"><label>Logradouro</label>
-                <input ref={FR.current.destLogradouro} defaultValue={addr.destLogradouro} placeholder="Rua, Avenida, Rodovia..." /></div>
+                <input ref={destLogradouroRef} defaultValue={addr.destLogradouro} placeholder="Rua, Avenida, Rodovia..." /></div>
               <div className="grid-2">
-                <div className="field"><label>Número</label><input ref={FR.current.destNumero} defaultValue={addr.destNumero} placeholder="123" /></div>
-                <div className="field"><label>Complemento</label><input ref={FR.current.destComplemento} defaultValue={addr.destComplemento} placeholder="Galpão, Sala..." /></div>
+                <div className="field"><label>Número</label><input ref={destNumeroRef} defaultValue={addr.destNumero} placeholder="123" /></div>
+                <div className="field"><label>Complemento</label><input ref={destComplementoRef} defaultValue={addr.destComplemento} placeholder="Galpão, Sala..." /></div>
               </div>
               <div className="field"><label>Bairro / Distrito</label>
-                <input ref={FR.current.destBairro} defaultValue={addr.destBairro} placeholder="Bairro" /></div>
+                <input ref={destBairroRef} defaultValue={addr.destBairro} placeholder="Bairro" /></div>
               <div className="grid-2">
                 <CampoCidadeAutocomplete
                   value={destCidade} onChange={setDestCidade}

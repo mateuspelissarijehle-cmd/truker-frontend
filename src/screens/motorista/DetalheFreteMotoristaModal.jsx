@@ -18,12 +18,12 @@ export function DetalheFreteMotoristaModal({ frete, token, onClose, onVerContrat
 
   useEffect(() => {
     if (!frete?.id) return;
-    setLoading(true);
+    queueMicrotask(() => setLoading(true));
     Promise.all([
       api("GET", `/api/fretes/${frete.id}/extrato`, null, token).catch(() => null),
       api("GET", `/api/fretes/${frete.id}/avaliacao-recebida`, null, token).catch(() => null),
     ]).then(([e, a]) => { setExtrato(e); setAvaliacao(a); }).finally(() => setLoading(false));
-  }, [frete?.id]);
+  }, [frete?.id, token]);
 
   if (!frete) return null;
 

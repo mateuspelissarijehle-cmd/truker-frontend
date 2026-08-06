@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -17,16 +17,16 @@ export function PropostasRecebidasScreen({ frete, onNavigate }) {
   const [novoValor, setNovoValor] = useState("");
   const [acao, setAcao] = useState(null); // id da proposta com ação em andamento
 
-  const carregar = () => {
+  const carregar = useCallback(() => {
     if (!frete?.id) return;
     setLoading(true);
     api("GET", `/api/fretes/${frete.id}/propostas`, null, token)
       .then(setPropostas)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [frete, token]);
 
-  useEffect(() => { carregar(); }, [frete?.id]);
+  useEffect(() => { queueMicrotask(carregar); }, [carregar]);
 
   if (!frete) return <Loading />;
 

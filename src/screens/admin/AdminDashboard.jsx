@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney, formatKm } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -24,14 +24,14 @@ export function AdminDashboard({ onNavigate }) {
   const [pisoAntt, setPisoAntt] = useState(null);
   const [marcandoPisoAntt, setMarcandoPisoAntt] = useState(false);
 
-  function carregarPisoAntt() {
+  const carregarPisoAntt = useCallback(() => {
     api("GET", "/api/admin/piso-antt/status", null, token)
       .then(setPisoAntt)
       .catch(() => {});
-  }
+  }, [token]);
 
   useEffect(() => {
-    setLoadingStats(true);
+    queueMicrotask(() => setLoadingStats(true));
     Promise.all([
       api("GET", "/api/admin/stats", null, token),
       api("GET", "/api/admin/motoristas", null, token),
@@ -49,7 +49,7 @@ export function AdminDashboard({ onNavigate }) {
       .then(r => setTotalCancelamentosPendentes(r.totalItens))
       .catch(() => {});
     carregarPisoAntt();
-  }, []);
+  }, [token, carregarPisoAntt]);
 
   async function marcarPisoAnttRevisado() {
     setMarcandoPisoAntt(true);
@@ -107,7 +107,6 @@ export function AdminDashboard({ onNavigate }) {
     }
   }
 
-  const totalKmCarregado = motoristas.reduce((a, m) => a + Number(m.km_carregado || 0), 0);
   const eficiencia = stats ? Math.round((stats.fretes_entregues / Math.max(stats.total_fretes, 1)) * 100) : 0;
 
   const StatusFreteTag = ({ status }) => {

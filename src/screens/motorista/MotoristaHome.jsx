@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney, formatKm } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
@@ -24,7 +24,7 @@ export function MotoristaHome({ onNavigate }) {
   const [buscaCidade, setBuscaCidade] = useState("");
   const [buscaCidadeDebounced, setBuscaCidadeDebounced] = useState("");
   const [kmVazio, setKmVazio] = useState(0);
-  const [metaKmVazio, setMetaKmVazio] = useState(800);
+  const metaKmVazio = 800;
 
   // Busca km vazio real do dia
   useEffect(() => {
@@ -110,7 +110,7 @@ export function MotoristaHome({ onNavigate }) {
       } catch (e) { console.error("GPS send home:", e.message); }
     }, 30000);
     return () => clearInterval(interval);
-  }, [fretesAtivos.length, token]);
+  }, [fretesAtivos, token]);
 
   // Debounce da busca por cidade antes de consultar o backend
   useEffect(() => {
@@ -120,12 +120,12 @@ export function MotoristaHome({ onNavigate }) {
 
   // Carrega fretes disponíveis quando fica online ou quando a busca por cidade muda
   useEffect(() => {
-    if (!online) { setDisponiveis([]); setLoading(false); return; }
-    setLoading(true);
+    if (!online) { queueMicrotask(() => { setDisponiveis([]); setLoading(false); }); return; }
+    queueMicrotask(() => setLoading(true));
     const qs = buscaCidadeDebounced ? `?busca_origem_cidade=${encodeURIComponent(buscaCidadeDebounced)}` : "";
     api("GET", `/api/fretes/disponiveis${qs}`, null, token)
       .then(setDisponiveis).catch(() => setDisponiveis([])).finally(() => setLoading(false));
-  }, [online, buscaCidadeDebounced]);
+  }, [online, buscaCidadeDebounced, token]);
 
   // Carrega fretes ativos do motorista (aceito/coletando/em_rota)
   useEffect(() => {

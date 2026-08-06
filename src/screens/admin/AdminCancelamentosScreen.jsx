@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -19,15 +19,15 @@ export function AdminCancelamentosScreen({ onNavigate }) {
   const [error, setError] = useState("");
   const [resolvendoId, setResolvendoId] = useState(null);
 
-  const carregar = () => {
+  const carregar = useCallback(() => {
     setLoading(true);
     api("GET", "/api/admin/cancelamentos-pendentes", null, token)
       .then(r => setItens(r.itens))
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  };
+  }, [token]);
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { queueMicrotask(carregar); }, [carregar]);
 
   const marcarResolvido = async (id) => {
     if (!confirm("Confirma que o acerto (reembolso/repasse) já foi feito manualmente por fora? Isso só atualiza o registro, não movimenta dinheiro.")) return;

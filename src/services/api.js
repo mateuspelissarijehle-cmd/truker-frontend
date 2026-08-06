@@ -15,8 +15,8 @@ export async function api(method, path, body, token, timeoutMs = API_TIMEOUT_MS)
       signal: controller.signal,
     });
   } catch (err) {
-    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.");
-    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.");
+    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.", { cause: err });
+    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.", { cause: err });
   } finally {
     clearTimeout(timeoutId);
   }
@@ -42,8 +42,8 @@ export async function apiUpload(method, path, formData, token) {
       signal: controller.signal,
     });
   } catch (err) {
-    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.");
-    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.");
+    if (err.name === "AbortError") throw new Error("Sem resposta do servidor. Verifique sua conexão e tente novamente.", { cause: err });
+    throw new Error("Falha de conexão. Verifique sua internet e tente novamente.", { cause: err });
   } finally {
     clearTimeout(timeoutId);
   }
@@ -69,7 +69,7 @@ export async function baixarArquivoAutenticado(path, token, nomePadrao) {
   });
   if (!res.ok) {
     let msg = "Não foi possível baixar o arquivo";
-    try { const data = await res.json(); msg = data.error || msg; } catch {}
+    try { const data = await res.json(); msg = data.error || msg; } catch { /* resposta de erro sem JSON válido, mantém msg padrão */ }
     throw new Error(msg);
   }
   const disposition = res.headers.get("Content-Disposition") || "";
@@ -94,7 +94,7 @@ export async function abrirArquivoAutenticado(path, token) {
     });
     if (!res.ok) {
       let msg = "Não foi possível abrir o arquivo";
-      try { const data = await res.json(); msg = data.error || msg; } catch {}
+      try { const data = await res.json(); msg = data.error || msg; } catch { /* resposta de erro sem JSON válido, mantém msg padrão */ }
       throw new Error(msg);
     }
     const blob = await res.blob();

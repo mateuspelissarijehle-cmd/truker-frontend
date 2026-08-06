@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
 
@@ -16,7 +16,7 @@ export function SeguroScreen({ onNavigate }) {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState({ modo: "parceira", seguradoraId: "", avulsoNome: "", avulsoApolice: "", validade: "" });
 
-  const carregar = () => {
+  const carregar = useCallback(() => {
     setLoading(true);
     Promise.all([
       api("GET", "/api/motoristas/seguro", null, token),
@@ -27,9 +27,9 @@ export function SeguroScreen({ onNavigate }) {
       setEditando(false);
       if (!segs.length) setForm(f => ({ ...f, modo: "avulso" }));
     }).catch(e => setError(e.message)).finally(() => setLoading(false));
-  };
+  }, [token]);
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { queueMicrotask(carregar); }, [carregar]);
 
   const iniciarEdicao = () => {
     if (seguro) {

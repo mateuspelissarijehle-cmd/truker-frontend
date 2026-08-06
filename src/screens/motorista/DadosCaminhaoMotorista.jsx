@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { maskPlaca } from "../../utils/mask";
 import { TIPOS_VEICULO, ICONE_CARROCERIA, eixosPadraoDoChassi } from "../../data/catalogos";
@@ -9,7 +9,7 @@ import { Loading } from "../../components/Loading";
 // DADOS DO CAMINHÃO — MOTORISTA
 // ─────────────────────────────────────────────
 export function DadosCaminhaoMotorista({ onNavigate }) {
-  const { user, token, updateUserData } = useAuth();
+  const { token, updateUserData } = useAuth();
   const [form, setForm] = useState({ tipoVeiculo: "", numeroEixos: "", tipoCarreta: "", marca: "", modelo: "", placa: "", anoFab: "", renavam: "", tara: "", capacidade: "" });
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
@@ -27,20 +27,20 @@ export function DadosCaminhaoMotorista({ onNavigate }) {
   const [erroComp, setErroComp] = useState("");
   const setNC = (k, v) => setNovaCarreta(f => ({ ...f, [k]: v }));
 
-  const carregarComposicao = async () => {
+  const carregarComposicao = useCallback(async () => {
     try {
       const lista = await api("GET", "/api/motoristas/veiculos", null, token);
       setVeiculos(Array.isArray(lista) ? lista : []);
     } catch { setVeiculos([]); }
-  };
+  }, [token]);
 
-  const carregarCarroceriasDisp = async (veiculo) => {
+  const carregarCarroceriasDisp = useCallback(async (veiculo) => {
     if (!veiculo) { setCarroceriasDisp([]); return; }
     try {
       const lista = await api("GET", `/api/motoristas/carrocerias-disponiveis?veiculo=${veiculo}`, null, token);
       setCarroceriasDisp(Array.isArray(lista) ? lista : []);
     } catch { setCarroceriasDisp([]); }
-  };
+  }, [token]);
 
   const adicionarCarreta = async () => {
     setErroComp("");
@@ -77,12 +77,12 @@ export function DadosCaminhaoMotorista({ onNavigate }) {
   const [savingConjunto, setSavingConjunto] = useState(false);
   const [erroConjunto, setErroConjunto] = useState("");
 
-  const carregarConjuntos = async () => {
+  const carregarConjuntos = useCallback(async () => {
     try {
       const lista = await api("GET", "/api/motoristas/conjuntos", null, token);
       setConjuntos(Array.isArray(lista) ? lista : []);
     } catch { setConjuntos([]); }
-  };
+  }, [token]);
 
   // Carretas disponíveis na garagem (para montar conjuntos)
   const carretasGaragem = veiculos.filter(v => v.tipo === "carreta");
@@ -129,7 +129,7 @@ export function DadosCaminhaoMotorista({ onNavigate }) {
     } catch (e) { setErroConjunto(e.message); }
   };
 
-  const carregarPerfil = async () => {
+  const carregarPerfil = useCallback(async () => {
     try {
       const d = await api("GET", "/api/motoristas/perfil", null, token);
       setForm({
@@ -142,11 +142,13 @@ export function DadosCaminhaoMotorista({ onNavigate }) {
       if (d.tipo_veiculo) carregarCarroceriasDisp(d.tipo_veiculo);
     } catch (e) { setError("Erro ao carregar dados: " + e.message); }
     finally { setLoadingData(false); }
-  };
+  }, [token, carregarCarroceriasDisp]);
 
-  useEffect(() => { carregarPerfil(); carregarComposicao(); carregarConjuntos(); }, []);
+  useEffect(() => {
+    queueMicrotask(() => { carregarPerfil(); carregarComposicao(); carregarConjuntos(); });
+  }, [carregarPerfil, carregarComposicao, carregarConjuntos]);
   // Recarrega carrocerias válidas sempre que o tipo de veículo muda
-  useEffect(() => { carregarCarroceriasDisp(form.tipoVeiculo); }, [form.tipoVeiculo]);
+  useEffect(() => { queueMicrotask(() => carregarCarroceriasDisp(form.tipoVeiculo)); }, [form.tipoVeiculo, carregarCarroceriasDisp]);
 
   const salvar = async () => {
     setError(""); setLoading(true);

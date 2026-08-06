@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -17,7 +17,7 @@ export function MeusFretes({ onNavigate }) {
 
   useEffect(() => {
     api("GET", "/api/fretes", null, token).then(setFretes).catch(() => setFretes([])).finally(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   const filtrados = filtro === "todos" ? fretes : fretes.filter(f => {
     if (filtro === "andamento") return ["aceito", "em_rota", "coletando"].includes(f.status);

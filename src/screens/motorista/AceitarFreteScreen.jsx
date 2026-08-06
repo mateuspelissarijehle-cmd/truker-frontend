@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { TIPOS_CARGA, TIPOS_VEICULO, ICONE_CARROCERIA } from "../../data/catalogos";

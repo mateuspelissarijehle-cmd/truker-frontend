@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api, apiUpload, abrirArquivoAutenticado } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
@@ -103,16 +103,16 @@ export function EmTransitoScreen({ frete, onNavigate }) {
     { id: "outro", icon: "📦", label: "Outro" },
   ];
 
-  const carregarExtrato = () => {
+  const carregarExtrato = useCallback(() => {
     if (!frete?.id) return;
     setLoadingExtrato(true);
     api("GET", `/api/fretes/${frete.id}/extrato`, null, token)
       .then(setExtrato)
       .catch(() => setExtrato(null))
       .finally(() => setLoadingExtrato(false));
-  };
+  }, [frete, token]);
 
-  useEffect(() => { carregarExtrato(); }, [frete?.id]);
+  useEffect(() => { queueMicrotask(carregarExtrato); }, [carregarExtrato]);
 
   // Sugestões de frete de retorno: fretes reais disponíveis com origem na
   // cidade de destino desta entrega — mesma busca por cidade que a Home usa
@@ -120,12 +120,12 @@ export function EmTransitoScreen({ frete, onNavigate }) {
   // inventado.
   useEffect(() => {
     if (!entregueOk || !frete?.dest_cidade || !token) return;
-    setLoadingFretesRetorno(true);
+    queueMicrotask(() => setLoadingFretesRetorno(true));
     api("GET", `/api/fretes/disponiveis?busca_origem_cidade=${encodeURIComponent(frete.dest_cidade)}`, null, token)
       .then(lista => setFretesRetorno(lista.filter(f => f.id !== frete.id)))
       .catch(() => setFretesRetorno([]))
       .finally(() => setLoadingFretesRetorno(false));
-  }, [entregueOk, frete?.dest_cidade, token]);
+  }, [entregueOk, frete?.dest_cidade, frete?.id, token]);
 
   const adicionarDespesa = async () => {
     if (!novaDespesa.valor) return;

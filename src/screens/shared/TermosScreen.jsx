@@ -1,8 +1,4 @@
-import { useAuth } from "../../context/AuthContext";
-
 export function TermosScreen({ onNavigate }) {
-  const { user } = useAuth();
-  const isMotorista = user?.tipo === "motorista";
   return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Termos de Uso</h1></div>

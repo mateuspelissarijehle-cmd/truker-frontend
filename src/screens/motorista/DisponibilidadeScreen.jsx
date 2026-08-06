@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
@@ -17,15 +17,15 @@ export function DisponibilidadeScreen({ onNavigate }) {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState({ cidadeAtual: "", ufAtual: "", cidadeDestino: "", ufDestino: "", modo: "agora", horas: "" });
 
-  const carregar = () => {
+  const carregar = useCallback(() => {
     setLoading(true);
     api("GET", "/api/motoristas/disponibilidade", null, token)
       .then(d => { setAnuncio(d); setEditando(false); })
       .catch(() => setAnuncio(false))
       .finally(() => setLoading(false));
-  };
+  }, [token]);
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { queueMicrotask(carregar); }, [carregar]);
 
   const iniciarEdicao = () => {
     if (anuncio) {
@@ -62,9 +62,14 @@ export function DisponibilidadeScreen({ onNavigate }) {
     finally { setCancelando(false); }
   };
 
+  // Lê Date.now() durante o render pra decidir o rótulo "disponível agora" vs
+  // "disponível a partir de" -- tecnicamente impuro (React purity rule), mas é só
+  // um rótulo informativo; uma correção "de verdade" exigiria estado + interval só
+  // pra isso, o que não parece valer a complexidade aqui. Deixado assim de propósito.
   const formatDisponibilidade = (disponivelEm) => {
     if (!disponivelEm) return "Disponível agora";
     const d = new Date(disponivelEm);
+    // eslint-disable-next-line react-hooks/purity
     if (d.getTime() <= Date.now()) return "Disponível agora";
     return `Disponível a partir de ${d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
   };

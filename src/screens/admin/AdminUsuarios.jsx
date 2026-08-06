@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { TIPOS_VEICULO } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
@@ -35,7 +35,12 @@ export function AdminUsuarios({ onNavigate }) {
     finally { setLoadingBusca(false); }
   };
 
-  useEffect(() => { buscar(); }, []);
+  // Roda só uma vez no mount pra listar usuários iniciais. `buscar` fecha sobre `busca`
+  // (texto digitado); incluí-lo faria a busca refazer a cada tecla digitada, sem
+  // debounce -- comportamento diferente do atual (só busca de novo no Enter/botão).
+  // Deixado assim de propósito.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { queueMicrotask(buscar); }, []);
 
   const abrirUsuario = async (id) => {
     setSelecionado(id);
@@ -58,7 +63,9 @@ export function AdminUsuarios({ onNavigate }) {
   const salvarDados = async () => {
     setSalvando(true); setMsg(""); setErro("");
     try {
-      const { id, criado_em, ...campos } = form;
+      const campos = { ...form };
+      delete campos.id;
+      delete campos.criado_em;
       const data = await api("PATCH", `/api/admin/usuarios/${selecionado}`, campos, token);
       setForm(data.usuario);
       setMsg("✅ Dados cadastrais atualizados");
@@ -71,7 +78,10 @@ export function AdminUsuarios({ onNavigate }) {
     if (!detalhe?.motorista) return;
     setSalvando(true); setMsg(""); setErro("");
     try {
-      const { id, online, status, ...campos } = formVeiculo;
+      const campos = { ...formVeiculo };
+      delete campos.id;
+      delete campos.online;
+      delete campos.status;
       const data = await api("PATCH", `/api/admin/motoristas/${detalhe.motorista.id}`, campos, token);
       setFormVeiculo(data.motorista);
       setMsg("✅ Dados do veículo atualizados");

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { buscarEnderecoPorCep } from "../../services/viaCep";
 import { maskCep } from "../../utils/mask";
@@ -18,15 +18,15 @@ export function DadosPessoaisContratante({ onNavigate }) {
   const [error, setError] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const carregarPerfil = async () => {
+  const carregarPerfil = useCallback(async () => {
     try {
       const d = await api("GET", "/api/contratantes/perfil", null, token);
       setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", documento: d.cpf_cnpj || "", nomeEmpresa: d.nome_empresa || "", inscricaoEstadual: d.inscricao_estadual || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "", contatoEmergenciaNome: d.contato_emergencia_nome || "", contatoEmergenciaTelefone: d.contato_emergencia_telefone || "" });
     } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
     finally { setLoadingData(false); }
-  };
+  }, [token]);
 
-  useEffect(() => { carregarPerfil(); }, []);
+  useEffect(() => { queueMicrotask(carregarPerfil); }, [carregarPerfil]);
 
   const fillCep = async (cep) => {
     const endereco = await buscarEnderecoPorCep(cep);

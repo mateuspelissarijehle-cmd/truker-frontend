@@ -1,10 +1,42 @@
 import { useState } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { maskPlaca } from "../../utils/mask";
 import { TIPOS_CARGA, TIPOS_VEICULO } from "../../data/catalogos";
 import { TrukerLogo } from "../../components/TrukerLogo";
 import { PasswordInput } from "../../components/PasswordInput";
+
+const sHeaderTopo = {
+  padding: "16px 20px 0",
+};
+const sProgressBarTopo = {
+  height: 4, background: "var(--border)", borderRadius: 2,
+  margin: "12px 20px 0", overflow: "hidden",
+};
+
+// Helper de topo (back + barra de progresso), reaproveitado em cada step.
+// Fica no escopo do módulo (não dentro de CadastroScreen) pra não ser
+// recriado a cada render.
+function Topo({ showBar = true, step, pct, onNavigate, voltar }) {
+  const sProgressFill = {
+    height: "100%", background: "var(--gold)", borderRadius: 2,
+    width: `${pct}%`, transition: "width 0.3s ease",
+  };
+  return (
+    <div style={sHeaderTopo}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <button onClick={step === 0 ? () => onNavigate("login") : voltar}
+          style={{ background: "none", border: "none", fontSize: 22, color: "var(--text)", cursor: "pointer", padding: "4px 8px 4px 0" }}>
+          ←
+        </button>
+        {showBar && (
+          <span style={{ fontSize: 12, color: "var(--text3)", fontWeight: 600 }}>{pct}%</span>
+        )}
+      </div>
+      {showBar && <div style={sProgressBarTopo}><div style={sProgressFill} /></div>}
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────
 // CADASTRO — fluxo passo a passo
@@ -119,7 +151,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
       const resp = await api("POST", "/api/auth/reenviar-codigo", { usuarioId: pendingUser.usuario.id });
       setReenviadoMsg("Novo código enviado!");
       if (resp.codigo_teste) setPendingUser(u => ({ ...u, codigo_teste: resp.codigo_teste }));
-    } catch (e) { setReenviadoMsg("Erro ao reenviar."); }
+    } catch { setReenviadoMsg("Erro ao reenviar."); }
     finally { setReenviando(false); }
   };
 
@@ -127,17 +159,6 @@ export function CadastroScreen({ onNavigate, screenData }) {
   const sContainer = {
     minHeight: "100vh", display: "flex", flexDirection: "column",
     background: "var(--surface)", padding: "0 0 40px",
-  };
-  const sHeader = {
-    padding: "16px 20px 0",
-  };
-  const sProgressBar = {
-    height: 4, background: "var(--border)", borderRadius: 2,
-    margin: "12px 20px 0", overflow: "hidden",
-  };
-  const sProgressFill = {
-    height: "100%", background: "var(--gold)", borderRadius: 2,
-    width: `${pct}%`, transition: "width 0.3s ease",
   };
   const sContent = {
     flex: 1, padding: "32px 24px 0",
@@ -164,22 +185,6 @@ export function CadastroScreen({ onNavigate, screenData }) {
     borderRadius: 14, cursor: "pointer",
   };
   const sContinuarDisabled = { ...sContinuar, opacity: 0.4, cursor: "not-allowed" };
-
-  // helper para renderizar o topo (back + barra)
-  const Topo = ({ showBar = true }) => (
-    <div style={sHeader}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button onClick={step === 0 ? () => onNavigate("login") : voltar}
-          style={{ background: "none", border: "none", fontSize: 22, color: "var(--text)", cursor: "pointer", padding: "4px 8px 4px 0" }}>
-          ←
-        </button>
-        {showBar && (
-          <span style={{ fontSize: 12, color: "var(--text3)", fontWeight: 600 }}>{pct}%</span>
-        )}
-      </div>
-      {showBar && <div style={sProgressBar}><div style={sProgressFill} /></div>}
-    </div>
-  );
 
   // ── STEP 99: Verificação de e-mail ───────────────────────
   if (step === 99 && pendingUser) {
@@ -271,7 +276,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
   if (step === 1) {
     return (
       <div style={sContainer}>
-        <Topo />
+        <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
         <div style={sContent}>
           <div style={sBigTitle}>Digite seu nome</div>
           <div style={sSub}>Como você quer ser chamado no TRUKER.</div>
@@ -292,7 +297,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
   if (step === 2) {
     return (
       <div style={sContainer}>
-        <Topo />
+        <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
         <div style={sContent}>
           <div style={sBigTitle}>Digite seu e-mail</div>
           <div style={sSub}>Você vai usar este e-mail para entrar no app.</div>
@@ -314,7 +319,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     const senhaOk = form.senha.length >= 6 && form.senha === (form.confirmarSenha || "");
     return (
       <div style={sContainer}>
-        <Topo />
+        <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
         <div style={sContent}>
           <div style={sBigTitle}>Crie uma senha</div>
           <div style={sSub}>Mínimo de 6 caracteres.</div>
@@ -338,7 +343,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
   if (step === 4) {
     return (
       <div style={sContainer}>
-        <Topo />
+        <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
         <div style={sContent}>
           <div style={sBigTitle}>Seu WhatsApp</div>
           <div style={sSub}>Para contato sobre fretes e suporte.</div>
@@ -361,7 +366,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 5) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>CPF ou CNPJ</div>
             <div style={sSub}>Para emissão de documentos fiscais.</div>
@@ -381,7 +386,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 6) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Nome da empresa</div>
             <div style={sSub}>Opcional. Pule se preferir usar seu nome.</div>
@@ -399,7 +404,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 7) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Tipos de carga</div>
             <div style={sSub}>Selecione o que você costuma precisar transportar.</div>
@@ -424,7 +429,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 8) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Termos de uso</div>
             <div style={sSub}>Leia e aceite para criar sua conta.</div>
@@ -463,7 +468,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 5) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Seu CPF</div>
             <div style={sSub}>Número de Cadastro de Pessoa Física.</div>
@@ -483,7 +488,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 6) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Número da CNH</div>
             <div style={sSub}>Carteira Nacional de Habilitação — 11 dígitos.</div>
@@ -503,7 +508,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 7) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>RNTRC (ANTT)</div>
             <div style={sSub}>Registro Nacional de Transportadores Rodoviários de Cargas.</div>
@@ -533,7 +538,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
       ];
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Tipo de veículo</div>
             <div style={sSub}>Selecione o tipo do seu caminhão.</div>
@@ -571,7 +576,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 9) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Placa do veículo</div>
             <div style={sSub}>Placa do cavalo mecânico.</div>
@@ -591,7 +596,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 10) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Ano de fabricação</div>
             <div style={sSub}>Do cavalo mecânico.</div>
@@ -612,7 +617,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 11) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Tipos de carga</div>
             <div style={sSub}>Selecione tudo que seu veículo pode transportar.</div>
@@ -637,7 +642,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     if (step === 12) {
       return (
         <div style={sContainer}>
-          <Topo />
+          <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
           <div style={sContent}>
             <div style={sBigTitle}>Termos de uso</div>
             <div style={sSub}>Leia e aceite para finalizar seu cadastro.</div>

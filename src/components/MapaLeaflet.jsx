@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { buscarRotaOSRM } from "../services/osrm";
 import { distanciaMetros, calcularRumo } from "../utils/geo";
 
@@ -77,18 +77,24 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
   const rotaPrincipalLayerRef = useRef(null);
   const rotaPrincipalOrigemRef = useRef(null); // {lat,lng} usado no último desenho, pra só redesenhar se moveu o suficiente
   const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo });
-  propsRef.current = { lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo };
+  // Atualiza a ref logo após o commit (não durante o render, que é impuro) --
+  // useLayoutEffect roda síncrono antes do browser pintar, então continua sempre
+  // atualizado a tempo de handlers/effects que rodam depois (initMap, cliques,
+  // callbacks do OSRM), que é tudo que lê `propsRef.current` neste componente.
+  useLayoutEffect(() => {
+    propsRef.current = { lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo };
+  });
   const seguindoRef = useRef(seguirPorPadrao);
   const [seguindo, setSeguindo] = useState(seguirPorPadrao);
   const [orientModo, setOrientModo] = useState("norte"); // "norte" | "direcao"
   const headingRef = useRef(null);
   const ultimoHeadingCalcRef = useRef(null); // {lat,lng} do último ponto usado pra calcular rumo
 
-  const aplicarRotacaoContainer = (modo, headingDeg) => {
+  const aplicarRotacaoContainer = useCallback((modo, headingDeg) => {
     if (!mostrarOrientacao || !rotatorRef.current) return;
     const ang = modo === "direcao" && headingDeg != null ? -headingDeg : 0;
     rotatorRef.current.style.transform = `rotate(${ang}deg)`;
-  };
+  }, [mostrarOrientacao]);
 
   const recentralizar = () => {
     seguindoRef.current = true;
@@ -99,7 +105,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
 
   const alternarOrientacao = () => setOrientModo(m => (m === "norte" ? "direcao" : "norte"));
 
-  useEffect(() => { aplicarRotacaoContainer(orientModo, headingRef.current); }, [orientModo]);
+  useEffect(() => { aplicarRotacaoContainer(orientModo, headingRef.current); }, [orientModo, aplicarRotacaoContainer]);
 
   // Busca a rota real (OSRM, gratuito) entre 2 pontos e desenha no mapa,
   // substituindo o traçado anterior. Usada tanto no desenho inicial quanto
@@ -231,6 +237,12 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
     });
   };
 
+  // Deve inicializar o mapa Leaflet só uma vez no mount. `initMap` é recriada a cada
+  // render (fecha sobre `marcadores` e outras props que o pai recria a cada vez) --
+  // incluí-la faria o cleanup destruir e recriar o mapa inteiro (mapRef.current.remove())
+  // a cada render do pai, piscando o mapa e martelando o OSRM de novo. O valor mais
+  // atual das props já é lido via `propsRef.current` dentro de initMap, então isso é
+  // seguro de propósito.
   useEffect(() => {
     let cancelado = false;
     carregarLeaflet().then(() => { if (!cancelado) initMap(); }).catch(() => {});
@@ -238,6 +250,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
       cancelado = true;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; marcadorRef.current = null; }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -266,14 +279,14 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
       }
     } else {
       const icon = criarIconeMotorista(mostrarOrientacao, headingRef.current);
-      marcadorRef.current = L.marker([lat, lng], { icon }).addTo(mapRef.current);
+      marcadorRef.current = window.L.marker([lat, lng], { icon }).addTo(mapRef.current);
     }
 
     if (modoNavegacao && seguindoRef.current) {
       mapRef.current.panTo([lat, lng], { animate: true, duration: 0.5 });
     }
     aplicarRotacaoContainer(orientModo, headingRef.current);
-  }, [lat, lng, orientModo]);
+  }, [lat, lng, orientModo, modoNavegacao, mostrarOrientacao, aplicarRotacaoContainer]);
 
   // Redesenha a linha de rota (e recalcula o ETA) conforme a posição ao vivo
   // do motorista muda — acompanhamento em trânsito tipo Uber/iFood. Só

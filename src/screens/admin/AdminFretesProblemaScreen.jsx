@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -20,12 +20,12 @@ export function AdminFretesProblemaScreen({ onNavigate }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setLoading(true);
+    queueMicrotask(() => setLoading(true));
     api("GET", "/api/admin/fretes-problema", null, token)
       .then(setFretes)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [token]);
 
   return (
     <div className="screen">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
@@ -18,12 +18,12 @@ export function ExtratoFreteMotoristaScreen({ dados, onNavigate }) {
 
   useEffect(() => {
     if (!dados?.id) return;
-    setLoading(true);
+    queueMicrotask(() => setLoading(true));
     api("GET", `/api/fretes/${dados.id}/extrato`, null, token)
       .then(setExtrato)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [dados?.id]);
+  }, [dados?.id, token]);
 
   const ehCompensacao = extrato?.tipo === "compensacao_cancelamento";
   const cd = extrato?.compensacaoDetalhes;
