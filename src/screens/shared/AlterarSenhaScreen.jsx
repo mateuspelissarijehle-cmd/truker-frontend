@@ -1,6 +1,8 @@
 import { useAuth } from "../../context/useAuth";
 import { useRedefinicaoSenha } from "../../hooks/useRedefinicaoSenha";
 import { PasswordInput } from "../../components/PasswordInput";
+import { RequisitosSenha } from "../../components/RequisitosSenha";
+import { senhaForte } from "../../utils/senha";
 
 // ─────────────────────────────────────────────
 // ALTERAR SENHA (usuário logado — reaproveita o fluxo de recuperação)
@@ -57,7 +59,8 @@ export function AlterarSenhaScreen({ onNavigate }) {
         {step === 3 && (
           <>
             <div className="field"><label>Nova senha</label><PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} /></div>
-            <button className="btn btn-primary" onClick={() => redefinir()} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
+            <RequisitosSenha senha={novaSenha} />
+            <button className="btn btn-primary" onClick={() => redefinir()} disabled={loading || !senhaForte(novaSenha)}>{loading ? "Salvando..." : "Redefinir senha"}</button>
           </>
         )}
       </div>

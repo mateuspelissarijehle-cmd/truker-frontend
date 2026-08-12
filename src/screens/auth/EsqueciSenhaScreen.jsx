@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useRedefinicaoSenha } from "../../hooks/useRedefinicaoSenha";
 import { PasswordInput } from "../../components/PasswordInput";
+import { RequisitosSenha } from "../../components/RequisitosSenha";
+import { senhaForte } from "../../utils/senha";
 
 // ─────────────────────────────────────────────
 // ESQUECI SENHA — ✅ REAL (integrado ao backend)
@@ -58,7 +60,8 @@ export function EsqueciSenhaScreen({ onNavigate }) {
       {step === 3 && (
         <>
           <div className="field"><label>Nova senha</label><PasswordInput value={novaSenha} onChange={e => setNovaSenha(e.target.value)} /></div>
-          <button className="btn btn-primary" onClick={finalizar} disabled={loading}>{loading ? "Salvando..." : "Redefinir senha"}</button>
+          <RequisitosSenha senha={novaSenha} />
+          <button className="btn btn-primary" onClick={finalizar} disabled={loading || !senhaForte(novaSenha)}>{loading ? "Salvando..." : "Redefinir senha"}</button>
         </>
       )}
     </div>

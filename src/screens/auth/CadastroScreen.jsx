@@ -5,6 +5,8 @@ import { maskPlaca } from "../../utils/mask";
 import { TIPOS_CARGA, TIPOS_VEICULO } from "../../data/catalogos";
 import { TrukerLogo } from "../../components/TrukerLogo";
 import { PasswordInput } from "../../components/PasswordInput";
+import { RequisitosSenha } from "../../components/RequisitosSenha";
+import { senhaForte } from "../../utils/senha";
 
 const sHeaderTopo = {
   padding: "16px 20px 0",
@@ -316,15 +318,16 @@ export function CadastroScreen({ onNavigate, screenData }) {
   }
 
   if (step === 3) {
-    const senhaOk = form.senha.length >= 6 && form.senha === (form.confirmarSenha || "");
+    const senhaOk = senhaForte(form.senha) && form.senha === (form.confirmarSenha || "");
     return (
       <div style={sContainer}>
         <Topo step={step} pct={pct} onNavigate={onNavigate} voltar={voltar} />
         <div style={sContent}>
           <div style={sBigTitle}>Crie uma senha</div>
-          <div style={sSub}>Mínimo de 6 caracteres.</div>
+          <div style={sSub}>Crie uma senha forte pra proteger sua conta.</div>
           {error && <div className="alert alert-error">{error}</div>}
           <PasswordInput value={form.senha} onChange={e => set("senha", e.target.value)} placeholder="••••••••" inputStyle={sInput} />
+          <RequisitosSenha senha={form.senha} />
           <div style={{ height: 12 }} />
           <PasswordInput value={form.confirmarSenha || ""} onChange={e => set("confirmarSenha", e.target.value)} placeholder="Confirme a senha" inputStyle={sInput} />
           {form.confirmarSenha && form.senha !== form.confirmarSenha && (
