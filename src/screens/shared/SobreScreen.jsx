@@ -1,9 +1,23 @@
+import { useEffect, useState } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
 import { TrukerLogo } from "../../components/TrukerLogo";
 
 // ─────────────────────────────────────────────
 // SOBRE
 // ─────────────────────────────────────────────
 export function SobreScreen({ onNavigate }) {
+  // No app nativo (Android/iOS), pega version/build de verdade do
+  // versionName/versionCode do build.gradle (via @capacitor/app) -- antes
+  // era um "1.0.0" fixo no código-fonte, que nunca mudava entre builds e não
+  // servia pra saber qual versão estava instalada no celular. Na web (PWA),
+  // getInfo() não é implementado pelo plugin -- mantém o fallback fixo.
+  const [versao, setVersao] = useState("1.0.0");
+  useEffect(() => {
+    CapacitorApp.getInfo()
+      .then((info) => setVersao(`${info.version} (build ${info.build})`))
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="screen">
       <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Sobre o TRUKER</h1></div>
@@ -15,7 +29,7 @@ export function SobreScreen({ onNavigate }) {
           </p>
         </div>
         <div className="card">
-          <div className="info-row"><span className="info-label">Versão</span><span className="info-value">1.0.0</span></div>
+          <div className="info-row"><span className="info-label">Versão</span><span className="info-value">{versao}</span></div>
           <div className="info-row"><span className="info-label">Plataforma</span><span className="info-value">PWA (Android · iOS)</span></div>
           <div className="info-row"><span className="info-label">Desenvolvedor</span><span className="info-value">Mateus Pelissari Jehle</span></div>
           <div className="info-row"><span className="info-label">Contato</span><span className="info-value" style={{ color: "var(--gold)" }}>suporte@getruker.com</span></div>

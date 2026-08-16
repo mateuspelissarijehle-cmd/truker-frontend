@@ -50,13 +50,18 @@ diferente na sua máquina):
 cd C:\dev\truker-frontend
 ```
 
-### Passo 3 — Aponte o terminal pro Java que já vem com o Android Studio
+### Passo 3 — Aponte o terminal pro JDK 21
 
-Isso evita ter que baixar e instalar um Java separado — vamos reaproveitar o
-que o Android Studio já trouxe:
+> **Atualização (15/08/2026):** o Android Studio foi desinstalado desta
+> máquina depois que este guia foi escrito, então o caminho antigo
+> (`...\Android Studio\jbr`) não existe mais. Em vez de reinstalar a IDE
+> inteira (pesada pra um PC de 3GB), foi instalado só um JDK leve — o
+> **Eclipse Temurin 21** (a versão certa: um dos plugins do projeto exige
+> Java 21 especificamente, não só "um Java qualquer"), extraído em
+> `C:\dev\_tools\jdk-21.0.12+8` (sem instalador, sem precisar de admin).
 
 ```powershell
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+$env:JAVA_HOME = "C:\dev\_tools\jdk-21.0.12+8"
 ```
 
 ⚠️ Esse comando vale só pra essa janela do PowerShell que está aberta agora.
