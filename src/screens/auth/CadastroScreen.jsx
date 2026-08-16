@@ -7,6 +7,7 @@ import { TrukerLogo } from "../../components/TrukerLogo";
 import { PasswordInput } from "../../components/PasswordInput";
 import { RequisitosSenha } from "../../components/RequisitosSenha";
 import { senhaForte } from "../../utils/senha";
+import { ConteudoTermos } from "../../components/ConteudoTermos";
 
 const sHeaderTopo = {
   padding: "16px 20px 0",
@@ -59,6 +60,12 @@ export function CadastroScreen({ onNavigate, screenData }) {
     tipoVeiculo: "", cnh: "", rntrc: "", placa: "", anoFab: "",
   });
   const [aceitouTermos, setAceitouTermos] = useState(false);
+  // Modal inline (não navega pra outra tela) -- ver ConteudoTermos.jsx: antes o
+  // link "Políticas de Uso" chamava onNavigate("termos"), e o botão voltar de lá
+  // (onNavigate(-1)) jogava pra fora do cadastro (usuário ainda não está logado
+  // nesse ponto, então -1 caía no fallback de "home", não existe "voltar de
+  // verdade" no roteador atual) -- descartava todo o formulário preenchido.
+  const [mostrarTermos, setMostrarTermos] = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
   const [pendingUser, setPendingUser] = useState(null);
@@ -131,7 +138,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
     setError(""); setLoading(true);
     try {
       const data = await api("POST", "/api/auth/cadastro", { ...form, tipo });
-      setPendingUser({ usuario: data.usuario, token: data.token, codigo_teste: data.codigo_teste || null });
+      setPendingUser({ usuario: data.usuario, token: data.token, codigo_teste: data.codigo_teste || null, emailEnviado: data.emailEnviado !== false });
       setStep(99);
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
@@ -151,8 +158,8 @@ export function CadastroScreen({ onNavigate, screenData }) {
     setReenviando(true); setReenviadoMsg("");
     try {
       const resp = await api("POST", "/api/auth/reenviar-codigo", { usuarioId: pendingUser.usuario.id });
-      setReenviadoMsg("Novo código enviado!");
-      if (resp.codigo_teste) setPendingUser(u => ({ ...u, codigo_teste: resp.codigo_teste }));
+      setReenviadoMsg(resp.emailEnviado === false ? "Não conseguimos enviar o e-mail agora." : "Novo código enviado!");
+      setPendingUser(u => ({ ...u, emailEnviado: resp.emailEnviado !== false, ...(resp.codigo_teste ? { codigo_teste: resp.codigo_teste } : {}) }));
     } catch { setReenviadoMsg("Erro ao reenviar."); }
     finally { setReenviando(false); }
   };
@@ -188,6 +195,31 @@ export function CadastroScreen({ onNavigate, screenData }) {
   };
   const sContinuarDisabled = { ...sContinuar, opacity: 0.4, cursor: "not-allowed" };
 
+  // ── Modal de Termos/Privacidade (inline, não navega) ─────
+  // Renderizado por cima de qualquer step -- fechar volta pro MESMO passo do
+  // cadastro, com o formulário intacto (checkbox de aceite, dados digitados etc).
+  if (mostrarTermos) {
+    return (
+      <div style={sContainer}>
+        <div style={sHeaderTopo}>
+          <button onClick={() => setMostrarTermos(false)}
+            style={{ background: "none", border: "none", fontSize: 22, color: "var(--text)", cursor: "pointer", padding: "4px 8px 4px 0" }}>
+            ←
+          </button>
+        </div>
+        <div style={sContent}>
+          <div style={sBigTitle}>Termos de uso</div>
+          <div className="card">
+            <ConteudoTermos />
+          </div>
+        </div>
+        <div style={sFooter}>
+          <button style={sContinuar} onClick={() => setMostrarTermos(false)}>Voltar pro cadastro</button>
+        </div>
+      </div>
+    );
+  }
+
   // ── STEP 99: Verificação de e-mail ───────────────────────
   if (step === 99 && pendingUser) {
     return (
@@ -202,6 +234,11 @@ export function CadastroScreen({ onNavigate, screenData }) {
         </div>
         {error && <div className="alert alert-error">{error}</div>}
         {reenviadoMsg && <div className="alert alert-success">✅ {reenviadoMsg}</div>}
+        {pendingUser.emailEnviado === false && !pendingUser.codigo_teste && (
+          <div className="alert alert-error">
+            ⚠️ Não conseguimos enviar o e-mail agora. Confira sua caixa de spam ou toque em "Reenviar código" em alguns instantes.
+          </div>
+        )}
         {pendingUser.codigo_teste && (
           <div style={{ background: "rgba(201,168,76,0.1)", border: "1px dashed var(--gold)", borderRadius: 12, padding: "14px 12px", marginBottom: 14, textAlign: "center" }}>
             <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🧪 Modo teste</div>
@@ -440,7 +477,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
             <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px", marginBottom: 20 }}>
               <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7, margin: 0 }}>
                 Ao criar uma conta no TRUKER, você concorda com nossas{" "}
-                <span style={{ color: "var(--gold)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }} onClick={() => onNavigate("termos")}>
+                <span style={{ color: "var(--gold)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }} onClick={() => setMostrarTermos(true)}>
                   Políticas de Uso e Privacidade
                 </span>
                 . Seus dados serão utilizados exclusivamente para intermediação de fretes.
@@ -653,7 +690,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
             <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 12, padding: "16px", marginBottom: 20 }}>
               <p style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.7, margin: 0 }}>
                 Ao criar uma conta no TRUKER como motorista, você concorda com nossas{" "}
-                <span style={{ color: "var(--gold)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }} onClick={() => onNavigate("termos")}>
+                <span style={{ color: "var(--gold)", fontWeight: 700, textDecoration: "underline", cursor: "pointer" }} onClick={() => setMostrarTermos(true)}>
                   Políticas de Uso e Privacidade
                 </span>
                 . Seus dados serão usados exclusivamente para intermediação de fretes.

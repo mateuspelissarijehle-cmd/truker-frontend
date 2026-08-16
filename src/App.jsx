@@ -75,7 +75,17 @@ function Router() {
   }, [user]);
 
   const navigate = useCallback((to, data = null) => {
-    if (to === -1) { setScreen(user?.tipo === "motorista" ? "home-motorista" : user?.tipo === "admin" ? "admin-dashboard" : "home-contratante"); return; }
+    // onNavigate(-1) não é um "voltar" de verdade (o router não guarda
+    // histórico) -- é um atalho pra tela inicial. Sem usuário logado (ex:
+    // uma tela alcançada durante o cadastro, antes do login) não existe
+    // "home" nenhuma pra voltar -- manda pra entrada em vez de tentar
+    // renderizar home-contratante sem contexto de usuário (era isso que
+    // fazia telas como Termos "encerrarem" o cadastro ao voltar).
+    if (to === -1) {
+      if (!user) { setScreen("entrada"); return; }
+      setScreen(user.tipo === "motorista" ? "home-motorista" : user.tipo === "admin" ? "admin-dashboard" : "home-contratante");
+      return;
+    }
     setScreenData(data); setScreen(to); window.scrollTo(0, 0);
   }, [user]);
 
