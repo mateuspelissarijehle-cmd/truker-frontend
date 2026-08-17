@@ -52,17 +52,18 @@ export async function apiUpload(method, path, formData, token) {
   return data;
 }
 
-// Baixa um arquivo binário autenticado (ex: PDF de contrato) e abre em nova aba.
-// O endpoint só aceita token via header Authorization, então não dá pra usar
-// window.open(url) direto — buscamos como blob e abrimos uma URL local.
-// A aba é aberta ANTES do fetch (síncrono, dentro do clique do usuário) e só
-// redirecionada depois — abrir só no final, após o await, é bloqueado como
-// pop-up pela maioria dos navegadores por perder o gesto do usuário.
-// Baixa um arquivo binário autenticado (ex: planilha .xlsx) forçando o download
-// direto pro dispositivo, em vez de abrir em nova aba -- diferente de
-// abrirArquivoAutenticado acima, que serve pra arquivos que fazem sentido
-// visualizar no navegador (PDF). Extrai o nome sugerido do header
-// Content-Disposition quando disponível.
+// Baixa um arquivo binário autenticado (PDF de contrato, planilha .xlsx etc)
+// forçando o download direto pro dispositivo. O endpoint só aceita token via
+// header Authorization, então não dá pra usar window.open(url) direto -- e
+// window.open("", "_blank") + redirecionar depois (o jeito clássico de
+// "abrir numa aba nova" contornando bloqueio de pop-up) não funciona no
+// WebView nativo do Capacitor, que não tem noção de aba nova nenhuma (ver
+// histórico do commit que removeu abrirArquivoAutenticado, 18/08/2026, bug
+// do botão "Ver Contrato" que não abria nada no app Android). Por isso o
+// padrão usado aqui, em vez de abrir, é: buscar como blob e disparar um
+// download via elemento <a download> -- funciona tanto na web quanto no
+// app nativo. Extrai o nome sugerido do header Content-Disposition quando
+// disponível, com nomePadrao como retaguarda.
 export async function baixarArquivoAutenticado(path, token, nomePadrao) {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -84,26 +85,4 @@ export async function baixarArquivoAutenticado(path, token, nomePadrao) {
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
-}
-
-export async function abrirArquivoAutenticado(path, token) {
-  const novaJanela = window.open("", "_blank");
-  try {
-    const res = await fetch(`${API_BASE}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) {
-      let msg = "Não foi possível abrir o arquivo";
-      try { const data = await res.json(); msg = data.error || msg; } catch { /* resposta de erro sem JSON válido, mantém msg padrão */ }
-      throw new Error(msg);
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    if (novaJanela) novaJanela.location.href = url;
-    else window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch (e) {
-    if (novaJanela) novaJanela.close();
-    throw e;
-  }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
-import { api, apiUpload, abrirArquivoAutenticado } from "../../services/api";
+import { api, apiUpload, baixarArquivoAutenticado } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
@@ -91,7 +91,7 @@ export function EmTransitoScreen({ frete, onNavigate }) {
 
   const verContrato = async () => {
     setContratoLoading(true); setError("");
-    try { await abrirArquivoAutenticado(`/api/fretes/${frete.id}/contrato`, token); }
+    try { await baixarArquivoAutenticado(`/api/fretes/${frete.id}/contrato`, token, `contrato-frete-${frete.id}.pdf`); }
     catch (e) { setError(e.message); }
     finally { setContratoLoading(false); }
   };
@@ -310,7 +310,7 @@ export function EmTransitoScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
           <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={verContrato} disabled={contratoLoading}>
-            {contratoLoading ? "Abrindo contrato..." : "📄 Ver Contrato"}
+            {contratoLoading ? "Baixando contrato..." : "📄 Baixar Contrato"}
           </button>
         </div>
 

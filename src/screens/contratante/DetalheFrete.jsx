@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/useAuth";
-import { api, abrirArquivoAutenticado } from "../../services/api";
+import { api, baixarArquivoAutenticado } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -55,7 +55,7 @@ export function DetalheFrete({ frete, onNavigate }) {
 
   const verContrato = async () => {
     setContratoLoading(true); setError("");
-    try { await abrirArquivoAutenticado(`/api/fretes/${frete.id}/contrato`, token); }
+    try { await baixarArquivoAutenticado(`/api/fretes/${frete.id}/contrato`, token, `contrato-frete-${frete.id}.pdf`); }
     catch (e) { setError(e.message); }
     finally { setContratoLoading(false); }
   };
@@ -115,7 +115,7 @@ export function DetalheFrete({ frete, onNavigate }) {
         )}
         {temContrato && (
           <button className="btn btn-secondary" style={{ marginBottom: 10 }} onClick={verContrato} disabled={contratoLoading}>
-            {contratoLoading ? "Abrindo contrato..." : "📄 Ver Contrato"}
+            {contratoLoading ? "Baixando contrato..." : "📄 Baixar Contrato"}
           </button>
         )}
         {frete.status === "entregue" && !frete.ja_avaliou && <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => onNavigate("avaliar", { frete })}>⭐ Avaliar Motorista</button>}

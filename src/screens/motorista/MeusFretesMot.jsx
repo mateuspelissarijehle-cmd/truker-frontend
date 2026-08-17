@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/useAuth";
-import { api, abrirArquivoAutenticado } from "../../services/api";
+import { api, baixarArquivoAutenticado } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
@@ -25,7 +25,7 @@ export function MeusFretesMot({ onNavigate }) {
 
   const verContrato = async (freteId) => {
     setContratoLoadingId(freteId); setContratoError("");
-    try { await abrirArquivoAutenticado(`/api/fretes/${freteId}/contrato`, token); }
+    try { await baixarArquivoAutenticado(`/api/fretes/${freteId}/contrato`, token, `contrato-frete-${freteId}.pdf`); }
     catch (e) { setContratoError(e.message); }
     finally { setContratoLoadingId(null); }
   };
@@ -77,7 +77,7 @@ export function MeusFretesMot({ onNavigate }) {
               )}
               {finalizado && (
                 <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={(e) => { e.stopPropagation(); verContrato(f.id); }} disabled={contratoLoadingId === f.id}>
-                  {contratoLoadingId === f.id ? "Abrindo contrato..." : "📄 Ver Contrato"}
+                  {contratoLoadingId === f.id ? "Baixando contrato..." : "📄 Baixar Contrato"}
                 </button>
               )}
             </div>

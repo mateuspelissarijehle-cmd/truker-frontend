@@ -109,7 +109,7 @@ export function DetalheFreteMotoristaModal({ frete, token, onClose, onVerContrat
         </div>
 
         <button className="btn btn-secondary" onClick={() => onVerContrato(frete.id)} disabled={contratoLoadingId === frete.id}>
-          {contratoLoadingId === frete.id ? "Abrindo contrato..." : "📄 Ver Contrato"}
+          {contratoLoadingId === frete.id ? "Baixando contrato..." : "📄 Baixar Contrato"}
         </button>
       </div>
     </div>
