@@ -5,6 +5,7 @@ import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { MapaLeaflet } from "../../components/MapaLeaflet";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // DETALHE FRETE
@@ -109,7 +110,13 @@ export function DetalheFrete({ frete, onNavigate }) {
         {frete.motorista_nome && (
           <div className="card">
             <div className="card-title">Motorista</div>
-            <div className="info-row"><span className="info-label">Nome</span><span className="info-value">{frete.motorista_nome}</span></div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <Avatar nome={frete.motorista_nome} fotoUrl={frete.motorista_foto_url} logoEmpresaUrl={frete.motorista_logo_empresa_url} size={44} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{frete.motorista_nome}</div>
+                {frete.motorista_nome_empresa && <div style={{ fontSize: 12, color: "var(--text3)" }}>{frete.motorista_nome_empresa}</div>}
+              </div>
+            </div>
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 10 }} onClick={() => onNavigate("chat", { frete })}>💬 Chat</button>
           </div>
         )}

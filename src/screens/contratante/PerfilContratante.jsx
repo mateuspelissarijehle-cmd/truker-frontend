@@ -1,11 +1,19 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/useAuth";
+import { api } from "../../services/api";
 import { BottomNavContratante } from "../../components/BottomNavContratante";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // PERFIL CONTRATANTE
 // ─────────────────────────────────────────────
 export function PerfilContratante({ onNavigate }) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
+  const [perfil, setPerfil] = useState(null);
+
+  useEffect(() => {
+    api("GET", "/api/contratantes/perfil", null, token).then(setPerfil).catch(() => {});
+  }, [token]);
   const settingsLinks = [
     { icon: "👤", label: "Dados Pessoais", sub: "Nome, foto, CPF/CNPJ, empresa", screen: "dados-pessoais-contratante" },
     { icon: "🔔", label: "Notificações", sub: "Push, sons e alertas", screen: "notificacoes" },
@@ -24,7 +32,7 @@ export function PerfilContratante({ onNavigate }) {
       <div className="content">
         <div style={{ textAlign: "center", padding: "20px 0 24px" }}>
           <div style={{ position: "relative", display: "inline-block", marginBottom: 12 }}>
-            <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, border: "3px solid var(--gold)", boxShadow: "0 4px 12px rgba(201,168,76,0.3)" }}>🏢</div>
+            <Avatar nome={user?.nome} fotoUrl={perfil?.foto_url} logoEmpresaUrl={perfil?.logo_empresa_url} size={80} />
             <div onClick={() => onNavigate("dados-pessoais-contratante")} style={{ position: "absolute", bottom: 0, right: 0, width: 26, height: 26, borderRadius: "50%", background: "var(--gold)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: 11, border: "2px solid var(--surface)" }}>✏️</div>
           </div>
           <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text)" }}>{user?.nome}</div>

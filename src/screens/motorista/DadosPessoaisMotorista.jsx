@@ -5,13 +5,14 @@ import { buscarEnderecoPorCep } from "../../services/viaCep";
 import { maskCep } from "../../utils/mask";
 import { Loading } from "../../components/Loading";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // DADOS PESSOAIS — MOTORISTA
 // ─────────────────────────────────────────────
 export function DadosPessoaisMotorista({ onNavigate }) {
   const { user, token, updateUserData } = useAuth();
-  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", cpf: "", cnh: "", rntrc: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", contatoEmergenciaNome: "", contatoEmergenciaTelefone: "", chavePix: "", chavePixTipo: "" });
+  const [form, setForm] = useState({ nome: user?.nome || "", email: user?.email || "", telefone: user?.telefone || "", nomeEmpresa: "", cpf: "", cnh: "", rntrc: "", cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "", contatoEmergenciaNome: "", contatoEmergenciaTelefone: "", chavePix: "", chavePixTipo: "" });
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
@@ -19,6 +20,11 @@ export function DadosPessoaisMotorista({ onNavigate }) {
   const [cnhUrl, setCnhUrl] = useState(null);
   const [enviandoCnh, setEnviandoCnh] = useState(false);
   const [cnhErro, setCnhErro] = useState("");
+  const [fotoUrl, setFotoUrl] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [enviandoLogo, setEnviandoLogo] = useState(false);
+  const [imagemErro, setImagemErro] = useState("");
   const [docs, setDocs] = useState({
     cpf: { url: null, enviando: false, erro: "" },
     comprovante_endereco: { url: null, enviando: false, erro: "" },
@@ -31,6 +37,7 @@ export function DadosPessoaisMotorista({ onNavigate }) {
       const d = await api("GET", "/api/motoristas/perfil", null, token);
       setForm({
         nome: d.nome || "", email: d.email || "", telefone: d.telefone || "",
+        nomeEmpresa: d.nome_empresa || "",
         cpf: d.cpf || "", cnh: d.cnh_numero || "", rntrc: d.rntrc || "",
         cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "",
         complemento: d.complemento || "", bairro: d.bairro || "",
@@ -40,6 +47,8 @@ export function DadosPessoaisMotorista({ onNavigate }) {
         chavePix: d.chave_pix || "", chavePixTipo: d.chave_pix_tipo || "",
       });
       setCnhUrl(d.cnh_url || null);
+      setFotoUrl(d.foto_url || null);
+      setLogoUrl(d.logo_empresa_url || null);
       setDocs({
         cpf: { url: d.cpf_documento_url || null, enviando: false, erro: "" },
         comprovante_endereco: { url: d.comprovante_endereco_url || null, enviando: false, erro: "" },
@@ -68,6 +77,29 @@ export function DadosPessoaisMotorista({ onNavigate }) {
       setCnhErro(err.message);
     } finally {
       setEnviandoCnh(false);
+      e.target.value = "";
+    }
+  };
+
+  // Foto de perfil e logo da empresa usam o mesmo endpoint compartilhado
+  // (POST /api/usuarios/imagens-perfil, campos "foto"/"logo") -- vale pra
+  // motorista e contratante, ao contrário de /api/motoristas/documentos
+  // (que é só CNH/CRLV/etc, específico de motorista).
+  const enviarImagemPerfil = async (campo, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImagemErro("");
+    if (campo === "foto") setEnviandoFoto(true); else setEnviandoLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append(campo, file);
+      const resp = await apiUpload("POST", "/api/usuarios/imagens-perfil", formData, token);
+      if (resp.foto_url) setFotoUrl(resp.foto_url);
+      if (resp.logo_empresa_url) setLogoUrl(resp.logo_empresa_url);
+    } catch (err) {
+      setImagemErro(err.message);
+    } finally {
+      if (campo === "foto") setEnviandoFoto(false); else setEnviandoLogo(false);
       e.target.value = "";
     }
   };
@@ -103,7 +135,7 @@ export function DadosPessoaisMotorista({ onNavigate }) {
     setError(""); setLoading(true);
     try {
       await api("PATCH", "/api/motoristas/perfil", {
-        nome: form.nome, telefone: form.telefone,
+        nome: form.nome, telefone: form.telefone, nomeEmpresa: form.nomeEmpresa,
         cnh: form.cnh, rntrc: form.rntrc,
         cep: form.cep, logradouro: form.logradouro, numero: form.numero,
         complemento: form.complemento, bairro: form.bairro, cidade: form.cidade, uf: form.uf,
@@ -129,8 +161,28 @@ export function DadosPessoaisMotorista({ onNavigate }) {
         {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
         {error && <div className="alert alert-error">{error}</div>}
         <div className="card" style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 34, border: "3px solid var(--gold)" }}>🚛</div>
-          <button className="btn btn-secondary btn-sm" style={{ width: "auto" }}>📷 Trocar foto de perfil</button>
+          <div style={{ margin: "0 auto 12px", width: 80 }}>
+            <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={80} />
+          </div>
+          {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
+          <label className="btn btn-secondary btn-sm" style={{ width: "auto", display: "inline-block", cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
+            {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
+            <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
+          </label>
+        </div>
+        <div className="card">
+          <div className="card-title">🏢 Empresa (opcional)</div>
+          <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+            Se você roda por uma empresa/MEI, o nome e o logo aparecem no seu perfil pros contratantes.
+          </p>
+          <div className="field"><label>Nome da empresa</label><input value={form.nomeEmpresa} onChange={e => set("nomeEmpresa", e.target.value)} placeholder="Ex: Transportes Silva LTDA" /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
+            <Avatar nome={form.nomeEmpresa || form.nome} fotoUrl={logoUrl} logoEmpresaUrl={null} size={48} />
+            <label className="btn btn-secondary btn-sm" style={{ width: "auto", cursor: enviandoLogo ? "default" : "pointer", opacity: enviandoLogo ? 0.6 : 1 }}>
+              {enviandoLogo ? "Enviando..." : "🖼️ Enviar logo da empresa"}
+              <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoLogo} onChange={e => enviarImagemPerfil("logo", e)} />
+            </label>
+          </div>
         </div>
         <div className="card">
           <div className="card-title">Identificação</div>

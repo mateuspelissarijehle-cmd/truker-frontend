@@ -3,6 +3,7 @@ import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // PROPOSTAS RECEBIDAS (Contratante)
@@ -91,9 +92,12 @@ export function PropostasRecebidasScreen({ frete, onNavigate }) {
         {!loading && propostas.map(p => (
           <div key={p.id} className="card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-              <div>
-                <div style={{ fontWeight: 700 }}>{p.motorista_nome}</div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>{p.tipo_veiculo} · {p.placa_veiculo || "—"} · ⭐ {Number(p.avaliacao_media).toFixed(1)}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Avatar nome={p.motorista_nome} fotoUrl={p.motorista_foto_url} logoEmpresaUrl={p.motorista_logo_empresa_url} size={40} />
+                <div>
+                  <div style={{ fontWeight: 700 }}>{p.motorista_nome}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)" }}>{p.tipo_veiculo} · {p.placa_veiculo || "—"} · ⭐ {Number(p.avaliacao_media).toFixed(1)}</div>
+                </div>
               </div>
               <span className={`badge ${p.rodada === 2 ? "badge-pending" : "badge-active"}`}>
                 {p.rodada === 2 ? "Aguardando motorista" : "Proposta do motorista"}

@@ -5,6 +5,7 @@ import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { BottomNavContratante } from "../../components/BottomNavContratante";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // MEUS FRETES CONTRATANTE
@@ -68,7 +69,10 @@ export function MeusFretes({ onNavigate }) {
               <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text3)" }}>
                 <span>📅 {data}</span>
-                <span>🚛 {f.motorista_nome || "Aguardando"}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  {f.motorista_nome && <Avatar nome={f.motorista_nome} fotoUrl={f.motorista_foto_url} logoEmpresaUrl={f.motorista_logo_empresa_url} size={18} />}
+                  {f.motorista_nome || "Aguardando"}
+                </span>
               </div>
             </div>
           );

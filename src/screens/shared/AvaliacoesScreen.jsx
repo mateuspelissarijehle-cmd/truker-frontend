@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
+import { Avatar } from "../../components/Avatar";
 
 function Estrelas({ nota }) {
   return (
@@ -68,10 +69,13 @@ export function AvaliacoesScreen({ onNavigate }) {
           avaliacoes.map((a, i) => (
             <div key={a.id || i} className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{a.avaliador_nome || "Contratante"}</div>
-                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
-                    {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "—"}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Avatar nome={a.avaliador_nome || "Contratante"} fotoUrl={a.avaliador_foto_url} logoEmpresaUrl={a.avaliador_logo_empresa_url} size={36} />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{a.avaliador_nome || "Contratante"}</div>
+                    <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
+                      {a.criado_em ? new Date(a.criado_em).toLocaleDateString("pt-BR") : "—"}
+                    </div>
                   </div>
                 </div>
                 <Estrelas nota={Number(a.nota)} />
@@ -87,7 +91,10 @@ export function AvaliacoesScreen({ onNavigate }) {
           avaliacoes.map((f, i) => (
             <div key={f.id || i} className="card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{f.motorista_nome || "Motorista"}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Avatar nome={f.motorista_nome || "Motorista"} fotoUrl={f.motorista_foto_url} logoEmpresaUrl={f.motorista_logo_empresa_url} size={32} />
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{f.motorista_nome || "Motorista"}</div>
+                </div>
                 <span className="badge badge-done">Entregue</span>
               </div>
               <div style={{ fontSize: 13, color: "var(--text3)" }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>

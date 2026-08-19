@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // CHAT
@@ -72,10 +73,13 @@ export function ChatScreen({ data, onNavigate }) {
           </div>
         )}
         {msgs.map((m, i) => (
-          <div key={m.id || i} style={{ alignSelf: m.e_meu ? "flex-end" : "flex-start", maxWidth: "80%" }}>
-            {!m.e_meu && <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 2, paddingLeft: 4 }}>{m.nome}</div>}
-            <div className={`msg ${m.e_meu ? "msg-me" : "msg-other"}`}>{m.mensagem}</div>
-            <div className="msg-time" style={{ textAlign: m.e_meu ? "right" : "left" }}>{formatHora(m.criado_em)}</div>
+          <div key={m.id || i} style={{ alignSelf: m.e_meu ? "flex-end" : "flex-start", maxWidth: "80%", display: "flex", gap: 8, flexDirection: m.e_meu ? "row-reverse" : "row" }}>
+            {!m.e_meu && <Avatar nome={m.nome} fotoUrl={m.foto_url} logoEmpresaUrl={m.logo_empresa_url} size={28} />}
+            <div>
+              {!m.e_meu && <div style={{ fontSize: 11, color: "var(--text3)", marginBottom: 2, paddingLeft: 4 }}>{m.nome}</div>}
+              <div className={`msg ${m.e_meu ? "msg-me" : "msg-other"}`}>{m.mensagem}</div>
+              <div className="msg-time" style={{ textAlign: m.e_meu ? "right" : "left" }}>{formatHora(m.criado_em)}</div>
+            </div>
           </div>
         ))}
         <div ref={bottomRef} />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // BUSCAR MOTORISTAS (Contratante — proposta inversa)
@@ -72,7 +73,8 @@ export function BuscarMotoristasScreen({ onNavigate }) {
             </div>
           ) : resultados.map(m => (
             <div key={m.motorista_id} className="uber-card">
-              <div className="uber-card-header">
+              <div className="uber-card-header" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Avatar nome={m.motorista_nome} fotoUrl={m.motorista_foto_url} logoEmpresaUrl={m.motorista_logo_empresa_url} size={44} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>{m.motorista_nome}</div>
                   <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>🚛 {m.tipo_veiculo}{m.placa_veiculo ? ` · ${m.placa_veiculo}` : ""}</div>

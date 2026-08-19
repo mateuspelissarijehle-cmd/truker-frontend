@@ -4,6 +4,7 @@ import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { TIPOS_CARGA } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // CONVITES (Motorista — proposta inversa)
@@ -38,7 +39,10 @@ export function ConvitesScreen({ onNavigate }) {
               <div className="uber-card-header">
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
-                    <span className="tag-chip">🎯 Convite de {f.contratante_nome}</span>
+                    <span className="tag-chip" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <Avatar nome={f.contratante_nome} fotoUrl={f.contratante_foto_url} logoEmpresaUrl={f.contratante_logo_empresa_url} size={16} />
+                      Convite de {f.contratante_nome}
+                    </span>
                     <span className="tag-chip">{cargaObj?.icon || "📦"} {cargaObj?.label || f.tipo_carga}</span>
                   </div>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>

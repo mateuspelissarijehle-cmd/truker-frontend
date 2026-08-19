@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
-import { api } from "../../services/api";
+import { api, apiUpload } from "../../services/api";
 import { buscarEnderecoPorCep } from "../../services/viaCep";
 import { maskCep } from "../../utils/mask";
 import { Loading } from "../../components/Loading";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // DADOS PESSOAIS — CONTRATANTE
@@ -16,15 +17,41 @@ export function DadosPessoaisContratante({ onNavigate }) {
   const [loadingData, setLoadingData] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [fotoUrl, setFotoUrl] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [enviandoLogo, setEnviandoLogo] = useState(false);
+  const [imagemErro, setImagemErro] = useState("");
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const carregarPerfil = useCallback(async () => {
     try {
       const d = await api("GET", "/api/contratantes/perfil", null, token);
       setForm({ nome: d.nome || "", email: d.email || "", telefone: d.telefone || "", documento: d.cpf_cnpj || "", nomeEmpresa: d.nome_empresa || "", inscricaoEstadual: d.inscricao_estadual || "", cep: d.cep || "", logradouro: d.logradouro || "", numero: d.numero || "", complemento: d.complemento || "", bairro: d.bairro || "", cidade: d.cidade || "", uf: d.uf || "", contatoEmergenciaNome: d.contato_emergencia_nome || "", contatoEmergenciaTelefone: d.contato_emergencia_telefone || "" });
+      setFotoUrl(d.foto_url || null);
+      setLogoUrl(d.logo_empresa_url || null);
     } catch (e) { setError("Erro ao carregar perfil: " + e.message); }
     finally { setLoadingData(false); }
   }, [token]);
+
+  const enviarImagemPerfil = async (campo, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImagemErro("");
+    if (campo === "foto") setEnviandoFoto(true); else setEnviandoLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append(campo, file);
+      const resp = await apiUpload("POST", "/api/usuarios/imagens-perfil", formData, token);
+      if (resp.foto_url) setFotoUrl(resp.foto_url);
+      if (resp.logo_empresa_url) setLogoUrl(resp.logo_empresa_url);
+    } catch (err) {
+      setImagemErro(err.message);
+    } finally {
+      if (campo === "foto") setEnviandoFoto(false); else setEnviandoLogo(false);
+      e.target.value = "";
+    }
+  };
 
   useEffect(() => { queueMicrotask(carregarPerfil); }, [carregarPerfil]);
 
@@ -60,8 +87,14 @@ export function DadosPessoaisContratante({ onNavigate }) {
         {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
         {error && <div className="alert alert-error">{error}</div>}
         <div className="card" style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ width: 80, height: 80, borderRadius: "50%", background: "linear-gradient(135deg, #C9A84C, #A8873A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 34, border: "3px solid var(--gold)" }}>🏢</div>
-          <button className="btn btn-secondary btn-sm" style={{ width: "auto" }}>📷 Trocar foto / logomarca</button>
+          <div style={{ margin: "0 auto 12px", width: 80 }}>
+            <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={80} />
+          </div>
+          {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
+          <label className="btn btn-secondary btn-sm" style={{ width: "auto", display: "inline-block", cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
+            {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
+            <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
+          </label>
         </div>
         <div className="card">
           <div className="card-title">Identificação</div>
@@ -69,6 +102,13 @@ export function DadosPessoaisContratante({ onNavigate }) {
           <div className="field"><label>CPF ou CNPJ</label><input value={form.documento} onChange={e => set("documento", e.target.value)} placeholder="000.000.000-00 ou 00.000.000/0001-00" /></div>
           <div className="field"><label>Nome da empresa (opcional)</label><input value={form.nomeEmpresa} onChange={e => set("nomeEmpresa", e.target.value)} placeholder="Empresa LTDA" /></div>
           <div className="field"><label>Inscrição Estadual (opcional)</label><input value={form.inscricaoEstadual} onChange={e => set("inscricaoEstadual", e.target.value)} placeholder="000.000.000.000" /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
+            <Avatar nome={form.nomeEmpresa || form.nome} fotoUrl={logoUrl} logoEmpresaUrl={null} size={48} />
+            <label className="btn btn-secondary btn-sm" style={{ width: "auto", cursor: enviandoLogo ? "default" : "pointer", opacity: enviandoLogo ? 0.6 : 1 }}>
+              {enviandoLogo ? "Enviando..." : "🖼️ Enviar logo da empresa"}
+              <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoLogo} onChange={e => enviarImagemPerfil("logo", e)} />
+            </label>
+          </div>
         </div>
         <div className="card">
           <div className="card-title">Contato</div>

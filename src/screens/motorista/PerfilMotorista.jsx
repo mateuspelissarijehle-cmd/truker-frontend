@@ -5,6 +5,7 @@ import { formatKm } from "../../utils/format";
 import { TIPOS_VEICULO } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
 import { BottomNavMotorista } from "../../components/BottomNavMotorista";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // PERFIL MOTORISTA — ✅ ganhos reais da API
@@ -36,7 +37,9 @@ export function PerfilMotorista({ onNavigate }) {
       <div className="header"><h1>Perfil</h1></div>
       <div className="content">
         <div style={{ textAlign: "center", padding: "14px 0 20px" }}>
-          <div style={{ width: 68, height: 68, borderRadius: "50%", background: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px", fontSize: 28 }}>🚛</div>
+          <div style={{ margin: "0 auto 10px", width: 68 }}>
+            <Avatar nome={user?.nome} fotoUrl={perfil?.foto_url} logoEmpresaUrl={perfil?.logo_empresa_url} size={68} />
+          </div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>{user?.nome}</div>
           <div style={{ fontSize: 13, color: "var(--text2)", marginTop: 3 }}>{user?.email}</div>
           <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>

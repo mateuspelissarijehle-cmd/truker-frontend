@@ -4,6 +4,7 @@ import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { BottomNavMotorista } from "../../components/BottomNavMotorista";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // MINHAS PROPOSTAS (Motorista)
@@ -87,9 +88,12 @@ export function MinhasPropostasScreen({ onNavigate }) {
         {!loading && propostas.map(p => (
           <div key={p.id} className="card">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>{p.origem_cidade} → {p.dest_cidade}</div>
-                <div style={{ fontSize: 12, color: "var(--text3)" }}>Contratante: {p.contratante_nome}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Avatar nome={p.contratante_nome} fotoUrl={p.contratante_foto_url} logoEmpresaUrl={p.contratante_logo_empresa_url} size={36} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{p.origem_cidade} → {p.dest_cidade}</div>
+                  <div style={{ fontSize: 12, color: "var(--text3)" }}>Contratante: {p.contratante_nome}</div>
+                </div>
               </div>
               <StatusProposta p={p} />
             </div>
