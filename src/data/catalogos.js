@@ -92,12 +92,26 @@ export const TIPOS_FRETE = [
   { id: "internacional", label: "Internacional", icon: "🌎", desc: "Cruzando fronteiras" },
 ];
 
-// Mapeamento frontend → categoria oficial ANTT (Tabela A, Resolução 5.867/2020 + Portaria SUROC 4/2026)
-// Categorias disponíveis: geral, frigorificado, perigoso, granel_liquido, granel_solido, neogranel, conteinerizado, granel_pressurizado
+// Mapeamento frontend → categoria oficial ANTT (Tabela A, Resolução 5.867/2020,
+// atualizada pela 6.084/2026 -- ver services/antt.js no backend)
+// Categorias disponíveis: geral, frigorificado, granel_liquido, granel_solido,
+// neogranel, conteinerizado, granel_pressurizado, e as 5 subcategorias oficiais
+// de carga perigosa (perigoso_geral, perigoso_conteinerizado, perigoso_frigorificado,
+// perigoso_granel_liquido, perigoso_granel_solido -- adicionadas 18/08/2026,
+// substituindo o "perigoso" genérico que existia antes).
 export const CARGA_BACKEND_MAP = {
   carga_seca: "geral", graneleiro: "granel_solido", refrigerada: "frigorificado",
   frigorifico: "frigorificado", mudanca: "geral", carga_viva: "geral",
-  liquidos: "granel_liquido", inflamavel: "perigoso", perigosa: "perigoso",
+  liquidos: "granel_liquido",
+  // inflamavel (combustíveis, solventes) é fisicamente líquido na imensa
+  // maioria dos casos reais do catálogo -- mapeado pro piso de carga perigosa
+  // em forma de granel líquido, o mais preciso das 5 subcategorias ANTT pra
+  // esse tipo de carga.
+  inflamavel: "perigoso_granel_liquido",
+  // perigosa/IMOS (produtos químicos, explosivos) normalmente viaja embalada/
+  // paletizada, não a granel -- mapeado pro piso de carga perigosa em forma
+  // geral, a subcategoria ANTT mais adequada pra esse padrão de acondicionamento.
+  perigosa: "perigoso_geral",
   farmaceutico: "geral", eletronicos: "geral", alimentos: "geral",
   bebidas: "geral", construcao: "granel_solido", maquinario: "geral",
   superdimensionado: "geral", residuos: "granel_solido", veiculos: "geral",
