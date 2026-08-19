@@ -22,6 +22,13 @@ export const TIPOS_CARGA = [
   { id: "veiculos", label: "Veículos", icon: "🚗", desc: "Carros, motos, caminhões" },
   { id: "classificados", label: "Classificados", icon: "🔒", desc: "Valores, documentos, escolta" },
   { id: "madeira", label: "Madeira", icon: "🪵", desc: "Toras, compensados, móveis" },
+  // As 3 categorias abaixo (19/08/2026) fecham o gap: já existiam em
+  // TABELA_ANTT (services/antt.js, backend) e em CARROCERIAS (services/
+  // matching.js) mas nunca eram selecionáveis por aqui -- CARGA_BACKEND_MAP
+  // agora mapeia direto (mesmo id dos dois lados).
+  { id: "conteinerizado", label: "Container", icon: "🚢", desc: "Carga em container ISO, porta-container" },
+  { id: "neogranel", label: "Neogranel", icon: "🛍️", desc: "Sacaria paletizada — fertilizante, cimento, açúcar" },
+  { id: "granel_pressurizado", label: "Granel Pressurizado", icon: "🛢️", desc: "Gases e líquidos pressurizados — GLP, gases industriais" },
 ];
 
 // Regras de formulário dinâmico por tipo de carga:
@@ -49,6 +56,10 @@ export const REGRAS_CARGA = {
   veiculos:          { dimensoes: true,  especial: null },
   classificados:     { dimensoes: true,  especial: null },
   madeira:           { dimensoes: true,  especial: null },
+  // Mesma regra da categoria ANTT equivalente em services/matching.js CARGA_EXIGE_DIMENSOES.
+  conteinerizado:        { dimensoes: false, especial: null },
+  neogranel:              { dimensoes: true,  especial: null },
+  granel_pressurizado:    { dimensoes: false, especial: null },
 };
 export const regrasCarga = (id) => REGRAS_CARGA[id] || { dimensoes: true, especial: null };
 
@@ -116,6 +127,8 @@ export const CARGA_BACKEND_MAP = {
   bebidas: "geral", construcao: "granel_solido", maquinario: "geral",
   superdimensionado: "geral", residuos: "granel_solido", veiculos: "geral",
   classificados: "geral", madeira: "geral",
+  // Fecham o gap de 19/08/2026 -- mapeamento direto (mesmo id nos dois lados).
+  conteinerizado: "conteinerizado", neogranel: "neogranel", granel_pressurizado: "granel_pressurizado",
 };
 
 export const TIPOS_DESPESA = [
