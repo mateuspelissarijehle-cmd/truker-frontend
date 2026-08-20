@@ -7,6 +7,7 @@ import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { MapaLeaflet } from "../../components/MapaLeaflet";
 import { watchPosition, clearWatch } from "../../services/geolocation";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // EM TRÂNSITO — sem mapa próprio (mapa fica na aba Início)
@@ -309,6 +310,16 @@ export function EmTransitoScreen({ frete, onNavigate }) {
           <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
+          {frete.contratante_nome && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+              <Avatar nome={frete.contratante_nome} fotoUrl={frete.contratante_foto_url} logoEmpresaUrl={frete.contratante_logo_empresa_url} size={40} />
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Contratante</div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{frete.contratante_nome}</div>
+                {frete.contratante_nome_empresa && <div style={{ fontSize: 12, color: "var(--text3)" }}>{frete.contratante_nome_empresa}</div>}
+              </div>
+            </div>
+          )}
           <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={verContrato} disabled={contratoLoading}>
             {contratoLoading ? "Baixando contrato..." : "📄 Baixar Contrato"}
           </button>

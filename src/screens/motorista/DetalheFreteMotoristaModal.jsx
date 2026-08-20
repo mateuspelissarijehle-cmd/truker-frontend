@@ -3,6 +3,7 @@ import { api } from "../../services/api";
 import { formatMoney, formatDateTime } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // DETALHE DO FRETE (MOTORISTA) — modal aberto ao clicar num card
@@ -50,6 +51,19 @@ export function DetalheFreteMotoristaModal({ frete, token, onClose, onVerContrat
           <div className="info-row"><span className="info-label">Coleta</span><span className="info-value">{formatDateTime(frete.coletado_em)}</span></div>
           <div className="info-row"><span className="info-label">Entrega</span><span className="info-value">{formatDateTime(frete.entregue_em)}</span></div>
         </div>
+
+        {frete.contratante_nome && (
+          <div className="card">
+            <div className="card-title">Contratante</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Avatar nome={frete.contratante_nome} fotoUrl={frete.contratante_foto_url} logoEmpresaUrl={frete.contratante_logo_empresa_url} size={40} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{frete.contratante_nome}</div>
+                {frete.contratante_nome_empresa && <div style={{ fontSize: 12, color: "var(--text3)" }}>{frete.contratante_nome_empresa}</div>}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="card-title">Rota e carga</div>

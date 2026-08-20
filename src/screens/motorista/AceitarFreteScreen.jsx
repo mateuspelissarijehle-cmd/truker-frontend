@@ -6,6 +6,7 @@ import { TIPOS_CARGA, TIPOS_VEICULO, ICONE_CARROCERIA } from "../../data/catalog
 import { Loading } from "../../components/Loading";
 import { HistoricoPrecoRota } from "../../components/HistoricoPrecoRota";
 import { getCurrentPosition } from "../../services/geolocation";
+import { Avatar } from "../../components/Avatar";
 
 // ─────────────────────────────────────────────
 // ACEITAR FRETE
@@ -88,6 +89,16 @@ export function AceitarFreteScreen({ frete, onNavigate }) {
             <div style={{ fontSize: 28 }}>🗺️</div>
             <span style={{ fontWeight: 700 }}>{frete.origem_cidade || "—"} → {frete.dest_cidade || "—"}</span>
           </div>
+          {frete.contratante_nome && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <Avatar nome={frete.contratante_nome} fotoUrl={frete.contratante_foto_url} logoEmpresaUrl={frete.contratante_logo_empresa_url} size={40} />
+              <div>
+                <div style={{ fontSize: 11, color: "var(--text3)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Contratante</div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>{frete.contratante_nome}</div>
+                {frete.contratante_nome_empresa && <div style={{ fontSize: 12, color: "var(--text3)" }}>{frete.contratante_nome_empresa}</div>}
+              </div>
+            </div>
+          )}
           <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{frete.distancia_km} km</span></div>
           <div className="info-row"><span className="info-label">Tipo de carga</span><span className="info-value">{cargaObj?.icon} {cargaObj?.label || frete.tipo_carga}</span></div>
           <div className="info-row"><span className="info-label">Peso</span><span className="info-value">{frete.peso_tons}t</span></div>
