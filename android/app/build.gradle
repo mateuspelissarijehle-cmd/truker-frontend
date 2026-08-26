@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+// Signing de release (upload key do Google Play App Signing) -- carregado de
+// um arquivo FORA do repositorio (C:\dev\truker-app-keystore\), nunca do
+// projeto em si, pra garantir que o keystore/senha jamais entrem em commit
+// por engano. Se o arquivo nao existir (ex: outra maquina, CI sem essa
+// pasta), o release build type simplesmente fica sem signingConfig --
+// assembleRelease/bundleRelease continuam funcionando (geram artefato
+// nao assinado), so nao dá pra subir na Play Store sem ele.
+def keystorePropsFile = new File("C:/dev/truker-app-keystore/keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystoreProps.load(new FileInputStream(keystorePropsFile))
+}
+
 android {
     namespace = "com.truker.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +29,23 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
