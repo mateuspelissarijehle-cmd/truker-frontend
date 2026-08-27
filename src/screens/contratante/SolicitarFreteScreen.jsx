@@ -5,7 +5,8 @@ import { buscarEnderecoPorCep } from "../../services/viaCep";
 import { formatMoney } from "../../utils/format";
 import { maskCep } from "../../utils/mask";
 import {
-  TIPOS_CARGA, TIPOS_VEICULO, TIPOS_FRETE, TIPOS_ANIMAL, TIPOS_MATERIAL,
+  TIPOS_CARGA, TIPOS_CARGA_VISIVEIS, TIPOS_GRAO, MODO_AGRO_V1,
+  TIPOS_VEICULO, TIPOS_FRETE, TIPOS_ANIMAL, TIPOS_MATERIAL,
   CARGA_BACKEND_MAP, ICONE_CARROCERIA, eixosPadraoDoChassi, regrasCarga,
 } from "../../data/catalogos";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
@@ -20,13 +21,13 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   const motoristaConvidadoId = screenData?.motoristaConvidadoId || null;
   const motoristaConvidadoNome = screenData?.motoristaConvidadoNome || null;
   const [form, setForm] = useState({
-    tipoFrete: "interestadual", tipoCarga: "carga_seca", tipoVeiculo: "truck",
+    tipoFrete: "interestadual", tipoCarga: MODO_AGRO_V1 ? "graneleiro" : "carga_seca", tipoVeiculo: "truck",
     numeroEixos: eixosPadraoDoChassi("truck"), carroceria: "",
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
     descricao: "", precisaMunck: false, precisaEmpilhadeira: false,
     dataColeta: "", horario: "",
     // Campos especiais dinâmicos
-    tipoAnimal: "", qtdAnimais: "", tipoMaterial: "",
+    tipoGrao: "", tipoAnimal: "", qtdAnimais: "", tipoMaterial: "",
     itensMudanca: [{ id: crypto.randomUUID(), nome: "", qtd: "" }],
   });
   const [carroceriasDisp, setCarroceriasDisp] = useState([]);
@@ -159,6 +160,9 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
       tipoCargaLabel: TIPOS_CARGA.find(c => c.id === form.tipoCarga)?.label || form.tipoCarga,
       descricao: form.descricao || null,
     };
+    if (form.tipoCarga === "graneleiro" && form.tipoGrao) {
+      detalhesCarga.grao = TIPOS_GRAO.find(g => g.id === form.tipoGrao)?.label || form.tipoGrao;
+    }
     if (regras.dimensoes) {
       detalhesCarga.dimensoes = {
         comprimentoM: form.comprimentoM || null,
@@ -284,12 +288,24 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
             <div className="card">
               <div className="card-title">Tipo de Carga</div>
               <div className="carga-grid">
-                {TIPOS_CARGA.map(c => (
+                {TIPOS_CARGA_VISIVEIS.map(c => (
                   <div key={c.id} className={`carga-item ${form.tipoCarga === c.id ? "selected" : ""}`} onClick={() => set("tipoCarga", c.id)}>
                     <div className="ci-icon">{c.icon}</div><div className="ci-label">{c.label}</div>
                   </div>
                 ))}
               </div>
+              {form.tipoCarga === "graneleiro" && (
+                <div className="field" style={{ marginTop: 12 }}>
+                  <label>Tipo de grão</label>
+                  <select value={form.tipoGrao} onChange={e => set("tipoGrao", e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {TIPOS_GRAO.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                  </select>
+                  <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                    Só entra na descrição da carga — o piso mínimo ANTT é o mesmo pra qualquer grão a granel (categoria "granel sólido").
+                  </div>
+                </div>
+              )}
             </div>
             <div className="card">
               <div className="card-title">Veículo necessário</div>

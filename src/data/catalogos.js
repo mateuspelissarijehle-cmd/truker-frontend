@@ -31,6 +31,35 @@ export const TIPOS_CARGA = [
   { id: "granel_pressurizado", label: "Granel Pressurizado", icon: "🛢️", desc: "Gases e líquidos pressurizados — GLP, gases industriais" },
 ];
 
+// ─────────────────────────────────────────────
+// MODO V1 — foco em agronegócio (decisão do Mateus, 27/08/2026)
+// Filtra só o que aparece pro usuário escolher na tela de criar frete.
+// Não remove nada de TIPOS_CARGA/REGRAS_CARGA/CARGA_BACKEND_MAP -- reverter
+// é trocar esta constante pra `false` (mesmo flag espelhado no backend em
+// services/matching.js MODO_AGRO_V1, mas os dois são independentes: cada
+// lado pode ser revertido sem depender do outro).
+// ─────────────────────────────────────────────
+export const MODO_AGRO_V1 = true;
+const IDS_CARGA_VISIVEIS_AGRO_V1 = ["graneleiro"];
+export const TIPOS_CARGA_VISIVEIS = MODO_AGRO_V1
+  ? TIPOS_CARGA.filter(c => IDS_CARGA_VISIVEIS_AGRO_V1.includes(c.id))
+  : TIPOS_CARGA;
+
+// Grãos primários (escopo da V1) -- sub-seleção só de descrição, não vira
+// categoria ANTT nova nenhuma (todos caem em granel_solido/graneleiro).
+// Some incluído em "descricao_carga" no formulário, o cálculo de piso não
+// usa este valor em nenhum momento.
+export const TIPOS_GRAO = [
+  { id: "soja", label: "Soja" },
+  { id: "milho", label: "Milho" },
+  { id: "trigo", label: "Trigo" },
+  { id: "arroz", label: "Arroz" },
+  { id: "feijao", label: "Feijão" },
+  { id: "cevada", label: "Cevada" },
+  { id: "sorgo", label: "Sorgo" },
+  { id: "outro_grao", label: "Outro grão" },
+];
+
 // Regras de formulário dinâmico por tipo de carga:
 //  - dimensoes: mostrar campos comprimento/largura/altura?
 //  - especial:  campo extra específico ("animal" | "itens" | "material" | null)
