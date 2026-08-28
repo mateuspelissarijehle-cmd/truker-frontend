@@ -49,6 +49,7 @@ import { MotoristaHome } from "./screens/motorista/MotoristaHome";
 import { EmTransitoScreen } from "./screens/motorista/EmTransitoScreen";
 import { CadastroScreen } from "./screens/auth/CadastroScreen";
 import { SolicitarFreteScreen } from "./screens/contratante/SolicitarFreteScreen";
+import { PainelCaminhoesScreen } from "./screens/contratante/PainelCaminhoesScreen";
 import { SosButton } from "./components/SosButton";
 
 // ─────────────────────────────────────────────
@@ -108,6 +109,7 @@ function Router() {
       case "admin-cancelamentos": return <AdminCancelamentosScreen {...p} />;
       case "home-contratante": return <ContratanteHome {...p} />;
       case "solicitar-frete": return <SolicitarFreteScreen screenData={screenData} {...p} />;
+      case "painel-caminhoes": return <PainelCaminhoesScreen {...p} />;
       case "buscar-motoristas": return <BuscarMotoristasScreen {...p} />;
       case "meus-fretes": return <MeusFretes {...p} />;
       case "detalhe-frete": return <DetalheFrete frete={screenData} {...p} />;

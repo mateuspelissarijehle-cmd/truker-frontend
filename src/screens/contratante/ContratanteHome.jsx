@@ -42,8 +42,16 @@ export function ContratanteHome({ onNavigate }) {
       </div>
       <div className="content">
         <div className="grid-3" style={{ marginBottom: 16 }}>
-          {[["⏳", stats.pendentes, "Pendentes"], ["🚛", stats.emTransito, "Em Rota"], ["✅", stats.entregues, "Entregues"]].map(([icon, val, label]) => (
-            <div key={label} className="stat-card"><div style={{ fontSize: 18 }}>{icon}</div><div className="stat-value" style={{ fontSize: 22 }}>{val}</div><div className="stat-label">{label}</div></div>
+          {[["⏳", stats.pendentes, "Pendentes", null], ["🚛", stats.emTransito, "Em Rota", "painel-caminhoes"], ["✅", stats.entregues, "Entregues", null]].map(([icon, val, label, destino]) => (
+            <div
+              key={label}
+              className="stat-card"
+              style={destino ? { cursor: "pointer" } : undefined}
+              onClick={destino ? () => onNavigate(destino) : undefined}
+              title={destino ? "Ver painel de caminhões ao vivo" : undefined}
+            >
+              <div style={{ fontSize: 18 }}>{icon}</div><div className="stat-value" style={{ fontSize: 22 }}>{val}</div><div className="stat-label">{label}</div>
+            </div>
           ))}
         </div>
         <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => onNavigate("solicitar-frete")}>+ Solicitar Frete</button>

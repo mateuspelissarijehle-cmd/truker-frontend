@@ -21,6 +21,12 @@ export const css = `
   }
   body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); min-height: 100vh; max-width: 430px; margin: 0 auto; }
   .screen { min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 80px; }
+  /* Item 4/6 (27/08/2026): o painel multi-caminhão do solicitante é a única
+     tela pensada pra desktop/segunda tela, não celular -- \`body\` trava todo
+     o resto do app em 430px (largura de celular) de propósito, então essa
+     classe usa o truque clássico de "sair do container pai" só nesta tela,
+     sem mudar o limite global (que continua valendo pra tudo mais). */
+  .screen-wide { min-height: 100vh; display: flex; flex-direction: column; width: 100vw; max-width: 100vw; margin-left: calc(50% - 50vw); }
   .header { background: var(--surface); padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
   .header h1 { font-family: 'Inter', sans-serif; font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
   .back-btn { background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; padding: 4px; line-height: 1; }

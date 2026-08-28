@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { buscarRotaOSRM } from "../services/osrm";
 import { distanciaMetros, calcularRumo } from "../utils/geo";
+import { CORES_ROTAS_MULTI } from "../utils/mapColors";
 
 // ─────────────────────────────────────────────
 // MAPA LEAFLET + OPENSTREETMAP (gratuito)
@@ -69,20 +70,25 @@ function carregarLeaflet() {
 // está rotacionado, só giramos os pixels renderizados). Isso faz os rótulos
 // dos tiles ficarem tortos durante a rotação — comportamento esperado em
 // apps de navegação com tiles raster (mesmo efeito do Waze/Google Maps).
-export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null, rotas = [], metaAoVivo = null, onRotaInfo = null, modoNavegacao = false, zoomNavegacao = 16, seguirPorPadrao = false, mostrarOrientacao = false }) {
+export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = [], origem = null, destino = null, rotas = [], marcadoresAoVivo = null, metaAoVivo = null, onRotaInfo = null, modoNavegacao = false, zoomNavegacao = 16, seguirPorPadrao = false, mostrarOrientacao = false }) {
   const divRef = useRef(null);
   const rotatorRef = useRef(null);
   const mapRef = useRef(null);
   const marcadorRef = useRef(null);
+  // Marcadores ao vivo de MÚLTIPLOS caminhões (painel multi-caminhão do
+  // solicitante) -- Map id→marcador Leaflet, separado do marcadorRef (posição
+  // única) porque aqui o número de caminhões varia e cada um se move
+  // independente, sem remontar o mapa nem redesenhar as linhas de rota.
+  const marcadoresAoVivoRef = useRef(new Map());
   const rotaPrincipalLayerRef = useRef(null);
   const rotaPrincipalOrigemRef = useRef(null); // {lat,lng} usado no último desenho, pra só redesenhar se moveu o suficiente
-  const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo });
+  const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas, marcadoresAoVivo, metaAoVivo, onRotaInfo });
   // Atualiza a ref logo após o commit (não durante o render, que é impuro) --
   // useLayoutEffect roda síncrono antes do browser pintar, então continua sempre
   // atualizado a tempo de handlers/effects que rodam depois (initMap, cliques,
   // callbacks do OSRM), que é tudo que lê `propsRef.current` neste componente.
   useLayoutEffect(() => {
-    propsRef.current = { lat, lng, zoom, origem, destino, rotas, metaAoVivo, onRotaInfo };
+    propsRef.current = { lat, lng, zoom, origem, destino, rotas, marcadoresAoVivo, metaAoVivo, onRotaInfo };
   });
   const seguindoRef = useRef(seguirPorPadrao);
   const [seguindo, setSeguindo] = useState(seguirPorPadrao);
@@ -180,10 +186,26 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
       L.marker([m.lat, m.lng], { icon }).addTo(map);
     });
 
+    // Marcadores ao vivo de múltiplos caminhões (painel do solicitante, item 4)
+    // -- ícone igual ao do motorista sozinho (bolinha), mas na cor da rota
+    // correspondente (mesmo índice de CORES_ROTAS_MULTI usado nas linhas).
+    (p.marcadoresAoVivo || []).forEach((mv, idx) => {
+      if (!mv.lat || !mv.lng) return;
+      const cor = CORES_ROTAS_MULTI[idx % CORES_ROTAS_MULTI.length];
+      const icon = L.divIcon({
+        html: `<div style="background:${cor};width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.5)"></div>`,
+        className: "", iconSize: [16, 16], iconAnchor: [8, 8],
+      });
+      const marker = L.marker([mv.lat, mv.lng], { icon }).addTo(map);
+      if (mv.label) marker.bindTooltip(mv.label, { permanent: false, direction: "top" });
+      marcadoresAoVivoRef.current.set(mv.id, marker);
+    });
+
     // Ajusta zoom para mostrar todos os pontos
     const pontos = [];
     if (p.lat && p.lng) pontos.push([p.lat, p.lng]);
     if (p.origem?.lat) pontos.push([p.origem.lat, p.origem.lng]);
+    (p.marcadoresAoVivo || []).forEach(mv => { if (mv.lat && mv.lng) pontos.push([mv.lat, mv.lng]); });
     if (p.destino?.lat) pontos.push([p.destino.lat, p.destino.lng]);
     (p.rotas || []).forEach(r => {
       if (r.origem?.lat) pontos.push([r.origem.lat, r.origem.lng]);
@@ -205,7 +227,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
     }
 
     // Múltiplas rotas de fretes ativos (cada uma com cor e número)
-    const coresRotas = ["#C9A84C", "#2D7A3A", "#2563EB", "#9333EA", "#EF4444"];
+    const coresRotas = CORES_ROTAS_MULTI;
     (p.rotas || []).forEach((rota, idx) => {
       const cor = coresRotas[idx % coresRotas.length];
       const num = idx + 1;
@@ -249,9 +271,46 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
     return () => {
       cancelado = true;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; marcadorRef.current = null; }
+      marcadoresAoVivoRef.current = new Map();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Atualiza posição de MÚLTIPLOS caminhões ao vivo (painel do solicitante,
+  // item 4) sem redesenhar linhas de rota nem recentralizar o mapa -- só
+  // move/cria/remove marcadores conforme marcadoresAoVivo muda a cada poll.
+  // Não usa fitBounds aqui de propósito: um caminhão se movendo não deve
+  // ficar re-centralizando/re-zoomando o mapa a cada atualização, só no
+  // desenho inicial (initMap).
+  useEffect(() => {
+    if (!mapRef.current || !window.L || !marcadoresAoVivo) return;
+    const vistos = new Set();
+    marcadoresAoVivo.forEach((mv, idx) => {
+      if (!mv.lat || !mv.lng) return;
+      vistos.add(mv.id);
+      const existente = marcadoresAoVivoRef.current.get(mv.id);
+      if (existente) {
+        existente.setLatLng([mv.lat, mv.lng]);
+        if (mv.label) existente.setTooltipContent(mv.label);
+      } else {
+        const cor = CORES_ROTAS_MULTI[idx % CORES_ROTAS_MULTI.length];
+        const icon = window.L.divIcon({
+          html: `<div style="background:${cor};width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.5)"></div>`,
+          className: "", iconSize: [16, 16], iconAnchor: [8, 8],
+        });
+        const marker = window.L.marker([mv.lat, mv.lng], { icon }).addTo(mapRef.current);
+        if (mv.label) marker.bindTooltip(mv.label, { permanent: false, direction: "top" });
+        marcadoresAoVivoRef.current.set(mv.id, marker);
+      }
+    });
+    // Remove marcadores de caminhões que saíram da lista (frete entregue/cancelado)
+    for (const [id, marker] of marcadoresAoVivoRef.current.entries()) {
+      if (!vistos.has(id)) {
+        mapRef.current.removeLayer(marker);
+        marcadoresAoVivoRef.current.delete(id);
+      }
+    }
+  }, [marcadoresAoVivo]);
 
   useEffect(() => {
     if (!mapRef.current || !window.L || !lat || !lng) return;
