@@ -34,6 +34,7 @@ import { AvaliacoesScreen } from "./screens/shared/AvaliacoesScreen";
 import { PagamentoScreen } from "./screens/shared/PagamentoScreen";
 import { DisponibilidadeScreen } from "./screens/motorista/DisponibilidadeScreen";
 import { SeguroScreen } from "./screens/motorista/SeguroScreen";
+import { LavagemVeiculoScreen } from "./screens/motorista/LavagemVeiculoScreen";
 import { ConvitesScreen } from "./screens/motorista/ConvitesScreen";
 import { AceitarFreteScreen } from "./screens/motorista/AceitarFreteScreen";
 import { MinhasPropostasScreen } from "./screens/motorista/MinhasPropostasScreen";
@@ -122,6 +123,7 @@ function Router() {
       case "aceitar-frete": return <AceitarFreteScreen frete={screenData} {...p} />;
       case "disponibilidade-motorista": return <DisponibilidadeScreen {...p} />;
       case "seguro-motorista": return <SeguroScreen {...p} />;
+      case "lavagem-veiculo": return <LavagemVeiculoScreen {...p} />;
       case "convites-motorista": return <ConvitesScreen {...p} />;
       case "minhas-propostas": return <MinhasPropostasScreen {...p} />;
       case "meus-fretes-motorista": return <MeusFretesMot {...p} />;

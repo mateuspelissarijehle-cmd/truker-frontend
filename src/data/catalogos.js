@@ -29,6 +29,14 @@ export const TIPOS_CARGA = [
   { id: "conteinerizado", label: "Container", icon: "🚢", desc: "Carga em container ISO, porta-container" },
   { id: "neogranel", label: "Neogranel", icon: "🛍️", desc: "Sacaria paletizada — fertilizante, cimento, açúcar" },
   { id: "granel_pressurizado", label: "Granel Pressurizado", icon: "🛢️", desc: "Gases e líquidos pressurizados — GLP, gases industriais" },
+  // Item 5 (27/08/2026): "Fertilizante" é uma opção separada de "Neogranel"
+  // só pra ficar claro pro solicitante (cerealista) o que ele está escolhendo
+  // -- fisicamente é a MESMA categoria ANTT (sacaria paletizada), mesmo
+  // mapeamento em CARGA_BACKEND_MAP abaixo. Existe porque o retorno do grão
+  // costuma ser feito levando fertilizante no mesmo caminhão -- ver a trava
+  // de higienização em routes/fretes.js (truker-app) e a tela de "Lavagem do
+  // veículo" do motorista.
+  { id: "fertilizante", label: "Fertilizante", icon: "🧪", desc: "Fertilizante sólido ensacado/paletizado — mesma categoria ANTT do Neogranel" },
 ];
 
 // ─────────────────────────────────────────────
@@ -40,7 +48,10 @@ export const TIPOS_CARGA = [
 // lado pode ser revertido sem depender do outro).
 // ─────────────────────────────────────────────
 export const MODO_AGRO_V1 = true;
-const IDS_CARGA_VISIVEIS_AGRO_V1 = ["graneleiro"];
+// "fertilizante" liberado junto dos grãos (item 5, 27/08/2026) -- decisão
+// explícita do Mateus: fertilizante é frete completo no app (não caso
+// especial), pro motorista poder fazer o retorno do porto sem km vazio.
+const IDS_CARGA_VISIVEIS_AGRO_V1 = ["graneleiro", "fertilizante"];
 export const TIPOS_CARGA_VISIVEIS = MODO_AGRO_V1
   ? TIPOS_CARGA.filter(c => IDS_CARGA_VISIVEIS_AGRO_V1.includes(c.id))
   : TIPOS_CARGA;
@@ -89,6 +100,7 @@ export const REGRAS_CARGA = {
   conteinerizado:        { dimensoes: false, especial: null },
   neogranel:              { dimensoes: true,  especial: null },
   granel_pressurizado:    { dimensoes: false, especial: null },
+  fertilizante:           { dimensoes: true,  especial: null }, // mesma regra do neogranel (mesma categoria ANTT)
 };
 export const regrasCarga = (id) => REGRAS_CARGA[id] || { dimensoes: true, especial: null };
 
@@ -158,6 +170,10 @@ export const CARGA_BACKEND_MAP = {
   classificados: "geral", madeira: "geral",
   // Fecham o gap de 19/08/2026 -- mapeamento direto (mesmo id nos dois lados).
   conteinerizado: "conteinerizado", neogranel: "neogranel", granel_pressurizado: "granel_pressurizado",
+  // Item 5 (27/08/2026): "fertilizante" é fisicamente a mesma categoria ANTT
+  // de "neogranel" (sacaria paletizada) -- ver comentário na entrada de
+  // TIPOS_CARGA acima.
+  fertilizante: "neogranel",
 };
 
 export const TIPOS_DESPESA = [

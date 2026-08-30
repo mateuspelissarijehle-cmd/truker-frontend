@@ -40,6 +40,7 @@ export function MotoristaHome({ onNavigate }) {
   const [convitesPendentes, setConvitesPendentes] = useState(0);
   const [temDisponibilidadeAtiva, setTemDisponibilidadeAtiva] = useState(false);
   const [seguroValido, setSeguroValido] = useState(true);
+  const [bloqueadoHigienizacao, setBloqueadoHigienizacao] = useState(false);
   const [placaCavalo, setPlacaCavalo] = useState("");
   const [conjuntoAtivo, setConjuntoAtivo] = useState(null);
   const posicaoRef = useRef(null);
@@ -79,6 +80,14 @@ export function MotoristaHome({ onNavigate }) {
   useEffect(() => {
     api("GET", "/api/motoristas/seguro", null, token)
       .then(s => setSeguroValido(!!s.valido))
+      .catch(() => {});
+  }, [token]);
+
+  // Item 5 (27/08/2026): avisa na Home se o veículo está bloqueado pra grão
+  // por falta de lavagem pós-fertilizante — mesmo padrão do aviso de seguro.
+  useEffect(() => {
+    api("GET", "/api/motoristas/higienizacao/status", null, token)
+      .then(s => setBloqueadoHigienizacao(!!s.bloqueado))
       .catch(() => {});
   }, [token]);
 
@@ -211,6 +220,18 @@ export function MotoristaHome({ onNavigate }) {
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>Registre seu seguro pra poder aceitar fretes</div>
                 <div style={{ fontSize: 12, color: "var(--text3)" }}>Toque para regularizar</div>
+              </div>
+              <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+            </div>
+          </div>
+        )}
+        {bloqueadoHigienizacao && (
+          <div className="card" style={{ borderColor: "var(--red)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("lavagem-veiculo")}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 24 }}>🧼</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>Veículo bloqueado pra frete de grão</div>
+                <div style={{ fontSize: 12, color: "var(--text3)" }}>Registre a lavagem pós-fertilizante pra liberar</div>
               </div>
               <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
             </div>

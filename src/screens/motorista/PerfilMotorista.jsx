@@ -76,6 +76,7 @@ export function PerfilMotorista({ onNavigate }) {
             { icon: "👤", label: "Dados Pessoais", sub: "Nome, foto, CPF, CNH, endereço", screen: "dados-pessoais-motorista" },
             { icon: "🚛", label: "Meu Caminhão", sub: "Tipo, carreta, placa, documentos", screen: "dados-caminhao" },
             { icon: "🛡️", label: "Seguro", sub: "Obrigatório pra aceitar fretes", screen: "seguro-motorista" },
+            { icon: "🧼", label: "Lavagem do Veículo", sub: "Certificado de higienização pós-fertilizante", screen: "lavagem-veiculo" },
             { icon: "💰", label: "Minhas Finanças", sub: "Receitas, despesas e KM vazio", screen: "financas-motorista" },
           ].map((item, i, arr) => (
             <div key={i} onClick={() => item.screen && onNavigate(item.screen)}

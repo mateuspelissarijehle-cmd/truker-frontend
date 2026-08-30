@@ -78,6 +78,9 @@ export function AceitarFreteScreen({ frete, onNavigate }) {
             {error.includes("seguro de frete registrado") && (
               <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("seguro-motorista")}>🛡️ Registrar Seguro</button>
             )}
+            {error.includes("certificado de lavagem") && (
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("lavagem-veiculo")}>🧼 Registrar Lavagem do Veículo</button>
+            )}
           </div>
         )}
         <div style={{ textAlign: "center", padding: "16px 0 24px" }}>
