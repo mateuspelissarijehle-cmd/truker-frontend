@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { maskPlaca } from "../../utils/mask";
-import { TIPOS_CARGA, TIPOS_VEICULO } from "../../data/catalogos";
+import { TIPOS_CARGA_VISIVEIS, TIPOS_VEICULO } from "../../data/catalogos";
 import { TrukerLogo } from "../../components/TrukerLogo";
 import { PasswordInput } from "../../components/PasswordInput";
 import { RequisitosSenha } from "../../components/RequisitosSenha";
@@ -450,7 +450,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
             <div style={sSub}>Selecione o que você costuma precisar transportar.</div>
             {error && <div className="alert alert-error">{error}</div>}
             <div className="carga-grid">
-              {TIPOS_CARGA.map(c => (
+              {TIPOS_CARGA_VISIVEIS.map(c => (
                 <div key={c.id} className={`carga-item ${form.tiposCarga.includes(c.id) ? "selected" : ""}`} onClick={() => toggleCarga(c.id)}>
                   <div className="ci-icon">{c.icon}</div>
                   <div className="ci-label">{c.label}</div>
@@ -663,7 +663,7 @@ export function CadastroScreen({ onNavigate, screenData }) {
             <div style={sSub}>Selecione tudo que seu veículo pode transportar.</div>
             {error && <div className="alert alert-error">{error}</div>}
             <div className="carga-grid">
-              {TIPOS_CARGA.map(c => (
+              {TIPOS_CARGA_VISIVEIS.map(c => (
                 <div key={c.id} className={`carga-item ${form.tiposCarga.includes(c.id) ? "selected" : ""}`} onClick={() => toggleCarga(c.id)}>
                   <div className="ci-icon">{c.icon}</div>
                   <div className="ci-label">{c.label}</div>

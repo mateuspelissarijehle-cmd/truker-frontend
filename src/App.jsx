@@ -61,12 +61,28 @@ function Router() {
   const [screen, setScreen] = useState("splash");
   const [screenData, setScreenData] = useState(null);
 
+  // Item 3/6 (31/08/2026, achado real do Mateus testando): o solicitante é o
+  // único perfil com uma experiência pensada pra desktop (o Painel de
+  // Caminhões, item 4) -- em vez de deixar isso só como item de menu, quem
+  // abre a conta de um PC (tela larga o bastante pra não ser celular/tablet
+  // de mão) já cai direto lá, tanto na entrada quanto em qualquer "voltar pra
+  // home". Motorista e admin não mudam -- só o solicitante tem 2 landing
+  // possíveis. Largura, não user-agent: mais robusto (funciona em qualquer
+  // navegador/SO) e é exatamente o critério que já importa pra essa tela
+  // (.screen-wide em styles/css.js).
+  const LARGURA_MIN_DESKTOP = 1024;
+  const ehTelaDesktop = () => typeof window !== "undefined" && window.innerWidth >= LARGURA_MIN_DESKTOP;
+  const homeDoUsuario = useCallback((u) => {
+    if (!u) return "entrada";
+    if (u.tipo === "admin") return "admin-dashboard";
+    if (u.tipo === "motorista") return "home-motorista";
+    return ehTelaDesktop() ? "painel-caminhoes" : "home-contratante";
+  }, []);
+
   useEffect(() => {
     queueMicrotask(() => {
       if (user) {
-        if (user.tipo === "admin") setScreen("admin-dashboard");
-        else if (user.tipo === "motorista") setScreen("home-motorista");
-        else setScreen("home-contratante");
+        setScreen(homeDoUsuario(user));
       } else {
         // ?admin=1 é a única forma de chegar na tela de login admin — não existe
         // link nenhum na interface, de propósito (não expor pra visitante comum).
@@ -74,7 +90,7 @@ function Router() {
         setScreen(params.get("admin") === "1" ? "login-admin" : "entrada");
       }
     });
-  }, [user]);
+  }, [user, homeDoUsuario]);
 
   const navigate = useCallback((to, data = null) => {
     // onNavigate(-1) não é um "voltar" de verdade (o router não guarda
@@ -84,12 +100,11 @@ function Router() {
     // renderizar home-contratante sem contexto de usuário (era isso que
     // fazia telas como Termos "encerrarem" o cadastro ao voltar).
     if (to === -1) {
-      if (!user) { setScreen("entrada"); return; }
-      setScreen(user.tipo === "motorista" ? "home-motorista" : user.tipo === "admin" ? "admin-dashboard" : "home-contratante");
+      setScreen(homeDoUsuario(user));
       return;
     }
     setScreenData(data); setScreen(to); window.scrollTo(0, 0);
-  }, [user]);
+  }, [user, homeDoUsuario]);
 
   const p = { onNavigate: navigate };
 

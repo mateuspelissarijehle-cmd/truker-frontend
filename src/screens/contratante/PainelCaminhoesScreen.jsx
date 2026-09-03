@@ -18,6 +18,12 @@ import { CORES_ROTAS_MULTI } from "../../utils/mapColors";
 // DetalheFrete.jsx pro acompanhamento de 1 frete só, só que aqui N de uma vez.
 const INTERVALO_POLL_MS = 10000;
 
+const sLinkHeader = {
+  background: "none", border: "none", cursor: "pointer",
+  fontSize: 13, fontWeight: 600, color: "var(--text2)", padding: 0,
+  fontFamily: "inherit",
+};
+
 export function PainelCaminhoesScreen({ onNavigate }) {
   const { token } = useAuth();
   const [caminhoes, setCaminhoes] = useState(null); // null = ainda carregando
@@ -51,11 +57,23 @@ export function PainelCaminhoesScreen({ onNavigate }) {
   return (
     <div className="screen-wide">
       <div className="header">
-        <button className="back-btn" onClick={() => onNavigate("opcoes-contratante")}>←</button>
+        {/* onNavigate(-1) -- não fixo em "opcoes-contratante": pra quem abre de
+            um PC essa tela agora é a própria home (item 3/6, App.jsx
+            homeDoUsuario), então "voltar" resolve sozinho pro lugar certo em
+            cada caso (mobile: home-contratante; desktop: ela mesma). */}
+        <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
         <h1>🚛 Painel de Caminhões</h1>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text3)" }}>
-          Atualiza a cada {INTERVALO_POLL_MS / 1000}s
-        </span>
+        {/* Essa tela virou a home de quem abre de um PC (item 3/6) -- sem a
+            bottom-nav mobile aqui (fica presa numa faixa de 430px, quebrada
+            numa tela larga), precisa desses atalhos pra não deixar o
+            solicitante sem rota nenhuma pro resto do app. */}
+        <nav style={{ marginLeft: "auto", display: "flex", gap: 16, alignItems: "center" }}>
+          <button className="link-btn" style={sLinkHeader} onClick={() => onNavigate("solicitar-frete")}>+ Solicitar Frete</button>
+          <button className="link-btn" style={sLinkHeader} onClick={() => onNavigate("meus-fretes")}>Meus Fretes</button>
+          <button className="link-btn" style={sLinkHeader} onClick={() => onNavigate("opcoes-contratante")}>Opções</button>
+          <button className="link-btn" style={sLinkHeader} onClick={() => onNavigate("perfil")}>Conta</button>
+          <span style={{ fontSize: 11, color: "var(--text3)" }}>Atualiza a cada {INTERVALO_POLL_MS / 1000}s</span>
+        </nav>
       </div>
       <div className="content" style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-start" }}>
         <div style={{ flex: "3 1 640px", minWidth: 320 }}>
