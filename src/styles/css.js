@@ -148,4 +148,23 @@ export const css = `
   .detalhe-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; position: sticky; top: 0; }
   .detalhe-modal-title { font-size: 17px; font-weight: 800; color: var(--text); }
   .detalhe-modal-close { background: var(--surface2); border: 1px solid var(--border); color: var(--text); width: 32px; height: 32px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+
+  /* Item 3 (01/09/2026, achado real do Mateus): só o Painel de Caminhões
+     (.screen-wide) tinha tratamento de desktop -- toda tela ALCANÇADA a
+     partir dele (Solicitar Frete, Meus Fretes, Opções, Conta) continuava
+     presa em 430px, virando uma coluna minúscula cercada de vazio numa
+     janela grande -- lido como "tudo bugado" por comparação com o painel.
+     Alarga só o suficiente pra não parecer quebrado, sem virar full-bleed
+     (são formulários/listas de coluna única, não um dashboard). Nunca
+     dispara dentro do app nativo Android (Capacitor sempre renderiza em
+     largura de celular) -- motorista não muda de plataforma (item 6).
+     Bloco no FINAL do arquivo de propósito: .bottom-nav/.sos-overlay/
+     .sos-modal/.detalhe-modal já têm max-width:430px definido acima, com a
+     MESMA especificidade -- em empate, quem vem depois no CSS vence, então
+     esse override só funciona vindo por último. */
+  @media (min-width: 1024px) {
+    body { max-width: 600px; }
+    .bottom-nav, .sos-overlay { max-width: 600px; }
+    .sos-modal, .detalhe-modal { max-width: 600px; }
+  }
 `;

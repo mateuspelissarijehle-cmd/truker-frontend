@@ -6,7 +6,7 @@ import { formatMoney } from "../../utils/format";
 import { maskCep } from "../../utils/mask";
 import {
   TIPOS_CARGA, TIPOS_CARGA_VISIVEIS, TIPOS_GRAO, MODO_AGRO_V1,
-  TIPOS_VEICULO, TIPOS_FRETE, TIPOS_ANIMAL, TIPOS_MATERIAL,
+  TIPOS_VEICULO, TIPOS_ANIMAL, TIPOS_MATERIAL,
   CARGA_BACKEND_MAP, ICONE_CARROCERIA, eixosPadraoDoChassi, regrasCarga,
 } from "../../data/catalogos";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
@@ -21,7 +21,7 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   const motoristaConvidadoId = screenData?.motoristaConvidadoId || null;
   const motoristaConvidadoNome = screenData?.motoristaConvidadoNome || null;
   const [form, setForm] = useState({
-    tipoFrete: "interestadual", tipoCarga: MODO_AGRO_V1 ? "graneleiro" : "carga_seca", tipoVeiculo: "truck",
+    tipoCarga: MODO_AGRO_V1 ? "graneleiro" : "carga_seca", tipoVeiculo: "truck",
     numeroEixos: eixosPadraoDoChassi("truck"), carroceria: "",
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
     descricao: "", precisaMunck: false, precisaEmpilhadeira: false,
@@ -220,16 +220,12 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
 
         {step === 1 && (
           <>
-            <div className="card">
-              <div className="card-title">Tipo de Frete</div>
-              <div className="carga-grid">
-                {TIPOS_FRETE.map(t => (
-                  <div key={t.id} className={`carga-item ${form.tipoFrete === t.id ? "selected" : ""}`} onClick={() => set("tipoFrete", t.id)}>
-                    <div className="ci-icon">{t.icon}</div><div className="ci-label">{t.label}</div><div className="ci-desc">{t.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* "Tipo de Frete" (urbano/intermunicipal/interestadual) removido
+                daqui (item 2, 01/09/2026, pedido do Mateus) -- nunca era
+                enviado/salvo em lugar nenhum, e o backend agora deriva
+                sozinho a partir de UF/cidade de origem×destino (ver
+                derivarTipoFrete em routes/fretes.js) -- "resolve com o CEP",
+                sem exigir clique do solicitante. */}
             <div className="card">
               <div className="card-title">📍 Endereço de Coleta</div>
               <div className="field"><label>CEP</label>
