@@ -80,6 +80,15 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
   // única) porque aqui o número de caminhões varia e cada um se move
   // independente, sem remontar o mapa nem redesenhar as linhas de rota.
   const marcadoresAoVivoRef = useRef(new Map());
+  // Leaflet só mede o tamanho do container UMA VEZ, no momento em que o mapa
+  // é criado -- ele não redetecta resize sozinho depois disso. Dentro de um
+  // container flex que só assenta a largura final depois da montagem (ex:
+  // PainelCaminhoesScreen.jsx, item 4 -- o único uso deste componente dentro
+  // de `display:flex` com `flexWrap`), isso deixava o mapa com metade dos
+  // tiles nunca carregados: fundo bege da cor de fallback aparecendo em vez
+  // do tile real (achado real do Mateus, 01/09/2026). ResizeObserver dispara
+  // sozinho tanto no tamanho inicial quanto em qualquer mudança depois.
+  const resizeObserverRef = useRef(null);
   const rotaPrincipalLayerRef = useRef(null);
   const rotaPrincipalOrigemRef = useRef(null); // {lat,lng} usado no último desenho, pra só redesenhar se moveu o suficiente
   const propsRef = useRef({ lat, lng, zoom, origem, destino, rotas, marcadoresAoVivo, metaAoVivo, onRotaInfo });
@@ -144,7 +153,17 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
     const centerLng = p.lng || p.origem?.lng || -49.2733;
     const map = L.map(divRef.current, { zoomControl: false, attributionControl: false })
       .setView([centerLat, centerLng], modoNavegacao ? zoomNavegacao : p.zoom);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
+    // Trocado de basemaps.cartocdn.com (CartoDB Voyager) pro tile server
+    // padrão do OpenStreetMap em 01/09/2026 -- achado real do Mateus: o
+    // CartoDB passou a devolver tiles com marca d'água "API KEY REQUIRED" em
+    // vez do mapa de verdade (confirmado abrindo o tile direto, fora do
+    // Leaflet -- não era bug de layout/dimensionamento nenhum, o provedor
+    // que parou de servir tile anônimo sem chave). OSM não tem visual tão
+    // combinando com a paleta do app quanto o Voyager tinha, mas funciona
+    // sem cadastro/chave nenhuma -- reavaliar um provedor pago/dedicado
+    // antes de crescer o volume real de uso (a política de uso do OSM não
+    // recomenda tile.openstreetmap.org pra tráfego de produção pesado).
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, subdomains: "abc" }).addTo(map);
 
     // Só quebra o "seguir automaticamente" quando o próprio usuário arrasta o
     // mapa (dragstart não dispara em movimentos programáticos como panTo/setView).
@@ -267,9 +286,25 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
   // seguro de propósito.
   useEffect(() => {
     let cancelado = false;
-    carregarLeaflet().then(() => { if (!cancelado) initMap(); }).catch(() => {});
+    carregarLeaflet().then(() => {
+      if (cancelado) return;
+      initMap();
+      // Dispara sozinho com o tamanho atual assim que observa (spec do
+      // ResizeObserver), e de novo a cada resize real -- cobre tanto o
+      // tamanho errado do primeiro render quanto qualquer mudança de layout
+      // depois (ex: a lista lateral do painel carregando e empurrando a
+      // largura do mapa).
+      if (mapRef.current && divRef.current && typeof ResizeObserver !== "undefined") {
+        resizeObserverRef.current = new ResizeObserver(() => {
+          mapRef.current?.invalidateSize();
+        });
+        resizeObserverRef.current.observe(divRef.current);
+      }
+    }).catch(() => {});
     return () => {
       cancelado = true;
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; marcadorRef.current = null; }
       marcadoresAoVivoRef.current = new Map();
     };
