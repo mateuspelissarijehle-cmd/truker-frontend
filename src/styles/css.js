@@ -167,4 +167,33 @@ export const css = `
     .bottom-nav, .sos-overlay { max-width: 600px; }
     .sos-modal, .detalhe-modal { max-width: 600px; }
   }
+
+  /* Item 6 -- redesenho desktop de verdade (02/09/2026, achado real do
+     Mateus: só esticar os componentes mobile "parece um app mais gordo").
+     Telas que precisam de uma versão desktop DIFERENTE (não só mais larga)
+     renderizam os dois blocos de JSX ao mesmo tempo -- o CSS decide qual
+     aparece, sem precisar de um resize-listener em JS nem risco de "flash"
+     do layout errado no primeiro render. Ver SolicitarFreteScreen.jsx. */
+  .only-mobile { display: block; }
+  .only-desktop { display: none; }
+  @media (min-width: 1024px) {
+    .only-mobile { display: none; }
+    .only-desktop { display: block; }
+  }
+  /* Container largo (quebra o max-width:600px de \`body\` acima, igual
+     .screen-wide) mas com o CONTEÚDO limitado a uma largura confortável de
+     leitura/formulário -- diferente do Painel de Caminhões, que quer usar a
+     tela inteira pro mapa, um formulário não deveria esticar campo a campo
+     até a borda de um monitor ultrawide. */
+  .screen-form-desktop { min-height: 100vh; width: 100vw; max-width: 100vw; margin-left: calc(50% - 50vw); }
+  .form-wide-inner { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+  /* MeusFretes.jsx (item 6): lista de cards vira grade no desktop em vez de
+     coluna única -- toque mais leve que o formulário de Solicitar Frete
+     (mesma estrutura de JSX nos dois modos, só a disposição muda), já que o
+     problema aqui era só "espaço ocioso", não um wizard de celular inteiro
+     dentro de uma tela grande. */
+  @media (min-width: 1024px) {
+    .fretes-grid-desktop { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .fretes-grid-desktop .frete-card { margin-bottom: 0; }
+  }
 `;

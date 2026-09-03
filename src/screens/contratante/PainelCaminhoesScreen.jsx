@@ -80,16 +80,30 @@ export function PainelCaminhoesScreen({ onNavigate }) {
           {error && <div className="alert alert-error">{error}</div>}
           {caminhoes === null ? (
             <Loading />
-          ) : caminhoes.length === 0 ? (
-            <div className="card" style={{ textAlign: "center", padding: "48px 16px" }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>🗺️</div>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Nenhum caminhão em rota agora</div>
-              <div style={{ fontSize: 13, color: "var(--text3)" }}>
-                Assim que um motorista aceitar um frete seu, ele aparece aqui em tempo real.
-              </div>
-            </div>
           ) : (
-            <MapaLeaflet height={window.innerHeight > 700 ? 560 : 380} rotas={rotas} marcadoresAoVivo={marcadoresAoVivo} />
+            // O mapa real aparece SEMPRE, com ou sem caminhão -- achado real do
+            // Mateus (02/09/2026): quando não havia frete ativo, esse espaço
+            // virava um card só com um emoji de mapa (🗺️) gigante sobre um
+            // fundo claro, e foi confundido com "o mapa não carrega" (o app
+            // realmente tinha um bug de mapa antes disso, na mesma tela -- daí
+            // a confusão fazer sentido). Mostrando o Leaflet de verdade nos
+            // dois casos, essa ambiguidade não existe mais.
+            <div style={{ position: "relative" }}>
+              <MapaLeaflet height={window.innerHeight > 700 ? 560 : 380} rotas={rotas} marcadoresAoVivo={marcadoresAoVivo} />
+              {caminhoes.length === 0 && (
+                <div style={{
+                  position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
+                  background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12,
+                  padding: "10px 18px", boxShadow: "0 2px 10px rgba(0,0,0,0.15)", textAlign: "center",
+                  fontSize: 13, zIndex: 500, maxWidth: "90%",
+                }}>
+                  <strong>🗺️ Nenhum caminhão em rota agora</strong>
+                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>
+                    Assim que um motorista aceitar um frete seu, ele aparece aqui em tempo real.
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           {totalSemPosicao > 0 && caminhoes && caminhoes.length > 0 && (
             <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 8 }}>

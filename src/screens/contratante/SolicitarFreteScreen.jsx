@@ -105,6 +105,18 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     else { setDestCidade(endereco.cidade); setDestUF(endereco.uf); }
   };
 
+  // Mesma busca de CEP que fillCep, mas escrevendo em `addr` (estado
+  // controlado) em vez dos refs -- os campos de endereço do formulário
+  // desktop são controlados (ver comentário no JSX desktop), não dá pra
+  // reusar fillCep original aqui.
+  const fillCepDesktop = async (cep, tipo) => {
+    const endereco = await buscarEnderecoPorCep(cep);
+    if (!endereco) return;
+    setAddr(a => ({ ...a, [`${tipo}Logradouro`]: endereco.logradouro || "", [`${tipo}Bairro`]: endereco.bairro || "" }));
+    if (tipo === "origem") { setOrigemCidade(endereco.cidade); setOrigemUF(endereco.uf); }
+    else { setDestCidade(endereco.cidade); setDestUF(endereco.uf); }
+  };
+
   const composeAddr = (tipo, a) => [a[`${tipo}Logradouro`], a[`${tipo}Numero`], a[`${tipo}Complemento`], a[`${tipo}Bairro`], a[`${tipo}Cidade`], a[`${tipo}UF`]].filter(Boolean).join(", ");
 
   const handleContinuar = () => {
@@ -119,10 +131,17 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     setError(""); setAddr(snap); setStep(2);
   };
 
-  const calcular = async () => {
-    const origem = composeAddr("origem", addr);
-    const dest = composeAddr("dest", addr);
-    if (!origem || !dest) return setError("Endereço incompleto — volte ao passo 1");
+  // Extraído de `calcular` pra aceitar o endereço direto por parâmetro em vez
+  // de ler sempre de `addr` (estado) -- necessário pro formulário desktop de
+  // página única (item 6, 02/09/2026): lá não existe uma transição "passo 1 →
+  // passo 2" que já deixou `addr` atualizado a tempo, então o botão único de
+  // calcular passa o snapshot recém-montado direto, sem esperar o
+  // setState/re-render. O fluxo mobile (calcular() abaixo) continua lendo de
+  // `addr`, já setado no fim do passo 1 por handleContinuar.
+  const calcularComEndereco = async (enderecoUsado) => {
+    const origem = composeAddr("origem", enderecoUsado);
+    const dest = composeAddr("dest", enderecoUsado);
+    if (!origem || !dest) return setError("Endereço incompleto — preencha coleta e entrega");
 
     // Peso é sempre obrigatório
     if (!form.pesoKg || Number(form.pesoKg) <= 0) return setError("Informe o peso total da carga (kg).");
@@ -140,9 +159,28 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
       const pisoMinimo = data.frete?.pisoMinimo || data.frete?.valorAntt || 0;
       setCalc({ distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracao, pisoMinimo });
       setValorEditavel(pisoMinimo.toFixed(2));
-      setStep(3);
+      setStep(3); // só importa pro wizard mobile -- inofensivo pro layout desktop, que não usa `step`
     } catch (e) { setError(e.message); }
     finally { setCalcLoading(false); }
+  };
+
+  const calcular = () => calcularComEndereco(addr);
+
+  // Botão único do formulário desktop (item 6): valida e monta o endereço
+  // (mesma checagem de handleContinuar) e já dispara o cálculo com o
+  // snapshot local, sem depender de `addr` (estado) ter sido re-renderizado
+  // a tempo. Também deixa `addr` atualizado pro solicitar() de publicar
+  // depois.
+  const calcularDesktop = () => {
+    // Campos de rua/número/complemento/bairro/CEP já são lidos direto de
+    // `addr` (controlado no formulário desktop); só cidade/UF ficam em
+    // estado separado (compartilhado com o mobile) e precisam ser mesclados
+    // aqui antes de validar/calcular/publicar.
+    const enderecoAtual = { ...addr, origemCidade: origemCidade.trim(), origemUF: origemUF.trim(), destCidade: destCidade.trim(), destUF: destUF.trim() };
+    if (!enderecoAtual.origemLogradouro || !enderecoAtual.origemNumero || !enderecoAtual.origemCidade) return setError("Preencha logradouro, número e cidade da coleta");
+    if (!enderecoAtual.destLogradouro || !enderecoAtual.destNumero || !enderecoAtual.destCidade) return setError("Preencha logradouro, número e cidade da entrega");
+    setError(""); setAddr(enderecoAtual);
+    calcularComEndereco(enderecoAtual);
   };
 
   const solicitar = async () => {
@@ -198,7 +236,8 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   };
 
   return (
-    <div className="screen">
+    <>
+    <div className="only-mobile screen">
       <div className="header">
         <button className="back-btn" onClick={() => step > 1 ? setStep(s => s - 1) : onNavigate("home-contratante")}>←</button>
         <h1>Solicitar Frete</h1>
@@ -468,5 +507,277 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
         )}
       </div>
     </div>
+
+    {/* ───────────────────────────────────────────
+        DESKTOP -- item 6 (02/09/2026, achado real do Mateus: só esticar os
+        componentes mobile "parece um app mais gordo"). Página única (sem
+        wizard de passos), campos organizados lado a lado, com um resumo/
+        preço fixo na lateral (padrão checkout) em vez de um card solto no
+        fim de uma lista comprida. Mesmo estado/handlers do formulário
+        mobile acima -- só a disposição visual é diferente. Ver
+        .only-desktop/.screen-form-desktop em styles/css.js. */}
+    <div className="only-desktop screen-form-desktop">
+      <div className="header">
+        <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
+        <h1>Solicitar Frete</h1>
+      </div>
+      <div className="form-wide-inner" style={{ padding: "24px 32px 60px" }}>
+        {motoristaConvidadoId && (
+          <div style={{ background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 16 }}>🚛</span>
+            <span>Convidando <strong>{motoristaConvidadoNome || "motorista selecionado"}</strong> pra este frete — ele será notificado assim que você publicar.</span>
+          </div>
+        )}
+        {success && (
+          <div className="alert alert-success">
+            {motoristaConvidadoId ? "✅ Convite enviado! O motorista tem até 2h pra aceitar." : "✅ Frete solicitado! Motoristas serão notificados."}
+          </div>
+        )}
+        {error && <div className="alert alert-error">{error}</div>}
+
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24, alignItems: "flex-start" }}>
+          {/* Coluna principal — todos os campos, em sub-grid de 2 colunas onde faz sentido */}
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div className="card" style={{ marginBottom: 0 }}>
+                <div className="card-title">📍 Endereço de Coleta</div>
+                {/* Campos CONTROLADOS contra `addr` (diferente do mobile, que usa
+                    refs não-controlados) -- as duas árvores (mobile/desktop)
+                    ficam montadas ao mesmo tempo, só uma escondida por CSS (ver
+                    .only-mobile/.only-desktop), então não dá pra reusar os
+                    MESMOS refs dos dois lados: um ref só aponta pra 1 nó DOM,
+                    e o outro lado ficaria lendo elemento errado/vazio. */}
+                <div className="field"><label>CEP</label>
+                  <input value={addr.origemCep} placeholder="00000-000"
+                    onChange={e => { const v = maskCep(e.target.value); setAddr(a => ({ ...a, origemCep: v })); if (v.replace(/\D/g,"").length===8) fillCepDesktop(v,"origem"); }} /></div>
+                <div className="field"><label>Logradouro</label>
+                  <input value={addr.origemLogradouro} placeholder="Rua, Avenida, Rodovia..." onChange={e => setAddr(a => ({ ...a, origemLogradouro: e.target.value }))} /></div>
+                <div className="grid-2">
+                  <div className="field"><label>Número</label><input value={addr.origemNumero} placeholder="123" onChange={e => setAddr(a => ({ ...a, origemNumero: e.target.value }))} /></div>
+                  <div className="field"><label>Complemento</label><input value={addr.origemComplemento} placeholder="Galpão, Sala..." onChange={e => setAddr(a => ({ ...a, origemComplemento: e.target.value }))} /></div>
+                </div>
+                <div className="field"><label>Bairro / Distrito</label>
+                  <input value={addr.origemBairro} placeholder="Bairro" onChange={e => setAddr(a => ({ ...a, origemBairro: e.target.value }))} /></div>
+                <div className="grid-2">
+                  <CampoCidadeAutocomplete
+                    value={origemCidade} onChange={setOrigemCidade}
+                    onSelecionar={({ cidade, uf }) => { setOrigemCidade(cidade); if (uf) setOrigemUF(uf); }}
+                    placeholder="Curitiba"
+                  />
+                  <div className="field"><label>UF</label><input value={origemUF} onChange={e => setOrigemUF(e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
+                </div>
+              </div>
+              <div className="card" style={{ marginBottom: 0 }}>
+                <div className="card-title">🏁 Endereço de Entrega</div>
+                <div className="field"><label>CEP</label>
+                  <input value={addr.destCep} placeholder="00000-000"
+                    onChange={e => { const v = maskCep(e.target.value); setAddr(a => ({ ...a, destCep: v })); if (v.replace(/\D/g,"").length===8) fillCepDesktop(v,"dest"); }} /></div>
+                <div className="field"><label>Logradouro</label>
+                  <input value={addr.destLogradouro} placeholder="Rua, Avenida, Rodovia..." onChange={e => setAddr(a => ({ ...a, destLogradouro: e.target.value }))} /></div>
+                <div className="grid-2">
+                  <div className="field"><label>Número</label><input value={addr.destNumero} placeholder="123" onChange={e => setAddr(a => ({ ...a, destNumero: e.target.value }))} /></div>
+                  <div className="field"><label>Complemento</label><input value={addr.destComplemento} placeholder="Galpão, Sala..." onChange={e => setAddr(a => ({ ...a, destComplemento: e.target.value }))} /></div>
+                </div>
+                <div className="field"><label>Bairro / Distrito</label>
+                  <input value={addr.destBairro} placeholder="Bairro" onChange={e => setAddr(a => ({ ...a, destBairro: e.target.value }))} /></div>
+                <div className="grid-2">
+                  <CampoCidadeAutocomplete
+                    value={destCidade} onChange={setDestCidade}
+                    onSelecionar={({ cidade, uf }) => { setDestCidade(cidade); if (uf) setDestUF(uf); }}
+                    placeholder="São Paulo"
+                  />
+                  <div className="field"><label>UF</label><input value={destUF} onChange={e => setDestUF(e.target.value.toUpperCase())} placeholder="SP" maxLength={2} /></div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div className="card" style={{ marginBottom: 0 }}>
+                <div className="card-title">Tipo de Carga</div>
+                <div className="carga-grid">
+                  {TIPOS_CARGA_VISIVEIS.map(c => (
+                    <div key={c.id} className={`carga-item ${form.tipoCarga === c.id ? "selected" : ""}`} onClick={() => set("tipoCarga", c.id)}>
+                      <div className="ci-icon">{c.icon}</div><div className="ci-label">{c.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {form.tipoCarga === "graneleiro" && (
+                  <div className="field" style={{ marginTop: 12 }}>
+                    <label>Tipo de grão</label>
+                    <select value={form.tipoGrao} onChange={e => set("tipoGrao", e.target.value)}>
+                      <option value="">Selecione...</option>
+                      {TIPOS_GRAO.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="card" style={{ marginBottom: 0 }}>
+                <div className="card-title">Veículo necessário</div>
+                <div className="field">
+                  <label>Tipo de chassi *</label>
+                  <select value={form.tipoVeiculo} onChange={e => setTipoVeiculo(e.target.value)}>
+                    {TIPOS_VEICULO.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label} — até {v.cap}</option>)}
+                  </select>
+                </div>
+                <div className="grid-2">
+                  <div className="field">
+                    <label>Número de eixos *</label>
+                    <input type="number" min="2" max="9" value={form.numeroEixos} onChange={e => set("numeroEixos", e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>Carroceria desejada</label>
+                    <select value={form.carroceria} onChange={e => set("carroceria", e.target.value)} disabled={!carroceriasDisp.length}>
+                      <option value="">Qualquer compatível</option>
+                      {carroceriasDisp.map(c => <option key={c.id} value={c.id}>{ICONE_CARROCERIA[c.id] || ""} {c.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                  Eixos definem o piso mínimo ANTT — padrão pra {tipoVeiculoObj?.label}: {tipoVeiculoObj?.eixosPadrao}.
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-title">Peso, Detalhes e Agendamento</div>
+              <div className="grid-3">
+                <div className="field"><label>Peso total (kg) *</label><input type="number" placeholder="Ex: 5000" value={form.pesoKg} onChange={e => set("pesoKg", e.target.value)} /></div>
+                <div className="field"><label>Data de coleta</label><input type="date" value={form.dataColeta} onChange={e => set("dataColeta", e.target.value)} /></div>
+                <div className="field"><label>Horário preferido</label><input type="time" value={form.horario} onChange={e => set("horario", e.target.value)} /></div>
+              </div>
+
+              {regrasCarga(form.tipoCarga).dimensoes && (
+                <div className="grid-3">
+                  <div className="field"><label>Comp. (m)</label><input type="number" placeholder="6" value={form.comprimentoM} onChange={e => set("comprimentoM", e.target.value)} /></div>
+                  <div className="field"><label>Larg. (m)</label><input type="number" placeholder="2.4" value={form.larguraM} onChange={e => set("larguraM", e.target.value)} /></div>
+                  <div className="field"><label>Alt. (m)</label><input type="number" placeholder="2.8" value={form.alturaM} onChange={e => set("alturaM", e.target.value)} /></div>
+                </div>
+              )}
+
+              {regrasCarga(form.tipoCarga).especial === "animal" && (
+                <div className="grid-2">
+                  <div className="field"><label>Tipo de animal *</label>
+                    <select value={form.tipoAnimal} onChange={e => set("tipoAnimal", e.target.value)}>
+                      <option value="">Selecione...</option>
+                      {TIPOS_ANIMAL.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                  <div className="field"><label>Qtd. de cabeças</label><input type="number" placeholder="Ex: 18" value={form.qtdAnimais} onChange={e => set("qtdAnimais", e.target.value)} /></div>
+                </div>
+              )}
+
+              {regrasCarga(form.tipoCarga).especial === "material" && (
+                <div className="field"><label>Tipo de material *</label>
+                  <select value={form.tipoMaterial} onChange={e => set("tipoMaterial", e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {TIPOS_MATERIAL.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {regrasCarga(form.tipoCarga).especial === "itens" && (
+                <div className="field">
+                  <label>Itens da mudança</label>
+                  {form.itensMudanca.map((item, idx) => (
+                    <div key={item.id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                      <input style={{ flex: 2 }} placeholder="Ex: Geladeira" value={item.nome}
+                        onChange={e => { const arr = [...form.itensMudanca]; arr[idx].nome = e.target.value; set("itensMudanca", arr); }} />
+                      <input style={{ flex: 1 }} type="number" placeholder="Qtd" value={item.qtd}
+                        onChange={e => { const arr = [...form.itensMudanca]; arr[idx].qtd = e.target.value; set("itensMudanca", arr); }} />
+                      {form.itensMudanca.length > 1 && (
+                        <button onClick={() => set("itensMudanca", form.itensMudanca.filter((_, i) => i !== idx))}
+                          style={{ background: "#FDECEA", color: "#C0392B", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 700 }}>×</button>
+                      )}
+                    </div>
+                  ))}
+                  <button className="btn btn-secondary" style={{ width: "100%", marginTop: 4 }}
+                    onClick={() => set("itensMudanca", [...form.itensMudanca, { id: crypto.randomUUID(), nome: "", qtd: "" }])}>
+                    + Adicionar item
+                  </button>
+                </div>
+              )}
+
+              <div className="field"><label>Descrição / observações</label><textarea rows={3} placeholder="Detalhes importantes da carga..." value={form.descricao} onChange={e => set("descricao", e.target.value)} style={{ resize: "none" }} /></div>
+
+              <div className="grid-2">
+                {[["precisaMunck", "🏗️ Necessário Munck"], ["precisaEmpilhadeira", "🏭 Há empilhadeira no pátio"]].map(([k, label]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 13 }}>{label}</span>
+                    <label className="toggle"><input type="checkbox" checked={form[k]} onChange={e => set(k, e.target.checked)} /><span className="toggle-slider" /></label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-title">Documentos e Fotos</div>
+              <div className="grid-3">
+                <div className="upload-area">📸 Fotos da carga</div>
+                <div className="upload-area">📄 Nota fiscal</div>
+                <div className="upload-area">🏭 Fotos do pátio</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar fixa -- resumo e preço, mesmo padrão de "carrinho" de
+              qualquer checkout web: sempre visível, atualiza conforme o
+              formulário muda, sem precisar rolar até o fim de uma lista. */}
+          <div style={{ position: "sticky", top: 16 }}>
+            <div className="card" style={{ borderColor: "var(--orange)", borderWidth: 2 }}>
+              <div className="card-title">Resumo</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                <span className="tag-chip">{tipoCargaObj?.icon} {tipoCargaObj?.label}</span>
+                <span className="tag-chip">🚛 {tipoVeiculoObj?.label}</span>
+              </div>
+              {!calc ? (
+                <>
+                  <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+                    Preencha os endereços e a carga ao lado, depois calcule a rota e o piso mínimo ANTT.
+                  </p>
+                  <button className="btn btn-primary" onClick={calcularDesktop} disabled={calcLoading} style={{ width: "100%" }}>
+                    {calcLoading ? "Calculando rota..." : "📍 Calcular Rota e Valor"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="divider" />
+                  <div className="info-row"><span className="info-label">Coleta</span><span className="info-value" style={{ fontSize: 12 }}>{addr.origemCidade}/{addr.origemUF}</span></div>
+                  <div className="info-row"><span className="info-label">Entrega</span><span className="info-value" style={{ fontSize: 12 }}>{addr.destCidade}/{addr.destUF}</span></div>
+                  <div className="info-row"><span className="info-label">Distância</span><span className="info-value">{calc.distancia_km} km</span></div>
+                  <div className="info-row"><span className="info-label">Duração</span><span className="info-value">{calc.duracao}</span></div>
+                  <div className="divider" />
+                  <div style={{ textAlign: "center", marginBottom: 12 }}>
+                    <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 4 }}>Piso mínimo legal (Tabela ANTT)</div>
+                    <div className="price" style={{ fontSize: 24, color: "var(--text3)" }}>{formatMoney(calc.pisoMinimo)}</div>
+                  </div>
+                  <HistoricoPrecoRota
+                    origemCidade={addr.origemCidade} origemUf={addr.origemUF}
+                    destCidade={addr.destCidade} destUf={addr.destUF}
+                    tipoVeiculo={form.tipoVeiculo} numeroEixos={form.numeroEixos}
+                    tipoCarga={CARGA_BACKEND_MAP[form.tipoCarga] || "geral"}
+                  />
+                  <div className="field">
+                    <label>Valor do frete (R$)</label>
+                    <input type="number" step="0.01" min={calc.pisoMinimo} value={valorEditavel} onChange={e => setValorEditavel(e.target.value)} />
+                  </div>
+                  {parseFloat(String(valorEditavel).replace(",", ".")) < calc.pisoMinimo && (
+                    <div className="alert alert-error" style={{ marginBottom: 12 }}>
+                      ⚠️ Abaixo do piso mínimo ANTT ({formatMoney(calc.pisoMinimo)})
+                    </div>
+                  )}
+                  <button className="btn btn-primary" onClick={solicitar} disabled={loading || parseFloat(String(valorEditavel).replace(",", ".")) < calc.pisoMinimo} style={{ width: "100%", marginBottom: 8 }}>
+                    {loading ? "Publicando frete..." : "🚛 Publicar Frete"}
+                  </button>
+                  <button className="btn btn-secondary" style={{ width: "100%" }} onClick={calcularDesktop} disabled={calcLoading}>
+                    {calcLoading ? "Recalculando..." : "↻ Recalcular"}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </>
   );
 }

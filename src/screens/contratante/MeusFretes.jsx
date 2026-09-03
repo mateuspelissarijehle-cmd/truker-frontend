@@ -54,29 +54,36 @@ export function MeusFretes({ onNavigate }) {
         </div>
         {loading ? <Loading /> : filtrados.length === 0 ? (
           <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
-        ) : filtrados.map(f => {
-          const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
-          return (
-            <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                <StatusBadge status={f.status} />
-                <div style={{ textAlign: "right" }}>
-                  <div className="price" style={{ fontSize: 18 }}>{formatMoney(f.valor_final || f.valor_antt || 0)}</div>
-                  <div style={{ fontSize: 10, color: "var(--text3)" }}>valor do frete</div>
+        ) : (
+          // Grade responsiva no desktop (item 6, 02/09/2026) -- uma lista
+          // empilhada de cards ficava estreita e comprida sobrando espaço
+          // dos dois lados; em telas largas os cards fluem em colunas.
+          <div className="fretes-grid-desktop">
+            {filtrados.map(f => {
+              const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
+              return (
+                <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <StatusBadge status={f.status} />
+                    <div style={{ textAlign: "right" }}>
+                      <div className="price" style={{ fontSize: 18 }}>{formatMoney(f.valor_final || f.valor_antt || 0)}</div>
+                      <div style={{ fontSize: 10, color: "var(--text3)" }}>valor do frete</div>
+                    </div>
+                  </div>
+                  <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
+                  <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text3)" }}>
+                    <span>📅 {data}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                      {f.motorista_nome && <Avatar nome={f.motorista_nome} fotoUrl={f.motorista_foto_url} logoEmpresaUrl={f.motorista_logo_empresa_url} size={18} />}
+                      {f.motorista_nome || "Aguardando"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
-              <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text3)" }}>
-                <span>📅 {data}</span>
-                <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  {f.motorista_nome && <Avatar nome={f.motorista_nome} fotoUrl={f.motorista_foto_url} logoEmpresaUrl={f.motorista_logo_empresa_url} size={18} />}
-                  {f.motorista_nome || "Aguardando"}
-                </span>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        )}
       </div>
       <BottomNavContratante active="atividade" onNavigate={onNavigate} />
     </div>
