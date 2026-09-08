@@ -236,6 +236,16 @@ export const css = `
      lista empilhada, mesmo padrão do .fretes-grid-desktop/.menu-cards-desktop. */
   .ofertas-grid-desktop { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
   .ofertas-grid-desktop .uber-card { margin-bottom: 0; }
+  /* SosButton.jsx é global (renderizado fora de qualquer tela, sempre visível
+     pro motorista) -- .sos-overlay ficava travado em max-width:600px (regra
+     acima, pensada pra quando toda tela do motorista era só uma coluna
+     estreita), então nas novas telas desktop (900+px de conteúdo real) o
+     botão flutuante ficava preso no meio da página em vez do canto de
+     verdade da janela. Precisa vencer a regra de 600px (mesma especificidade
+     -- por isso depois dela aqui). */
+  @media (min-width: 1024px) {
+    .sos-overlay { max-width: 100vw; }
+  }
   /* !important necessário aqui: sem ele, esse fundo perdia silenciosamente
      pra algo (não identificado -- não há outra regra "html" no arquivo)
      mesmo sendo a última regra do arquivo/mesma especificidade, testado ao
