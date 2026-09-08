@@ -89,7 +89,7 @@ export function PainelCaminhoesScreen({ onNavigate }) {
             // a confusão fazer sentido). Mostrando o Leaflet de verdade nos
             // dois casos, essa ambiguidade não existe mais.
             <div style={{ position: "relative" }}>
-              <MapaLeaflet height={window.innerHeight > 700 ? 560 : 380} rotas={rotas} marcadoresAoVivo={marcadoresAoVivo} />
+              <MapaLeaflet height={window.innerHeight > 700 ? 560 : 380} zoom={7} rotas={rotas} marcadoresAoVivo={marcadoresAoVivo} />
               {caminhoes.length === 0 && (
                 <div style={{
                   position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",

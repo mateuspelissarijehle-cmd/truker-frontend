@@ -1,4 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { buscarRotaOSRM } from "../services/osrm";
 import { distanciaMetros, calcularRumo } from "../utils/geo";
 import { CORES_ROTAS_MULTI } from "../utils/mapColors";
@@ -15,7 +17,6 @@ import { CORES_ROTAS_MULTI } from "../utils/mapColors";
 // Ícone do motorista: bolinha simples (mapas sem orientação) ou seta
 // direcional rotacionável (modo navegação, ex.: tela "Em Trânsito").
 function criarIconeMotorista(comOrientacao, headingDeg) {
-  const L = window.L;
   if (!comOrientacao) {
     return L.divIcon({
       html: '<div style="background:#C9A84C;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(201,168,76,0.8)"></div>',
@@ -28,38 +29,6 @@ function criarIconeMotorista(comOrientacao, headingDeg) {
     </div>`,
     className: "", iconSize: [34, 34], iconAnchor: [17, 17],
   });
-}
-
-// Carrega o script/CSS do Leaflet uma única vez, mesmo com vários mapas
-// montando ao mesmo tempo (ex.: telas com mapa em miniatura + navegação).
-// A promise é cacheada no módulo (singleton), então todo mundo que chama
-// isso — não importa quem montou primeiro — recebe o mesmo aviso de "pronto",
-// em vez de cada componente pisar no `script.onload` do anterior e travar
-// esperando um load que nunca vai chamar o initMap dele.
-let leafletLoadPromise = null;
-function carregarLeaflet() {
-  if (window.L) return Promise.resolve();
-  if (leafletLoadPromise) return leafletLoadPromise;
-  leafletLoadPromise = new Promise((resolve, reject) => {
-    if (!document.querySelector("#leaflet-css")) {
-      const link = document.createElement("link");
-      link.id = "leaflet-css"; link.rel = "stylesheet";
-      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-      document.head.appendChild(link);
-    }
-    const existente = document.querySelector("#leaflet-js");
-    if (existente) {
-      existente.addEventListener("load", () => resolve());
-      existente.addEventListener("error", (e) => reject(e));
-      return;
-    }
-    const script = document.createElement("script");
-    script.id = "leaflet-js"; script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-    script.onload = () => resolve();
-    script.onerror = (e) => reject(e);
-    document.head.appendChild(script);
-  });
-  return leafletLoadPromise;
 }
 
 // modoNavegacao: habilita zoom/seguimento ao vivo estilo GPS + botão de
@@ -133,7 +102,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
     buscarRotaOSRM(start, end).then(rota => {
       if (!rota?.geometry || !mapRef.current) return;
       if (rotaPrincipalLayerRef.current) mapRef.current.removeLayer(rotaPrincipalLayerRef.current);
-      rotaPrincipalLayerRef.current = window.L.geoJSON(rota.geometry, {
+      rotaPrincipalLayerRef.current = L.geoJSON(rota.geometry, {
         style: { color: "#F97316", weight: 4, opacity: 0.75, dashArray: "10,6" }
       }).addTo(mapRef.current);
       if (propsRef.current.onRotaInfo) {
@@ -147,7 +116,6 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
 
   const initMap = () => {
     if (!divRef.current || mapRef.current) return;
-    const L = window.L;
     const p = propsRef.current;
     const centerLat = p.lat || p.origem?.lat || -25.4284;
     const centerLng = p.lng || p.origem?.lng || -49.2733;
@@ -269,7 +237,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
         const e = `${rota.destino.lng},${rota.destino.lat}`;
         buscarRotaOSRM(s, e).then(rotaOSRM => {
           if (rotaOSRM?.geometry && mapRef.current) {
-            window.L.geoJSON(rotaOSRM.geometry, {
+            L.geoJSON(rotaOSRM.geometry, {
               style: { color: cor, weight: 3, opacity: 0.85 }
             }).addTo(mapRef.current);
           }
@@ -285,24 +253,19 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
   // atual das props já é lido via `propsRef.current` dentro de initMap, então isso é
   // seguro de propósito.
   useEffect(() => {
-    let cancelado = false;
-    carregarLeaflet().then(() => {
-      if (cancelado) return;
-      initMap();
-      // Dispara sozinho com o tamanho atual assim que observa (spec do
-      // ResizeObserver), e de novo a cada resize real -- cobre tanto o
-      // tamanho errado do primeiro render quanto qualquer mudança de layout
-      // depois (ex: a lista lateral do painel carregando e empurrando a
-      // largura do mapa).
-      if (mapRef.current && divRef.current && typeof ResizeObserver !== "undefined") {
-        resizeObserverRef.current = new ResizeObserver(() => {
-          mapRef.current?.invalidateSize();
-        });
-        resizeObserverRef.current.observe(divRef.current);
-      }
-    }).catch(() => {});
+    initMap();
+    // Dispara sozinho com o tamanho atual assim que observa (spec do
+    // ResizeObserver), e de novo a cada resize real -- cobre tanto o
+    // tamanho errado do primeiro render quanto qualquer mudança de layout
+    // depois (ex: a lista lateral do painel carregando e empurrando a
+    // largura do mapa).
+    if (mapRef.current && divRef.current && typeof ResizeObserver !== "undefined") {
+      resizeObserverRef.current = new ResizeObserver(() => {
+        mapRef.current?.invalidateSize();
+      });
+      resizeObserverRef.current.observe(divRef.current);
+    }
     return () => {
-      cancelado = true;
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; marcadorRef.current = null; }
@@ -318,7 +281,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
   // ficar re-centralizando/re-zoomando o mapa a cada atualização, só no
   // desenho inicial (initMap).
   useEffect(() => {
-    if (!mapRef.current || !window.L || !marcadoresAoVivo) return;
+    if (!mapRef.current || !marcadoresAoVivo) return;
     const vistos = new Set();
     marcadoresAoVivo.forEach((mv, idx) => {
       if (!mv.lat || !mv.lng) return;
@@ -329,11 +292,11 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
         if (mv.label) existente.setTooltipContent(mv.label);
       } else {
         const cor = CORES_ROTAS_MULTI[idx % CORES_ROTAS_MULTI.length];
-        const icon = window.L.divIcon({
+        const icon = L.divIcon({
           html: `<div style="background:${cor};width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 8px rgba(0,0,0,0.5)"></div>`,
           className: "", iconSize: [16, 16], iconAnchor: [8, 8],
         });
-        const marker = window.L.marker([mv.lat, mv.lng], { icon }).addTo(mapRef.current);
+        const marker = L.marker([mv.lat, mv.lng], { icon }).addTo(mapRef.current);
         if (mv.label) marker.bindTooltip(mv.label, { permanent: false, direction: "top" });
         marcadoresAoVivoRef.current.set(mv.id, marker);
       }
@@ -348,7 +311,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
   }, [marcadoresAoVivo]);
 
   useEffect(() => {
-    if (!mapRef.current || !window.L || !lat || !lng) return;
+    if (!mapRef.current || !lat || !lng) return;
 
     // Recalcula o rumo só se moveu o suficiente desde o último cálculo —
     // com o motorista parado, o GPS "tremula" alguns metros e giraria a
@@ -373,7 +336,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
       }
     } else {
       const icon = criarIconeMotorista(mostrarOrientacao, headingRef.current);
-      marcadorRef.current = window.L.marker([lat, lng], { icon }).addTo(mapRef.current);
+      marcadorRef.current = L.marker([lat, lng], { icon }).addTo(mapRef.current);
     }
 
     if (modoNavegacao && seguindoRef.current) {
@@ -387,7 +350,7 @@ export function MapaLeaflet({ lat, lng, zoom = 14, height = 200, marcadores = []
   // redesenha se moveu o suficiente (~100m) desde o último traçado, pra não
   // martelar o OSRM a cada atualização mínima de GPS.
   useEffect(() => {
-    if (!mapRef.current || !window.L || !lat || !lng || !metaAoVivo?.lat || !metaAoVivo?.lng) return;
+    if (!mapRef.current || !lat || !lng || !metaAoVivo?.lat || !metaAoVivo?.lng) return;
     const anterior = rotaPrincipalOrigemRef.current;
     const moveuOSuficiente = !anterior || Math.abs(anterior.lat - lat) > 0.001 || Math.abs(anterior.lng - lng) > 0.001;
     if (!moveuOSuficiente) return;
