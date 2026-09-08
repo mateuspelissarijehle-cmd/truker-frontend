@@ -78,83 +78,138 @@ export function DadosPessoaisContratante({ onNavigate }) {
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
-      <div className="content">
-        {loadingData && <Loading />}
-        {!loadingData && <>
-        {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
-        {error && <div className="alert alert-error">{error}</div>}
-        <div className="card" style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ margin: "0 auto 12px", width: 80 }}>
-            <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={80} />
-          </div>
-          {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
-          <label className="btn btn-secondary btn-sm" style={{ width: "auto", display: "inline-block", cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
-            {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
-            <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
-          </label>
-        </div>
-        <div className="card">
-          <div className="card-title">Identificação</div>
-          <div className="field"><label>Nome completo</label><input value={form.nome} onChange={e => set("nome", e.target.value)} placeholder="Seu nome" /></div>
-          <div className="field"><label>CPF ou CNPJ</label><input value={form.documento} onChange={e => set("documento", e.target.value)} placeholder="000.000.000-00 ou 00.000.000/0001-00" /></div>
-          <div className="field"><label>Nome da empresa (opcional)</label><input value={form.nomeEmpresa} onChange={e => set("nomeEmpresa", e.target.value)} placeholder="Empresa LTDA" /></div>
-          <div className="field"><label>Inscrição Estadual (opcional)</label><input value={form.inscricaoEstadual} onChange={e => set("inscricaoEstadual", e.target.value)} placeholder="000.000.000.000" /></div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
-            <Avatar nome={form.nomeEmpresa || form.nome} fotoUrl={logoUrl} logoEmpresaUrl={null} size={48} />
-            <label className="btn btn-secondary btn-sm" style={{ width: "auto", cursor: enviandoLogo ? "default" : "pointer", opacity: enviandoLogo ? 0.6 : 1 }}>
-              {enviandoLogo ? "Enviando..." : "🖼️ Enviar logo da empresa"}
-              <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoLogo} onChange={e => enviarImagemPerfil("logo", e)} />
-            </label>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-title">Contato</div>
-          <div className="field"><label>Email</label><input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="seu@email.com" /></div>
-          <div className="field"><label>Telefone / WhatsApp</label><input value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
-        </div>
-        <div className="card">
-          <div className="card-title">🆘 Contato de Emergência</div>
-          <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
-            Usado pelo botão de SOS pra avisar alguém com sua localização em caso de emergência.
-          </p>
-          <div className="field"><label>Nome</label><input value={form.contatoEmergenciaNome} onChange={e => set("contatoEmergenciaNome", e.target.value)} placeholder="Nome do contato" /></div>
-          <div className="field"><label>Telefone</label><input value={form.contatoEmergenciaTelefone} onChange={e => set("contatoEmergenciaTelefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
-        </div>
-        <div className="card">
-          <div className="card-title">Endereço</div>
-          <div className="field"><label>CEP</label><input value={form.cep} onChange={e => { const v = maskCep(e.target.value); set("cep", v); if (v.replace(/\D/g,"").length===8) fillCep(v); }} placeholder="00000-000" /></div>
-          <div className="field"><label>Logradouro</label><input value={form.logradouro} onChange={e => set("logradouro", e.target.value)} placeholder="Rua, Avenida..." /></div>
-          <div className="grid-2">
-            <div className="field"><label>Número</label><input value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="123" /></div>
-            <div className="field"><label>Complemento</label><input value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Sala..." /></div>
-          </div>
-          <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
-          <div className="grid-2">
-            <CampoCidadeAutocomplete
-              value={form.cidade} onChange={v => set("cidade", v)}
-              onSelecionar={({ cidade, uf }) => { set("cidade", cidade); if (uf) set("uf", uf); }}
-              placeholder="Curitiba"
-            />
-            <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-title">Documentação fiscal e jurídica</div>
-          <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 14 }}>Envie documentos para habilitar contratações de maior valor.</p>
-          {[["📋 Contrato Social / Estatuto", false], ["🏦 Comprovante bancário", false], ["🪪 Doc. do responsável (RG/CNH)", false], ["📄 Procuração (se aplicável)", false]].map(([doc, ok], i) => (
-            <div key={i} className="info-row">
-              <span className="info-label" style={{ fontSize: 13 }}>{doc}</span>
-              <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{ok ? "Aprovado" : "Pendente"}</span>
-            </div>
-          ))}
-          <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
-        </div>
-        <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
-        </>}
+  const cardIdentificacao = (
+    <div className="card">
+      <div className="card-title">Identificação</div>
+      <div className="field"><label>Nome completo</label><input value={form.nome} onChange={e => set("nome", e.target.value)} placeholder="Seu nome" /></div>
+      <div className="field"><label>CPF ou CNPJ</label><input value={form.documento} onChange={e => set("documento", e.target.value)} placeholder="000.000.000-00 ou 00.000.000/0001-00" /></div>
+      <div className="field"><label>Nome da empresa (opcional)</label><input value={form.nomeEmpresa} onChange={e => set("nomeEmpresa", e.target.value)} placeholder="Empresa LTDA" /></div>
+      <div className="field"><label>Inscrição Estadual (opcional)</label><input value={form.inscricaoEstadual} onChange={e => set("inscricaoEstadual", e.target.value)} placeholder="000.000.000.000" /></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
+        <Avatar nome={form.nomeEmpresa || form.nome} fotoUrl={logoUrl} logoEmpresaUrl={null} size={48} />
+        <label className="btn btn-secondary btn-sm" style={{ width: "auto", cursor: enviandoLogo ? "default" : "pointer", opacity: enviandoLogo ? 0.6 : 1 }}>
+          {enviandoLogo ? "Enviando..." : "🖼️ Enviar logo da empresa"}
+          <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoLogo} onChange={e => enviarImagemPerfil("logo", e)} />
+        </label>
       </div>
     </div>
+  );
+  const cardContato = (
+    <div className="card">
+      <div className="card-title">Contato</div>
+      <div className="field"><label>Email</label><input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="seu@email.com" /></div>
+      <div className="field"><label>Telefone / WhatsApp</label><input value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+    </div>
+  );
+  const cardEmergencia = (
+    <div className="card">
+      <div className="card-title">🆘 Contato de Emergência</div>
+      <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+        Usado pelo botão de SOS pra avisar alguém com sua localização em caso de emergência.
+      </p>
+      <div className="field"><label>Nome</label><input value={form.contatoEmergenciaNome} onChange={e => set("contatoEmergenciaNome", e.target.value)} placeholder="Nome do contato" /></div>
+      <div className="field"><label>Telefone</label><input value={form.contatoEmergenciaTelefone} onChange={e => set("contatoEmergenciaTelefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+    </div>
+  );
+  const cardEndereco = (
+    <div className="card">
+      <div className="card-title">Endereço</div>
+      <div className="field"><label>CEP</label><input value={form.cep} onChange={e => { const v = maskCep(e.target.value); set("cep", v); if (v.replace(/\D/g,"").length===8) fillCep(v); }} placeholder="00000-000" /></div>
+      <div className="field"><label>Logradouro</label><input value={form.logradouro} onChange={e => set("logradouro", e.target.value)} placeholder="Rua, Avenida..." /></div>
+      <div className="grid-2">
+        <div className="field"><label>Número</label><input value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="123" /></div>
+        <div className="field"><label>Complemento</label><input value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Sala..." /></div>
+      </div>
+      <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
+      <div className="grid-2">
+        <CampoCidadeAutocomplete
+          value={form.cidade} onChange={v => set("cidade", v)}
+          onSelecionar={({ cidade, uf }) => { set("cidade", cidade); if (uf) set("uf", uf); }}
+          placeholder="Curitiba"
+        />
+        <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
+      </div>
+    </div>
+  );
+  const cardDocumentacao = (
+    <div className="card">
+      <div className="card-title">Documentação fiscal e jurídica</div>
+      <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 14 }}>Envie documentos para habilitar contratações de maior valor.</p>
+      {[["📋 Contrato Social / Estatuto", false], ["🏦 Comprovante bancário", false], ["🪪 Doc. do responsável (RG/CNH)", false], ["📄 Procuração (se aplicável)", false]].map(([doc, ok], i) => (
+        <div key={i} className="info-row">
+          <span className="info-label" style={{ fontSize: 13 }}>{doc}</span>
+          <span className={`badge ${ok ? "badge-active" : "badge-pending"}`}>{ok ? "Aprovado" : "Pendente"}</span>
+        </div>
+      ))}
+      <div className="upload-area" style={{ marginTop: 14 }}>📤 Enviar documento</div>
+    </div>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
+        <div className="content">
+          {loadingData && <Loading />}
+          {!loadingData && <>
+          {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="card" style={{ textAlign: "center", padding: "20px" }}>
+            <div style={{ margin: "0 auto 12px", width: 80 }}>
+              <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={80} />
+            </div>
+            {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
+            <label className="btn btn-secondary btn-sm" style={{ width: "auto", display: "inline-block", cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
+              {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
+              <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
+            </label>
+          </div>
+          {cardIdentificacao}
+          {cardContato}
+          {cardEmergencia}
+          {cardEndereco}
+          {cardDocumentacao}
+          <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+          </>}
+        </div>
+      </div>
+
+      {/* Desktop: mesmo formulário, mas os campos ganham 2 colunas reais em
+          vez de uma coluna única esticada numa tela larga, e foto + botão
+          salvar viram uma barra lateral fixa -- não precisa rolar até o fim
+          do formulário pra salvar (achado do Mateus, 02/09/2026). */}
+      <div className="only-desktop screen-form-desktop">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
+        <div className="form-wide-inner" style={{ paddingTop: 8, paddingBottom: 40 }}>
+          {loadingData && <Loading />}
+          {!loadingData && (
+            <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, alignItems: "start" }}>
+              <div style={{ position: "sticky", top: 16 }}>
+                <div className="card" style={{ textAlign: "center", padding: "20px" }}>
+                  <div style={{ margin: "0 auto 12px", width: 96 }}>
+                    <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={96} />
+                  </div>
+                  {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
+                  <label className="btn btn-secondary btn-sm" style={{ cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
+                    {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
+                    <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
+                  </label>
+                </div>
+                {success && <div className="alert alert-success" style={{ marginTop: 14 }}>✅ Dados salvos com sucesso!</div>}
+                {error && <div className="alert alert-error" style={{ marginTop: 14 }}>{error}</div>}
+                <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                {cardIdentificacao}
+                {cardContato}
+                <div style={{ gridColumn: "1 / -1" }}>{cardEmergencia}</div>
+                <div style={{ gridColumn: "1 / -1" }}>{cardEndereco}</div>
+                <div style={{ gridColumn: "1 / -1" }}>{cardDocumentacao}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }

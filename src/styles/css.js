@@ -196,4 +196,9 @@ export const css = `
     .fretes-grid-desktop { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
     .fretes-grid-desktop .frete-card { margin-bottom: 0; }
   }
+  /* Opções (item 6, revisão final): menu curto vira cartões lado a lado em
+     vez de lista empilhada -- OpcoesMenu.jsx é compartilhado só entre telas
+     do contratante (motorista tem seu próprio menu, nunca renderiza isso). */
+  .menu-cards-desktop { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .menu-card-desktop { margin-bottom: 0; }
 `;
