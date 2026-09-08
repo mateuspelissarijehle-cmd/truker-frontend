@@ -5,6 +5,7 @@ import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { BottomNavContratante } from "../../components/BottomNavContratante";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // CONTRATANTE HOME
@@ -28,56 +29,94 @@ export function ContratanteHome({ onNavigate }) {
   const isPJ = cpfCnpjLimpo.length === 14;
   const nomeDestaque = isPJ && user?.nome_empresa ? user.nome_empresa : (user?.nome?.split(" ")[0] || "Contratante");
 
+  const cardsFretesRecentes = loading ? <Loading /> : fretes.length === 0 ? (
+    <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
+      <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
+      <p style={{ fontWeight: 600 }}>Nenhum frete ainda</p>
+      <p style={{ fontSize: 13, marginTop: 4, color: "#444" }}>Solicite seu primeiro frete!</p>
+    </div>
+  ) : fretes.slice(0, 3).map(f => (
+    <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <StatusBadge status={f.status} />
+        <div className="price">{formatMoney(f.valor_final || f.valor_antt || f.valor_motorista || 0)}</div>
+      </div>
+      <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
+      <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
+    </div>
+  ));
+
   return (
-    <div className="screen">
-      <div className="header" style={{ alignItems: "flex-start" }}>
-        <div style={{ textAlign: "left" }}>
-          <div style={{ fontSize: 11, color: "var(--text2)" }}>Olá,</div>
-          <h1>{nomeDestaque}</h1>
+    <>
+      <div className="only-mobile screen">
+        <div className="header" style={{ alignItems: "flex-start" }}>
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: 11, color: "var(--text2)" }}>Olá,</div>
+            <h1>{nomeDestaque}</h1>
+            {isPJ && user?.nome_empresa && (
+              <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>{user?.nome?.split(" ")[0] || ""}</div>
+            )}
+          </div>
+          <div style={{ marginLeft: "auto", fontSize: 24, cursor: "pointer", paddingTop: 2 }} onClick={() => onNavigate("perfil")}>👤</div>
+        </div>
+        <div className="content">
+          <div className="grid-3" style={{ marginBottom: 16 }}>
+            {[["⏳", stats.pendentes, "Pendentes", null], ["🚛", stats.emTransito, "Em Rota", "painel-caminhoes"], ["✅", stats.entregues, "Entregues", null]].map(([icon, val, label, destino]) => (
+              <div
+                key={label}
+                className="stat-card"
+                style={destino ? { cursor: "pointer" } : undefined}
+                onClick={destino ? () => onNavigate(destino) : undefined}
+                title={destino ? "Ver painel de caminhões ao vivo" : undefined}
+              >
+                <div style={{ fontSize: 18 }}>{icon}</div><div className="stat-value" style={{ fontSize: 22 }}>{val}</div><div className="stat-label">{label}</div>
+              </div>
+            ))}
+          </div>
+          <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => onNavigate("solicitar-frete")}>+ Solicitar Frete</button>
+          <button className="btn btn-secondary" style={{ marginBottom: 16 }} onClick={() => onNavigate("buscar-motoristas")}>🔍 Buscar Motoristas Disponíveis</button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <span style={{ fontWeight: 700, fontSize: 15 }}>Meus Fretes</span>
+            <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => onNavigate("meus-fretes")}>Ver todos</span>
+          </div>
+          {cardsFretesRecentes}
+        </div>
+        <BottomNavContratante active="inicio" onNavigate={onNavigate} />
+      </div>
+
+      <DesktopShell tipo="contratante" active="inicio" onNavigate={onNavigate}>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 14, color: "var(--text2)" }}>Olá,</div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: "var(--text)" }}>{nomeDestaque}</h1>
           {isPJ && user?.nome_empresa && (
-            <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>{user?.nome?.split(" ")[0] || ""}</div>
+            <div style={{ fontSize: 13, color: "var(--text3)", marginTop: 2 }}>{user?.nome?.split(" ")[0] || ""}</div>
           )}
         </div>
-        <div style={{ marginLeft: "auto", fontSize: 24, cursor: "pointer", paddingTop: 2 }} onClick={() => onNavigate("perfil")}>👤</div>
-      </div>
-      <div className="content">
-        <div className="grid-3" style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
           {[["⏳", stats.pendentes, "Pendentes", null], ["🚛", stats.emTransito, "Em Rota", "painel-caminhoes"], ["✅", stats.entregues, "Entregues", null]].map(([icon, val, label, destino]) => (
             <div
               key={label}
               className="stat-card"
-              style={destino ? { cursor: "pointer" } : undefined}
+              style={{ padding: 20, cursor: destino ? "pointer" : "default" }}
               onClick={destino ? () => onNavigate(destino) : undefined}
               title={destino ? "Ver painel de caminhões ao vivo" : undefined}
             >
-              <div style={{ fontSize: 18 }}>{icon}</div><div className="stat-value" style={{ fontSize: 22 }}>{val}</div><div className="stat-label">{label}</div>
+              <div style={{ fontSize: 24 }}>{icon}</div><div className="stat-value" style={{ fontSize: 32 }}>{val}</div><div className="stat-label" style={{ fontSize: 13 }}>{label}</div>
             </div>
           ))}
         </div>
-        <button className="btn btn-primary" style={{ marginBottom: 10 }} onClick={() => onNavigate("solicitar-frete")}>+ Solicitar Frete</button>
-        <button className="btn btn-secondary" style={{ marginBottom: 16 }} onClick={() => onNavigate("buscar-motoristas")}>🔍 Buscar Motoristas Disponíveis</button>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <span style={{ fontWeight: 700, fontSize: 15 }}>Meus Fretes</span>
-          <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => onNavigate("meus-fretes")}>Ver todos</span>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 28 }}>
+          <button className="btn btn-primary" onClick={() => onNavigate("solicitar-frete")}>+ Solicitar Frete</button>
+          <button className="btn btn-secondary" onClick={() => onNavigate("buscar-motoristas")}>🔍 Buscar Motoristas Disponíveis</button>
         </div>
-        {loading ? <Loading /> : fretes.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text2)" }}>
-            <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
-            <p style={{ fontWeight: 600 }}>Nenhum frete ainda</p>
-            <p style={{ fontSize: 13, marginTop: 4, color: "#444" }}>Solicite seu primeiro frete!</p>
-          </div>
-        ) : fretes.slice(0, 3).map(f => (
-          <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <StatusBadge status={f.status} />
-              <div className="price">{formatMoney(f.valor_final || f.valor_antt || f.valor_motorista || 0)}</div>
-            </div>
-            <div className="route">{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
-            <div className="meta"><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
-          </div>
-        ))}
-      </div>
-      <BottomNavContratante active="inicio" onNavigate={onNavigate} />
-    </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <span style={{ fontWeight: 700, fontSize: 18 }}>Meus Fretes</span>
+          <span style={{ fontSize: 13, color: "var(--orange)", cursor: "pointer", fontWeight: 600 }} onClick={() => onNavigate("meus-fretes")}>Ver todos</span>
+        </div>
+        <div className="fretes-grid-desktop">
+          {cardsFretesRecentes}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

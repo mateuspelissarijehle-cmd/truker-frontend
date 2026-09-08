@@ -210,6 +210,32 @@ export const css = `
      app -- uma emenda visível atrás de conteúdo desktop largo
      (.screen-wide/.screen-form-desktop), só óbvia em telas com pouco
      conteúdo tipo Opções (achado revisando desktop, 08/09/2026). */
+  /* Item 6 (08/09/2026, redirecionamento amplo -- ver TopNavDesktop.jsx e
+     DesktopShell.jsx): shell único de layout desktop, usado por TODA rota
+     desktop (solicitante e motorista), em vez de cada tela decidir sozinha.
+     Mesmo truque de "escapar da largura do body" já usado em .screen-wide/
+     .screen-form-desktop, só que aqui vem com a barra de navegação embutida. */
+  .desktop-shell { min-height: 100vh; width: 100vw; max-width: 100vw; margin-left: calc(50% - 50vw); }
+  .desktop-topnav { position: sticky; top: 0; z-index: 50; background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .desktop-topnav-inner { max-width: 1280px; margin: 0 auto; padding: 0 32px; height: 64px; display: flex; align-items: center; gap: 28px; }
+  .desktop-topnav-brand { display: flex; align-items: center; gap: 10px; background: none; border: none; cursor: pointer; padding: 0; margin-right: 8px; }
+  .desktop-topnav-logo { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, #C9A84C, #A8873A); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; color: #1A1209; flex-shrink: 0; }
+  .desktop-topnav-wordmark { font-size: 16px; font-weight: 800; letter-spacing: 1.5px; color: var(--text); }
+  .desktop-topnav-links { display: flex; align-items: center; gap: 4px; flex: 1; }
+  .desktop-topnav-link { display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer; padding: 9px 14px; border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text2); transition: all 0.15s; }
+  .desktop-topnav-link:hover { background: var(--surface2); color: var(--text); }
+  .desktop-topnav-link.active { background: var(--gold-light); color: var(--gold-dark); }
+  .desktop-topnav-cta { width: auto; padding: 10px 18px; font-size: 12px; margin-right: 4px; text-transform: none; letter-spacing: 0; }
+  .desktop-topnav-user { display: flex; align-items: center; gap: 9px; background: none; border: none; cursor: pointer; padding: 5px 10px 5px 5px; border-radius: 24px; transition: background 0.15s; flex-shrink: 0; }
+  .desktop-topnav-user:hover, .desktop-topnav-user.active { background: var(--surface2); }
+  .desktop-topnav-user-nome { font-size: 13px; font-weight: 700; color: var(--text); }
+  .desktop-shell-body { max-width: 1080px; margin: 0 auto; padding: 32px 32px 56px; }
+  .desktop-shell-body-wide { padding: 0; }
+  /* Home do motorista (item 6, primeira tela desktop do motorista -- não
+     existia nenhum tratamento antes): grade de fretes disponíveis em vez de
+     lista empilhada, mesmo padrão do .fretes-grid-desktop/.menu-cards-desktop. */
+  .ofertas-grid-desktop { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+  .ofertas-grid-desktop .uber-card { margin-bottom: 0; }
   /* !important necessário aqui: sem ele, esse fundo perdia silenciosamente
      pra algo (não identificado -- não há outra regra "html" no arquivo)
      mesmo sendo a última regra do arquivo/mesma especificidade, testado ao

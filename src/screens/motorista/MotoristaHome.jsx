@@ -8,6 +8,7 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { MapaLeaflet } from "../../components/MapaLeaflet";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { BottomNavMotorista } from "../../components/BottomNavMotorista";
+import { DesktopShell } from "../../components/DesktopShell";
 import { watchPosition, clearWatch } from "../../services/geolocation";
 
 // ─────────────────────────────────────────────
@@ -189,7 +190,8 @@ export function MotoristaHome({ onNavigate }) {
     }));
 
   return (
-    <div className="screen">
+    <>
+    <div className="only-mobile screen">
       <div className="header" style={{ alignItems: "flex-start" }}>
         <div style={{ textAlign: "left" }}>
           <div style={{ fontSize: 11, color: "var(--text2)", display: "flex", alignItems: "center" }}>
@@ -390,5 +392,210 @@ export function MotoristaHome({ onNavigate }) {
       </div>
       <BottomNavMotorista active="inicio" onNavigate={onNavigate} />
     </div>
+
+    {/* Desktop: primeira tela desktop do motorista (item 6, 08/09/2026 --
+        não existia nenhum tratamento antes, motorista era só o app mobile).
+        Mesmo shell (TopNavDesktop) das telas do solicitante -- barra lateral
+        com status/alertas/oportunidades fixa, conteúdo principal (mapa +
+        fretes) com a largura real da tela, grade de cards em vez de lista
+        empilhada. */}
+    <DesktopShell tipo="motorista" active="inicio" onNavigate={onNavigate}>
+      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, alignItems: "start" }}>
+        <div style={{ position: "sticky", top: 16 }}>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ fontSize: 13, color: "var(--text2)", display: "flex", alignItems: "center" }}>
+                <span className={online ? "online-dot" : "offline-dot"} />
+                {online ? "Online" : "Offline"}
+              </div>
+              <label className="toggle">
+                <input type="checkbox" checked={online} onChange={e => toggleOnline(e.target.checked)} />
+                <span className="toggle-slider" />
+              </label>
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>{user?.nome?.split(" ")[0] || "Motorista"}</div>
+            {(placaCavalo || conjuntoAtivo) && (
+              <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 4 }}>
+                🚛 {placaCavalo || "cavalo não cadastrado"}
+                {conjuntoAtivo ? ` · ${conjuntoAtivo.carroceria_label || conjuntoAtivo.nome}` : ""}
+              </div>
+            )}
+          </div>
+          {erroOnline && <div className="alert alert-error" style={{ marginBottom: 14 }}>{erroOnline}</div>}
+          {!seguroValido && (
+            <div className="card" style={{ borderColor: "var(--red)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("seguro-motorista")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>🛡️</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>Registre seu seguro pra aceitar fretes</div>
+                </div>
+              </div>
+            </div>
+          )}
+          {bloqueadoHigienizacao && (
+            <div className="card" style={{ borderColor: "var(--red)", borderWidth: 2, cursor: "pointer", marginBottom: 14 }} onClick={() => onNavigate("lavagem-veiculo")}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 22 }}>🧼</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>Veículo bloqueado pra frete de grão</div>
+                </div>
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 8, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>Oportunidades</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+            <div className="card" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", position: "relative", padding: "12px 14px" }} onClick={() => onNavigate("minhas-propostas")}>
+              <span style={{ fontSize: 20 }}>📨</span><span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>Propostas</span>
+              {propostasPendentes > 0 && <span style={{ background: "var(--red)", color: "#fff", borderRadius: 10, fontSize: 10, fontWeight: 800, padding: "1px 7px" }}>{propostasPendentes}</span>}
+            </div>
+            <div className="card" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", position: "relative", padding: "12px 14px" }} onClick={() => onNavigate("convites-motorista")}>
+              <span style={{ fontSize: 20 }}>🎯</span><span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>Convites</span>
+              {convitesPendentes > 0 && <span style={{ background: "var(--red)", color: "#fff", borderRadius: 10, fontSize: 10, fontWeight: 800, padding: "1px 7px" }}>{convitesPendentes}</span>}
+            </div>
+            <div className="card" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "12px 14px" }} onClick={() => onNavigate("disponibilidade-motorista")}>
+              <span style={{ fontSize: 20 }}>📢</span><span style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>Disponibilidade</span>
+              {temDisponibilidadeAtiva && <span style={{ fontSize: 9, color: "var(--green)", fontWeight: 700 }}>● ativa</span>}
+            </div>
+          </div>
+          <div className="km-vazio-bar">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#888" }}>📊 KM VAZIO HOJE</span>
+              <span style={{ fontSize: 11, color: "var(--text2)" }}>Meta: {formatKm(metaKmVazio)}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: pctMeta > 100 ? "var(--red)" : pctMeta > 75 ? "var(--orange)" : "var(--green)" }}>{formatKm(kmVazio)}</span>
+              <span style={{ fontSize: 12, color: "var(--text2)" }}>({pctMeta}%)</span>
+            </div>
+            <div className="progress-bar">
+              <div className={`progress-fill ${pctMeta > 100 ? "red" : pctMeta > 75 ? "" : "green"}`} style={{ width: `${Math.min(pctMeta, 100)}%` }} />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <MapaLeaflet
+            key={`home-map-desktop-${rotasAtivas.length}-${posicaoAtual ? 1 : 0}`}
+            lat={posicaoAtual?.lat}
+            lng={posicaoAtual?.lng}
+            height={340}
+            marcadores={rotasAtivas.length === 0 ? marcadoresFretes : []}
+            rotas={rotasAtivas}
+          />
+
+          {fretesAtivos.length > 0 && (
+            <div style={{ margin: "18px 0" }}>
+              <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+                🚛 Fretes em andamento ({fretesAtivos.length})
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10 }}>
+                {fretesAtivos.map((f, idx) => {
+                  const cores = ["#C9A84C", "#2D7A3A", "#2563EB", "#9333EA", "#EF4444"];
+                  const cor = cores[idx % cores.length];
+                  return (
+                    <div key={f.id} style={{ background: "var(--surface)", borderRadius: 12, padding: "12px 14px", border: `2px solid ${cor}`, cursor: "pointer" }}
+                      onClick={() => onNavigate("em-transito", f)}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 20, height: 20, borderRadius: "50%", background: cor, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800 }}>{idx + 1}</div>
+                          <StatusBadge status={f.status} />
+                        </div>
+                        <span style={{ color: "var(--green)", fontWeight: 800, fontSize: 14 }}>{formatMoney(f.valor_motorista || 0)}</span>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
+                      <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>📏 {f.distancia_km} km · 📦 {f.tipo_carga}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-end", margin: "18px 0 14px", flexWrap: "wrap" }}>
+            <div style={{ flex: "2 1 260px" }}>
+              <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Buscar por cidade</div>
+              <CampoCidadeAutocomplete
+                label={null}
+                value={buscaCidade}
+                onChange={setBuscaCidade}
+                onSelecionar={({ cidade }) => setBuscaCidade(cidade)}
+                placeholder="🔍 Cidade de origem"
+                inputStyle={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--text)", fontSize: 13, fontFamily: "Inter, sans-serif" }}
+              />
+            </div>
+            <div style={{ flex: "1 1 220px" }}>
+              <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Tipo de frete</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {[["todos", "Todos"], ["urbano", "🏙️"], ["intermunicipal", "🛣️"], ["interestadual", "🗺️"]].map(([id, label]) => (
+                  <button key={id} onClick={() => setFiltroTipo(id)} style={{ padding: "9px 12px", borderRadius: 20, border: "1px solid", borderColor: filtroTipo === id ? "var(--orange)" : "var(--border)", background: filtroTipo === id ? "var(--orange)" : "var(--dark3)", color: filtroTipo === id ? "#fff" : "var(--text3)", fontSize: 11, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "Inter, sans-serif" }}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{ flex: "1 1 220px" }}>
+              <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase" }}>Peso</div>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[["todos", "Todos"], ["leve", "Até 3t"], ["medio", "3–14t"], ["pesado", "+14t"]].map(([id, label]) => (
+                  <button key={id} onClick={() => setFiltroPeso(id)} style={{ padding: "9px 12px", borderRadius: 20, border: "1px solid", borderColor: filtroPeso === id ? "var(--orange)" : "var(--border)", background: filtroPeso === id ? "var(--orange)" : "var(--dark3)", color: filtroPeso === id ? "#fff" : "var(--text3)", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}>{label}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 14 }}>
+            {online ? `${filtrados.length || disponiveis.length} Fretes Disponíveis` : "Você está offline"}
+          </div>
+
+          {!online && (
+            <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text2)" }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>😴</div>
+              <p style={{ fontWeight: 600 }}>Você está offline</p>
+              <p style={{ fontSize: 13, marginTop: 4 }}>Ative o toggle na barra lateral para receber fretes</p>
+            </div>
+          )}
+
+          {online && loading && <Loading />}
+
+          {online && !loading && (disponiveis.length === 0 ? (
+            <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text2)" }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>🔍</div>
+              <p style={{ fontWeight: 600 }}>Nenhum frete disponível</p>
+              <p style={{ fontSize: 13, marginTop: 4, color: "#444" }}>Novos fretes aparecem aqui automaticamente</p>
+            </div>
+          ) : (
+            <div className="ofertas-grid-desktop">
+              {(filtrados.length > 0 ? filtrados : disponiveis).map(f => {
+                const cargaObj = TIPOS_CARGA.find(c => c.id === f.tipo_carga);
+                return (
+                  <div key={f.id} className="uber-card" onClick={() => onNavigate("aceitar-frete", f)} style={f.prioridade_rota ? { borderColor: "var(--gold)" } : undefined}>
+                    <div className="uber-card-header">
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
+                          <span className="tag-chip">{cargaObj?.icon || "📦"} {cargaObj?.label || f.tipo_carga}</span>
+                          <span className="tag-chip">📏 {f.distancia_km} km</span>
+                        </div>
+                        <div style={{ fontSize: 15, fontWeight: 700 }}>{f.origem_cidade || "—"} → {f.dest_cidade || "—"}</div>
+                        <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4 }}>⚖️ {f.peso_tons}t · 🚛 {f.tipo_veiculo}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div className="price">{formatMoney(f.valor_motorista || 0)}</div>
+                        {f.valorLiquidoEstimado != null && (
+                          <div style={{ fontSize: 11, color: f.valorLiquidoEstimado >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700, marginTop: 2 }}>
+                            ≈ {formatMoney(f.valorLiquidoEstimado)} líquido
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="uber-card-footer">
+                      <span style={{ fontSize: 12, color: "var(--text2)" }}>📍 {f.distancia_motorista_km || "?"} km de você</span>
+                      <button className="btn btn-primary btn-sm" onClick={e => { e.stopPropagation(); onNavigate("aceitar-frete", f); }}>Ver frete</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    </DesktopShell>
+    </>
   );
 }
