@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // SEGURO DE FRETE (Motorista — obrigatório pra aceitar fretes)
@@ -64,10 +65,8 @@ export function SeguroScreen({ onNavigate }) {
   const mostrarForm = !seguro?.valido || editando;
   const semParceiras = seguradoras.length === 0;
 
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Seguro</h1></div>
-      <div className="content">
+  const corpo = (
+    <>
         {error && <div className="alert alert-error">{error}</div>}
         {loading ? <Loading /> : (
           <>
@@ -136,7 +135,22 @@ export function SeguroScreen({ onNavigate }) {
             )}
           </>
         )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Seguro</h1></div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="inicio" onNavigate={onNavigate}>
+        <div className="desktop-form-narrow">
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Seguro</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

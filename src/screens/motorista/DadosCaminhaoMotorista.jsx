@@ -4,6 +4,7 @@ import { api } from "../../services/api";
 import { maskPlaca } from "../../utils/mask";
 import { TIPOS_VEICULO, ICONE_CARROCERIA, eixosPadraoDoChassi } from "../../data/catalogos";
 import { Loading } from "../../components/Loading";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // DADOS DO CAMINHÃO — MOTORISTA
@@ -165,10 +166,8 @@ export function DadosCaminhaoMotorista({ onNavigate }) {
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Meu Caminhão</h1></div>
-      <div className="content">
+  const corpo = (
+    <>
         {loadingData && <Loading />}
         {!loadingData && <>
         {success && <div className="alert alert-success">✅ Dados salvos!</div>}
@@ -403,7 +402,22 @@ export function DadosCaminhaoMotorista({ onNavigate }) {
         </div>
         <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
         </>}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Meu Caminhão</h1></div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="conta" onNavigate={onNavigate}>
+        <div className="desktop-form-narrow">
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Meu Caminhão</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

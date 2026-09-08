@@ -3,6 +3,7 @@ import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { Loading } from "../../components/Loading";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // DISPONIBILIDADE (Motorista — proposta inversa)
@@ -76,10 +77,8 @@ export function DisponibilidadeScreen({ onNavigate }) {
 
   const mostrarForm = !anuncio || editando;
 
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Disponibilidade</h1></div>
-      <div className="content">
+  const corpo = (
+    <>
         {error && <div className="alert alert-error">{error}</div>}
         {loading ? <Loading /> : (
           <>
@@ -139,7 +138,22 @@ export function DisponibilidadeScreen({ onNavigate }) {
             )}
           </>
         )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Disponibilidade</h1></div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="inicio" onNavigate={onNavigate}>
+        <div className="desktop-form-narrow">
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Disponibilidade</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

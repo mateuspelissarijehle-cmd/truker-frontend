@@ -7,6 +7,7 @@ import { Loading } from "../../components/Loading";
 import { HistoricoPrecoRota } from "../../components/HistoricoPrecoRota";
 import { getCurrentPosition } from "../../services/geolocation";
 import { Avatar } from "../../components/Avatar";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // ACEITAR FRETE
@@ -53,25 +54,34 @@ export function AceitarFreteScreen({ frete, onNavigate }) {
   };
 
   if (propostaEnviada) {
+    const conteudoSucesso = (
+      <>
+        <div className="alert alert-success">✅ Sua proposta de {formatMoney(parseFloat(String(valorProposta).replace(",", ".")))} foi enviada ao contratante.</div>
+        <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>
+          Acompanhe a resposta em <strong>Minhas Propostas</strong>. O contratante pode aceitar, recusar ou enviar uma contraproposta.
+        </p>
+        <button className="btn btn-primary" onClick={() => onNavigate("minhas-propostas")}>Ver Minhas Propostas</button>
+        <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => onNavigate("home-motorista")}>Voltar ao início</button>
+      </>
+    );
     return (
-      <div className="screen">
-        <div className="header"><button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button><h1>Proposta Enviada</h1></div>
-        <div className="content">
-          <div className="alert alert-success">✅ Sua proposta de {formatMoney(parseFloat(String(valorProposta).replace(",", ".")))} foi enviada ao contratante.</div>
-          <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>
-            Acompanhe a resposta em <strong>Minhas Propostas</strong>. O contratante pode aceitar, recusar ou enviar uma contraproposta.
-          </p>
-          <button className="btn btn-primary" onClick={() => onNavigate("minhas-propostas")}>Ver Minhas Propostas</button>
-          <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => onNavigate("home-motorista")}>Voltar ao início</button>
+      <>
+        <div className="only-mobile screen">
+          <div className="header"><button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button><h1>Proposta Enviada</h1></div>
+          <div className="content">{conteudoSucesso}</div>
         </div>
-      </div>
+        <DesktopShell tipo="motorista" active="inicio" onNavigate={onNavigate}>
+          <div className="desktop-form-narrow">
+            <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Proposta Enviada</h1>
+            {conteudoSucesso}
+          </div>
+        </DesktopShell>
+      </>
     );
   }
 
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button><h1>Aceitar Frete</h1></div>
-      <div className="content">
+  const corpo = (
+    <>
         {error && (
           <div className="alert alert-error">
             {error}
@@ -207,7 +217,22 @@ export function AceitarFreteScreen({ frete, onNavigate }) {
             <button className="btn btn-secondary" onClick={() => setPropondoValor(false)}>Cancelar</button>
           </div>
         )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button><h1>Aceitar Frete</h1></div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="inicio" onNavigate={onNavigate}>
+        <div className="desktop-form-narrow">
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate("home-motorista")}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Aceitar Frete</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

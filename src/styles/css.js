@@ -235,7 +235,15 @@ export const css = `
      existia nenhum tratamento antes): grade de fretes disponíveis em vez de
      lista empilhada, mesmo padrão do .fretes-grid-desktop/.menu-cards-desktop. */
   .ofertas-grid-desktop { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
-  .ofertas-grid-desktop .uber-card { margin-bottom: 0; }
+  .ofertas-grid-desktop .uber-card, .ofertas-grid-desktop > .card { margin-bottom: 0; }
+  /* Telas de detalhe/formulário simples (Seguro, Disponibilidade, Lavagem,
+     Meu Caminhão, Minhas Finanças...) continuam coluna única mesmo no
+     desktop -- não tem 2º grupo de campos natural pra parear, e forçar uma
+     grade artificial ficaria pior que só ler de cima a baixo. O que
+     precisavam era só a barra fixa + não ficar esticado/minúsculo -- por
+     isso um max-width de leitura confortável em vez do 1080px cheio do
+     shell (que é pensado pra layouts com sidebar/grade). */
+  .desktop-form-narrow { max-width: 640px; }
   /* SosButton.jsx é global (renderizado fora de qualquer tela, sempre visível
      pro motorista) -- .sos-overlay ficava travado em max-width:600px (regra
      acima, pensada pra quando toda tela do motorista era só uma coluna

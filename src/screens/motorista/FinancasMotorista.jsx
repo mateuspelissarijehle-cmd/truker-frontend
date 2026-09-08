@@ -5,6 +5,7 @@ import { formatMoney, formatKm } from "../../utils/format";
 import { TIPOS_DESPESA } from "../../data/catalogos";
 import { useDespesasMotorista } from "../../hooks/useDespesasMotorista";
 import { Loading } from "../../components/Loading";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // MINHAS FINANÇAS — MOTORISTA
@@ -47,10 +48,8 @@ export function FinancasMotorista({ onNavigate }) {
   const totalReceitas = Number(ganhos?.ganhos_total || 0);
   const saldo = totalReceitas - totalDespesas;
 
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Minhas Finanças</h1></div>
-      <div className="content">
+  const corpo = (
+    <>
         <div className="grid-2" style={{ marginBottom: 10 }}>
           <div className="stat-card"><div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Receitas</div><div style={{ fontSize: 18, fontWeight: 800, color: "var(--green)" }}>{formatMoney(totalReceitas)}</div></div>
           <div className="stat-card"><div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Despesas</div><div style={{ fontSize: 18, fontWeight: 800, color: "var(--red)" }}>{formatMoney(totalDespesas)}</div></div>
@@ -253,7 +252,22 @@ export function FinancasMotorista({ onNavigate }) {
           </>
           )
         )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Minhas Finanças</h1></div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="conta" onNavigate={onNavigate}>
+        <div className="desktop-form-narrow">
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Minhas Finanças</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

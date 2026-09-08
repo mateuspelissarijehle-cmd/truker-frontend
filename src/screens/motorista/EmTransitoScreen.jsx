@@ -8,6 +8,7 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { MapaLeaflet } from "../../components/MapaLeaflet";
 import { watchPosition, clearWatch } from "../../services/geolocation";
 import { Avatar } from "../../components/Avatar";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // EM TRÂNSITO — sem mapa próprio (mapa fica na aba Início)
@@ -199,13 +200,9 @@ export function EmTransitoScreen({ frete, onNavigate }) {
     finally { setEnviandoProblema(false); }
   };
 
-  if (freteStatus === "problema_entrega") return (
-    <div className="screen">
-      <div className="header">
-        <button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button>
-        <h1>Frete Ativo</h1>
-      </div>
-      <div className="content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, textAlign: "center" }}>
+  if (freteStatus === "problema_entrega") {
+    const conteudo = (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, textAlign: "center" }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>⚠️</div>
         <div style={{ fontSize: 20, fontWeight: 800, color: "var(--red)", marginBottom: 8 }}>Problema reportado</div>
         <p style={{ color: "var(--text3)", marginBottom: 24, lineHeight: 1.6 }}>
@@ -213,17 +210,28 @@ export function EmTransitoScreen({ frete, onNavigate }) {
         </p>
         <button className="btn btn-secondary" onClick={() => onNavigate("chat", { frete })}>💬 Falar com o Contratante</button>
       </div>
-    </div>
-  );
+    );
+    return (
+      <>
+        <div className="only-mobile screen">
+          <div className="header">
+            <button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button>
+            <h1>Frete Ativo</h1>
+          </div>
+          <div className="content">{conteudo}</div>
+        </div>
+        <DesktopShell tipo="motorista" active="atividade" onNavigate={onNavigate}>{conteudo}</DesktopShell>
+      </>
+    );
+  }
 
-  if (entregueOk) return (
-    <div className="screen">
-      <div className="header"><h1>Frete Ativo</h1></div>
-      <div className="content" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
+  if (entregueOk) {
+    const conteudo = (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400 }}>
         <div style={{ fontSize: 80, marginBottom: 16 }}>✅</div>
         <div style={{ fontSize: 24, fontWeight: 800, color: "var(--green)", marginBottom: 8 }}>Entrega confirmada!</div>
         <div style={{ color: "var(--text3)", textAlign: "center", marginBottom: 24 }}>Frete concluído com sucesso.<br/>Redirecionando...</div>
-        <div style={{ width: "100%" }}>
+        <div style={{ width: "100%", maxWidth: 480 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)", marginBottom: 8 }}>🎯 Fretes de retorno disponíveis:</div>
           {loadingFretesRetorno && <Loading />}
           {!loadingFretesRetorno && fretesRetorno.length === 0 && (
@@ -246,16 +254,20 @@ export function EmTransitoScreen({ frete, onNavigate }) {
           })}
         </div>
       </div>
-    </div>
-  );
+    );
+    return (
+      <>
+        <div className="only-mobile screen">
+          <div className="header"><h1>Frete Ativo</h1></div>
+          <div className="content">{conteudo}</div>
+        </div>
+        <DesktopShell tipo="motorista" active="atividade" onNavigate={onNavigate}>{conteudo}</DesktopShell>
+      </>
+    );
+  }
 
-  return (
-    <div className="screen">
-      <div className="header">
-        <button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button>
-        <h1>Frete Ativo</h1>
-      </div>
-      <div className="content">
+  const corpo = (
+    <>
         {error && <div className="alert alert-error">{error}</div>}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <StatusBadge status={freteStatus} />
@@ -483,7 +495,25 @@ export function EmTransitoScreen({ frete, onNavigate }) {
             <button className="btn btn-secondary btn-sm" style={{ marginTop: 4 }} onClick={solicitarCodigo} disabled={loading}>🔄 Reenviar código</button>
           </div>
         )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header">
+          <button className="back-btn" onClick={() => onNavigate("home-motorista")}>←</button>
+          <h1>Frete Ativo</h1>
+        </div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="atividade" onNavigate={onNavigate}>
+        <div style={{ maxWidth: 780, margin: "0 auto" }}>
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate("home-motorista")}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Frete Ativo</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

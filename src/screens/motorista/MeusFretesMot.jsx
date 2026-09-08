@@ -5,6 +5,7 @@ import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { BottomNavMotorista } from "../../components/BottomNavMotorista";
+import { DesktopShell } from "../../components/DesktopShell";
 import { DetalheFreteMotoristaModal } from "./DetalheFreteMotoristaModal";
 
 // ─────────────────────────────────────────────
@@ -38,52 +39,83 @@ export function MeusFretesMot({ onNavigate }) {
 
   const totalGanho = fretes.filter(f => f.status === "entregue").reduce((a, f) => a + Number(f.valor_motorista || 0), 0);
 
-  return (
-    <div className="screen">
-      <div className="header"><h1>Meus Fretes</h1></div>
-      <div className="content">
-        <div className="grid-2" style={{ marginBottom: 14 }}>
-          <div className="stat-card">
-            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total fretes</div>
-            <div className="stat-value" style={{ fontSize: 24 }}>{fretes.length}</div>
-          </div>
-          <div className="stat-card">
-            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total ganho</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--green)" }}>{formatMoney(totalGanho)}</div>
-          </div>
+  const filtroBotoes = (
+    <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+      {[["todos","Todos"],["andamento","Em andamento"],["concluido","Concluídos"]].map(([s, l]) => (
+        <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--gold)" : "var(--border)", background: filtro === s ? "var(--gold)" : "var(--surface)", color: filtro === s ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}>{l}</button>
+      ))}
+    </div>
+  );
+
+  const cardFrete = (f) => {
+    const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
+    const emAndamento = ["aceito", "em_rota", "coletando"].includes(f.status);
+    const finalizado = f.status === "entregue";
+    return (
+      <div key={f.id} className="frete-card" onClick={finalizado ? () => setDetalheFrete(f) : undefined} style={{ cursor: finalizado ? "pointer" : "default" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <StatusBadge status={f.status} />
+          <div style={{ fontWeight: 800, color: "var(--green)", fontSize: 18 }}>{formatMoney(f.valor_motorista || f.valor_antt || 0)}</div>
         </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-          {[["todos","Todos"],["andamento","Em andamento"],["concluido","Concluídos"]].map(([s, l]) => (
-            <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--gold)" : "var(--border)", background: filtro === s ? "var(--gold)" : "var(--surface)", color: filtro === s ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "Inter, sans-serif" }}>{l}</button>
-          ))}
-        </div>
-        {contratoError && <div className="alert alert-error">{contratoError}</div>}
-        {loading ? <Loading /> : filtrados.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
-        ) : filtrados.map(f => {
-          const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
-          const emAndamento = ["aceito", "em_rota", "coletando"].includes(f.status);
-          const finalizado = f.status === "entregue";
-          return (
-            <div key={f.id} className="frete-card" onClick={finalizado ? () => setDetalheFrete(f) : undefined} style={{ cursor: finalizado ? "pointer" : "default" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                <StatusBadge status={f.status} />
-                <div style={{ fontWeight: 800, color: "var(--green)", fontSize: 18 }}>{formatMoney(f.valor_motorista || f.valor_antt || 0)}</div>
-              </div>
-              <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
-              <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>📅 {data}</span></div>
-              {emAndamento && (
-                <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("em-transito", f)}>📍 Ver em trânsito</button>
-              )}
-              {finalizado && (
-                <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={(e) => { e.stopPropagation(); verContrato(f.id); }} disabled={contratoLoadingId === f.id}>
-                  {contratoLoadingId === f.id ? "Baixando contrato..." : "📄 Baixar Contrato"}
-                </button>
-              )}
-            </div>
-          );
-        })}
+        <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
+        <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>📅 {data}</span></div>
+        {emAndamento && (
+          <button className="btn btn-primary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={() => onNavigate("em-transito", f)}>📍 Ver em trânsito</button>
+        )}
+        {finalizado && (
+          <button className="btn btn-secondary btn-sm" style={{ marginTop: 10, width: "100%" }} onClick={(e) => { e.stopPropagation(); verContrato(f.id); }} disabled={contratoLoadingId === f.id}>
+            {contratoLoadingId === f.id ? "Baixando contrato..." : "📄 Baixar Contrato"}
+          </button>
+        )}
       </div>
+    );
+  };
+
+  const grade = loading ? <Loading /> : filtrados.length === 0 ? (
+    <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
+  ) : <div className="fretes-grid-desktop">{filtrados.map(cardFrete)}</div>;
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><h1>Meus Fretes</h1></div>
+        <div className="content">
+          <div className="grid-2" style={{ marginBottom: 14 }}>
+            <div className="stat-card">
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total fretes</div>
+              <div className="stat-value" style={{ fontSize: 24 }}>{fretes.length}</div>
+            </div>
+            <div className="stat-card">
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total ganho</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "var(--green)" }}>{formatMoney(totalGanho)}</div>
+            </div>
+          </div>
+          {filtroBotoes}
+          {contratoError && <div className="alert alert-error">{contratoError}</div>}
+          {grade}
+        </div>
+        <BottomNavMotorista active="atividade" onNavigate={onNavigate} />
+      </div>
+
+      <DesktopShell tipo="motorista" active="atividade" onNavigate={onNavigate}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800 }}>Meus Fretes</h1>
+          <div style={{ display: "flex", gap: 16 }}>
+            <div className="stat-card" style={{ padding: "10px 20px", textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase" }}>Total fretes</div>
+              <div className="stat-value" style={{ fontSize: 20 }}>{fretes.length}</div>
+            </div>
+            <div className="stat-card" style={{ padding: "10px 20px", textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase" }}>Total ganho</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "var(--green)" }}>{formatMoney(totalGanho)}</div>
+            </div>
+          </div>
+        </div>
+        {filtroBotoes}
+        {contratoError && <div className="alert alert-error">{contratoError}</div>}
+        {grade}
+      </DesktopShell>
+
       {detalheFrete && (
         <DetalheFreteMotoristaModal
           frete={detalheFrete}
@@ -93,7 +125,6 @@ export function MeusFretesMot({ onNavigate }) {
           contratoLoadingId={contratoLoadingId}
         />
       )}
-      <BottomNavMotorista active="atividade" onNavigate={onNavigate} />
-    </div>
+    </>
   );
 }

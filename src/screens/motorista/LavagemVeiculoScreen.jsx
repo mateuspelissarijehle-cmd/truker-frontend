@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../context/useAuth";
 import { api, apiUpload } from "../../services/api";
 import { Loading } from "../../components/Loading";
+import { DesktopShell } from "../../components/DesktopShell";
 import { API_BASE } from "../../config";
 
 // ─────────────────────────────────────────────
@@ -51,10 +52,8 @@ export function LavagemVeiculoScreen({ onNavigate }) {
     finally { setSalvando(false); }
   };
 
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Lavagem do Veículo</h1></div>
-      <div className="content">
+  const corpo = (
+    <>
         {error && <div className="alert alert-error">{error}</div>}
         {sucesso && <div className="alert alert-success">{sucesso}</div>}
         {loading ? <Loading /> : (
@@ -115,7 +114,22 @@ export function LavagemVeiculoScreen({ onNavigate }) {
             )}
           </>
         )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Lavagem do Veículo</h1></div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="inicio" onNavigate={onNavigate}>
+        <div className="desktop-form-narrow">
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Lavagem do Veículo</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }

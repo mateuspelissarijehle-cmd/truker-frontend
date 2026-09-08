@@ -6,6 +6,7 @@ import { maskCep } from "../../utils/mask";
 import { Loading } from "../../components/Loading";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { Avatar } from "../../components/Avatar";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // DADOS PESSOAIS — MOTORISTA
@@ -152,131 +153,193 @@ export function DadosPessoaisMotorista({ onNavigate }) {
     } catch (e) { setError(e.message); }
     finally { setLoading(false); }
   };
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
-      <div className="content">
-        {loadingData && <Loading />}
-        {!loadingData && <>
-        {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
-        {error && <div className="alert alert-error">{error}</div>}
-        <div className="card" style={{ textAlign: "center", padding: "20px" }}>
-          <div style={{ margin: "0 auto 12px", width: 80 }}>
-            <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={80} />
-          </div>
-          {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
-          <label className="btn btn-secondary btn-sm" style={{ width: "auto", display: "inline-block", cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
-            {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
-            <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
-          </label>
-        </div>
-        <div className="card">
-          <div className="card-title">🏢 Empresa (opcional)</div>
-          <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
-            Se você roda por uma empresa/MEI, o nome e o logo aparecem no seu perfil pros contratantes.
-          </p>
-          <div className="field"><label>Nome da empresa</label><input value={form.nomeEmpresa} onChange={e => set("nomeEmpresa", e.target.value)} placeholder="Ex: Transportes Silva LTDA" /></div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
-            <Avatar nome={form.nomeEmpresa || form.nome} fotoUrl={logoUrl} logoEmpresaUrl={null} size={48} />
-            <label className="btn btn-secondary btn-sm" style={{ width: "auto", cursor: enviandoLogo ? "default" : "pointer", opacity: enviandoLogo ? 0.6 : 1 }}>
-              {enviandoLogo ? "Enviando..." : "🖼️ Enviar logo da empresa"}
-              <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoLogo} onChange={e => enviarImagemPerfil("logo", e)} />
-            </label>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-title">Identificação</div>
-          <div className="field"><label>CPF</label><input value={form.cpf} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" /></div>
-          <div className="field"><label>Número CNH</label><input value={form.cnh} onChange={e => set("cnh", e.target.value)} placeholder="00000000000" /></div>
-          <div className="field"><label>RNTRC (ANTT)</label><input value={form.rntrc} onChange={e => set("rntrc", e.target.value)} placeholder="00000000" /></div>
-        </div>
-        <div className="card">
-          <div className="card-title">Contato</div>
-          <div className="field"><label>Email</label><input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="seu@email.com" /></div>
-          <div className="field"><label>Telefone / WhatsApp</label><input value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
-        </div>
-        <div className="card">
-          <div className="card-title">🆘 Contato de Emergência</div>
-          <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
-            Usado pelo botão de SOS pra avisar alguém com sua localização em caso de emergência.
-          </p>
-          <div className="field"><label>Nome</label><input value={form.contatoEmergenciaNome} onChange={e => set("contatoEmergenciaNome", e.target.value)} placeholder="Nome do contato" /></div>
-          <div className="field"><label>Telefone</label><input value={form.contatoEmergenciaTelefone} onChange={e => set("contatoEmergenciaTelefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
-        </div>
-        <div className="card">
-          <div className="card-title">💰 Chave Pix</div>
-          <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
-            Usada pro repasse automático dos seus ganhos.
-          </p>
-          <div className="field">
-            <label>Tipo de chave</label>
-            <select value={form.chavePixTipo} onChange={e => set("chavePixTipo", e.target.value)}>
-              <option value="">Selecione...</option>
-              <option value="cpf">CPF</option>
-              <option value="cnpj">CNPJ</option>
-              <option value="email">E-mail</option>
-              <option value="telefone">Telefone</option>
-              <option value="aleatoria">Chave aleatória</option>
-            </select>
-          </div>
-          <div className="field"><label>Chave Pix</label><input value={form.chavePix} onChange={e => set("chavePix", e.target.value)} placeholder="Digite a chave" /></div>
-        </div>
-        <div className="card">
-          <div className="card-title">Endereço</div>
-          <div className="field"><label>CEP</label><input value={form.cep} onChange={e => { const v = maskCep(e.target.value); set("cep", v); if (v.replace(/\D/g,"").length===8) fillCep(v); }} placeholder="00000-000" /></div>
-          <div className="field"><label>Logradouro</label><input value={form.logradouro} onChange={e => set("logradouro", e.target.value)} placeholder="Rua, Avenida..." /></div>
-          <div className="grid-2">
-            <div className="field"><label>Número</label><input value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="123" /></div>
-            <div className="field"><label>Complemento</label><input value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Apto..." /></div>
-          </div>
-          <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
-          <div className="grid-2">
-            <CampoCidadeAutocomplete
-              value={form.cidade} onChange={v => set("cidade", v)}
-              onSelecionar={({ cidade, uf }) => { set("cidade", cidade); if (uf) set("uf", uf); }}
-              placeholder="Curitiba"
-            />
-            <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
-          </div>
-        </div>
-        <div className="card">
-          <div className="card-title">Documentação</div>
-          <div className="info-row">
-            <span className="info-label" style={{ fontSize: 13 }}>📄 CNH (frente e verso)</span>
-            <span className={`badge ${cnhUrl ? "badge-active" : "badge-pending"}`}>{cnhUrl ? "Enviada" : "Pendente"}</span>
-          </div>
-          {DOCS_CONFIG.map(({ campo, label }) => (
-            <div key={campo} className="info-row">
-              <span className="info-label" style={{ fontSize: 13 }}>{label}</span>
-              <span className={`badge ${docs[campo].url ? "badge-active" : "badge-pending"}`}>{docs[campo].url ? "Enviada" : "Pendente"}</span>
-            </div>
-          ))}
-          {cnhErro && <div className="alert alert-error" style={{ marginTop: 10 }}>{cnhErro}</div>}
-          <label className="upload-area" style={{ display: "block", marginTop: 14, cursor: enviandoCnh ? "default" : "pointer", opacity: enviandoCnh ? 0.6 : 1 }}>
-            {enviandoCnh ? "Enviando..." : "📤 Enviar CNH (frente e verso)"}
-            <input
-              type="file" accept="image/*,.pdf,.heic,.heif" style={{ display: "none" }}
-              disabled={enviandoCnh}
-              onChange={enviarCnh}
-            />
-          </label>
-          {DOCS_CONFIG.map(({ campo, urlKey, botao }) => (
-            <div key={campo}>
-              {docs[campo].erro && <div className="alert alert-error" style={{ marginTop: 10 }}>{docs[campo].erro}</div>}
-              <label className="upload-area" style={{ display: "block", marginTop: 14, cursor: docs[campo].enviando ? "default" : "pointer", opacity: docs[campo].enviando ? 0.6 : 1 }}>
-                {docs[campo].enviando ? "Enviando..." : `📤 ${botao}`}
-                <input
-                  type="file" accept="image/*,.pdf,.heic,.heif" style={{ display: "none" }}
-                  disabled={docs[campo].enviando}
-                  onChange={e => enviarDocumento(campo, urlKey, e)}
-                />
-              </label>
-            </div>
-          ))}
-        </div>
-        <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
-        </>}
+  const cardEmpresa = (
+    <div className="card">
+      <div className="card-title">🏢 Empresa (opcional)</div>
+      <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+        Se você roda por uma empresa/MEI, o nome e o logo aparecem no seu perfil pros contratantes.
+      </p>
+      <div className="field"><label>Nome da empresa</label><input value={form.nomeEmpresa} onChange={e => set("nomeEmpresa", e.target.value)} placeholder="Ex: Transportes Silva LTDA" /></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 4 }}>
+        <Avatar nome={form.nomeEmpresa || form.nome} fotoUrl={logoUrl} logoEmpresaUrl={null} size={48} />
+        <label className="btn btn-secondary btn-sm" style={{ width: "auto", cursor: enviandoLogo ? "default" : "pointer", opacity: enviandoLogo ? 0.6 : 1 }}>
+          {enviandoLogo ? "Enviando..." : "🖼️ Enviar logo da empresa"}
+          <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoLogo} onChange={e => enviarImagemPerfil("logo", e)} />
+        </label>
       </div>
     </div>
+  );
+  const cardIdentificacao = (
+    <div className="card">
+      <div className="card-title">Identificação</div>
+      <div className="field"><label>CPF</label><input value={form.cpf} onChange={e => set("cpf", e.target.value)} placeholder="000.000.000-00" /></div>
+      <div className="field"><label>Número CNH</label><input value={form.cnh} onChange={e => set("cnh", e.target.value)} placeholder="00000000000" /></div>
+      <div className="field"><label>RNTRC (ANTT)</label><input value={form.rntrc} onChange={e => set("rntrc", e.target.value)} placeholder="00000000" /></div>
+    </div>
+  );
+  const cardContato = (
+    <div className="card">
+      <div className="card-title">Contato</div>
+      <div className="field"><label>Email</label><input type="email" value={form.email} onChange={e => set("email", e.target.value)} placeholder="seu@email.com" /></div>
+      <div className="field"><label>Telefone / WhatsApp</label><input value={form.telefone} onChange={e => set("telefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+    </div>
+  );
+  const cardEmergencia = (
+    <div className="card">
+      <div className="card-title">🆘 Contato de Emergência</div>
+      <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+        Usado pelo botão de SOS pra avisar alguém com sua localização em caso de emergência.
+      </p>
+      <div className="field"><label>Nome</label><input value={form.contatoEmergenciaNome} onChange={e => set("contatoEmergenciaNome", e.target.value)} placeholder="Nome do contato" /></div>
+      <div className="field"><label>Telefone</label><input value={form.contatoEmergenciaTelefone} onChange={e => set("contatoEmergenciaTelefone", e.target.value)} placeholder="(41) 99999-9999" /></div>
+    </div>
+  );
+  const cardPix = (
+    <div className="card">
+      <div className="card-title">💰 Chave Pix</div>
+      <p style={{ fontSize: 12, color: "var(--text3)", marginBottom: 12 }}>
+        Usada pro repasse automático dos seus ganhos.
+      </p>
+      <div className="field">
+        <label>Tipo de chave</label>
+        <select value={form.chavePixTipo} onChange={e => set("chavePixTipo", e.target.value)}>
+          <option value="">Selecione...</option>
+          <option value="cpf">CPF</option>
+          <option value="cnpj">CNPJ</option>
+          <option value="email">E-mail</option>
+          <option value="telefone">Telefone</option>
+          <option value="aleatoria">Chave aleatória</option>
+        </select>
+      </div>
+      <div className="field"><label>Chave Pix</label><input value={form.chavePix} onChange={e => set("chavePix", e.target.value)} placeholder="Digite a chave" /></div>
+    </div>
+  );
+  const cardEndereco = (
+    <div className="card">
+      <div className="card-title">Endereço</div>
+      <div className="field"><label>CEP</label><input value={form.cep} onChange={e => { const v = maskCep(e.target.value); set("cep", v); if (v.replace(/\D/g,"").length===8) fillCep(v); }} placeholder="00000-000" /></div>
+      <div className="field"><label>Logradouro</label><input value={form.logradouro} onChange={e => set("logradouro", e.target.value)} placeholder="Rua, Avenida..." /></div>
+      <div className="grid-2">
+        <div className="field"><label>Número</label><input value={form.numero} onChange={e => set("numero", e.target.value)} placeholder="123" /></div>
+        <div className="field"><label>Complemento</label><input value={form.complemento} onChange={e => set("complemento", e.target.value)} placeholder="Apto..." /></div>
+      </div>
+      <div className="field"><label>Bairro</label><input value={form.bairro} onChange={e => set("bairro", e.target.value)} placeholder="Centro" /></div>
+      <div className="grid-2">
+        <CampoCidadeAutocomplete
+          value={form.cidade} onChange={v => set("cidade", v)}
+          onSelecionar={({ cidade, uf }) => { set("cidade", cidade); if (uf) set("uf", uf); }}
+          placeholder="Curitiba"
+        />
+        <div className="field"><label>UF</label><input value={form.uf} onChange={e => set("uf", e.target.value.toUpperCase())} placeholder="PR" maxLength={2} /></div>
+      </div>
+    </div>
+  );
+  const cardDocumentacao = (
+    <div className="card">
+      <div className="card-title">Documentação</div>
+      <div className="info-row">
+        <span className="info-label" style={{ fontSize: 13 }}>📄 CNH (frente e verso)</span>
+        <span className={`badge ${cnhUrl ? "badge-active" : "badge-pending"}`}>{cnhUrl ? "Enviada" : "Pendente"}</span>
+      </div>
+      {DOCS_CONFIG.map(({ campo, label }) => (
+        <div key={campo} className="info-row">
+          <span className="info-label" style={{ fontSize: 13 }}>{label}</span>
+          <span className={`badge ${docs[campo].url ? "badge-active" : "badge-pending"}`}>{docs[campo].url ? "Enviada" : "Pendente"}</span>
+        </div>
+      ))}
+      {cnhErro && <div className="alert alert-error" style={{ marginTop: 10 }}>{cnhErro}</div>}
+      <label className="upload-area" style={{ display: "block", marginTop: 14, cursor: enviandoCnh ? "default" : "pointer", opacity: enviandoCnh ? 0.6 : 1 }}>
+        {enviandoCnh ? "Enviando..." : "📤 Enviar CNH (frente e verso)"}
+        <input
+          type="file" accept="image/*,.pdf,.heic,.heif" style={{ display: "none" }}
+          disabled={enviandoCnh}
+          onChange={enviarCnh}
+        />
+      </label>
+      {DOCS_CONFIG.map(({ campo, urlKey, botao }) => (
+        <div key={campo}>
+          {docs[campo].erro && <div className="alert alert-error" style={{ marginTop: 10 }}>{docs[campo].erro}</div>}
+          <label className="upload-area" style={{ display: "block", marginTop: 14, cursor: docs[campo].enviando ? "default" : "pointer", opacity: docs[campo].enviando ? 0.6 : 1 }}>
+            {docs[campo].enviando ? "Enviando..." : `📤 ${botao}`}
+            <input
+              type="file" accept="image/*,.pdf,.heic,.heif" style={{ display: "none" }}
+              disabled={docs[campo].enviando}
+              onChange={e => enviarDocumento(campo, urlKey, e)}
+            />
+          </label>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
+        <div className="content">
+          {loadingData && <Loading />}
+          {!loadingData && <>
+          {success && <div className="alert alert-success">✅ Dados salvos com sucesso!</div>}
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="card" style={{ textAlign: "center", padding: "20px" }}>
+            <div style={{ margin: "0 auto 12px", width: 80 }}>
+              <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={80} />
+            </div>
+            {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
+            <label className="btn btn-secondary btn-sm" style={{ width: "auto", display: "inline-block", cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
+              {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
+              <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
+            </label>
+          </div>
+          {cardEmpresa}
+          {cardIdentificacao}
+          {cardContato}
+          {cardEmergencia}
+          {cardPix}
+          {cardEndereco}
+          {cardDocumentacao}
+          <button className="btn btn-primary" onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+          </>}
+        </div>
+      </div>
+
+      {/* Desktop: mesmo padrão já provado em DadosPessoaisContratante -- foto
+          + botão salvar viram barra lateral fixa, campos ganham 2 colunas
+          reais (item 6, 08/09/2026). */}
+      <DesktopShell tipo="motorista" active="conta" onNavigate={onNavigate}>
+        <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Dados Pessoais</h1>
+        {loadingData && <Loading />}
+        {!loadingData && (
+          <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, alignItems: "start" }}>
+            <div style={{ position: "sticky", top: 16 }}>
+              <div className="card" style={{ textAlign: "center", padding: "20px" }}>
+                <div style={{ margin: "0 auto 12px", width: 96 }}>
+                  <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={96} />
+                </div>
+                {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
+                <label className="btn btn-secondary btn-sm" style={{ cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
+                  {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
+                  <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
+                </label>
+              </div>
+              {success && <div className="alert alert-success" style={{ marginTop: 14 }}>✅ Dados salvos com sucesso!</div>}
+              {error && <div className="alert alert-error" style={{ marginTop: 14 }}>{error}</div>}
+              <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {cardIdentificacao}
+              {cardContato}
+              <div style={{ gridColumn: "1 / -1" }}>{cardEmpresa}</div>
+              <div style={{ gridColumn: "1 / -1" }}>{cardEmergencia}</div>
+              {cardPix}
+              <div />
+              <div style={{ gridColumn: "1 / -1" }}>{cardEndereco}</div>
+              <div style={{ gridColumn: "1 / -1" }}>{cardDocumentacao}</div>
+            </div>
+          </div>
+        )}
+      </DesktopShell>
+    </>
   );
 }

@@ -3,6 +3,7 @@ import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { formatMoney } from "../../utils/format";
 import { Loading } from "../../components/Loading";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // EXTRATO DE UM FRETE — MOTORISTA
@@ -28,13 +29,8 @@ export function ExtratoFreteMotoristaScreen({ dados, onNavigate }) {
   const ehCompensacao = extrato?.tipo === "compensacao_cancelamento";
   const cd = extrato?.compensacaoDetalhes;
 
-  return (
-    <div className="screen">
-      <div className="header">
-        <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
-        <h1>{ehCompensacao ? "Compensação" : "Extrato do Frete"}</h1>
-      </div>
-      <div className="content">
+  const corpo = (
+    <>
         {loading && <Loading />}
         {error && <div className="alert alert-error">{error}</div>}
         {extrato && (
@@ -94,7 +90,25 @@ export function ExtratoFreteMotoristaScreen({ dados, onNavigate }) {
             )}
           </>
         )}
+    </>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header">
+          <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
+          <h1>{ehCompensacao ? "Compensação" : "Extrato do Frete"}</h1>
+        </div>
+        <div className="content">{corpo}</div>
       </div>
-    </div>
+      <DesktopShell tipo="motorista" active="atividade" onNavigate={onNavigate}>
+        <div className="desktop-form-narrow">
+          <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>{ehCompensacao ? "Compensação" : "Extrato do Frete"}</h1>
+          {corpo}
+        </div>
+      </DesktopShell>
+    </>
   );
 }
