@@ -11,6 +11,7 @@ import {
 } from "../../data/catalogos";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { HistoricoPrecoRota } from "../../components/HistoricoPrecoRota";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // SOLICITAR FRETE
@@ -514,14 +515,13 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
         wizard de passos), campos organizados lado a lado, com um resumo/
         preço fixo na lateral (padrão checkout) em vez de um card solto no
         fim de uma lista comprida. Mesmo estado/handlers do formulário
-        mobile acima -- só a disposição visual é diferente. Ver
-        .only-desktop/.screen-form-desktop em styles/css.js. */}
-    <div className="only-desktop screen-form-desktop">
-      <div className="header">
-        <button className="back-btn" onClick={() => onNavigate(-1)}>←</button>
-        <h1>Solicitar Frete</h1>
-      </div>
-      <div className="form-wide-inner" style={{ padding: "24px 32px 60px" }}>
+        mobile acima -- só a disposição visual é diferente. Barra fixa
+        (TopNavDesktop) migrada do header próprio de antes pro shell
+        compartilhado (08/09/2026) -- o formulário em si não mudou. */}
+    <DesktopShell tipo="contratante" active="inicio" onNavigate={onNavigate}>
+      <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Solicitar Frete</h1>
+      <div>
         {motoristaConvidadoId && (
           <div style={{ background: "var(--gold-light)", border: "1px solid var(--gold)", borderRadius: 10, padding: "10px 12px", marginBottom: 14, fontSize: 12, color: "var(--text)", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 16 }}>🚛</span>
@@ -777,7 +777,7 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
           </div>
         </div>
       </div>
-    </div>
+    </DesktopShell>
     </>
   );
 }

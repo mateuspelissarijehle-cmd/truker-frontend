@@ -3,6 +3,7 @@ import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { BottomNavContratante } from "../../components/BottomNavContratante";
 import { Avatar } from "../../components/Avatar";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // PERFIL CONTRATANTE
@@ -88,13 +89,14 @@ export function PerfilContratante({ onNavigate }) {
         <BottomNavContratante active="conta" onNavigate={onNavigate} />
       </div>
 
-      {/* Desktop: perfil vira uma barra lateral fixa (não precisa rolar pra
-          ver quem está logado nem pra sair da conta) e as duas listas de
-          links ficam lado a lado -- página de conta de verdade, não uma
-          lista de celular esticada (achado do Mateus, 02/09/2026). */}
-      <div className="only-desktop screen-form-desktop">
-        <div className="header"><h1>Conta</h1></div>
-        <div className="form-wide-inner" style={{ paddingTop: 8, paddingBottom: 40, display: "grid", gridTemplateColumns: "320px 1fr", gap: 24, alignItems: "start" }}>
+      {/* Desktop: mesmo shell (TopNavDesktop) de toda outra rota desktop --
+          antes disso usava um header próprio (.screen-form-desktop), migrado
+          aqui pro shell compartilhado (item 6, 08/09/2026). Perfil vira uma
+          barra lateral fixa (não precisa rolar pra ver quem está logado nem
+          pra sair da conta) e as duas listas de links ficam lado a lado. */}
+      <DesktopShell tipo="contratante" active="conta" onNavigate={onNavigate}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Conta</h1>
+        <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 24, alignItems: "start" }}>
           <div style={{ position: "sticky", top: 16 }}>
             {cartaoPerfil(88)}
             <button className="btn btn-danger" style={{ marginTop: 14 }} onClick={logout}>Sair da Conta</button>
@@ -114,7 +116,7 @@ export function PerfilContratante({ onNavigate }) {
             </div>
           </div>
         </div>
-      </div>
+      </DesktopShell>
     </>
   );
 }

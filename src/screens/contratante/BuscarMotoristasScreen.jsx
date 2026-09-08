@@ -3,6 +3,7 @@ import { useAuth } from "../../context/useAuth";
 import { api } from "../../services/api";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { Avatar } from "../../components/Avatar";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // BUSCAR MOTORISTAS (Contratante — proposta inversa)
@@ -46,53 +47,80 @@ export function BuscarMotoristasScreen({ onNavigate }) {
     });
   };
 
-  return (
-    <div className="screen">
-      <div className="header"><button className="back-btn" onClick={() => onNavigate("home-contratante")}>←</button><h1>Buscar Motoristas</h1></div>
-      <div className="content">
-        <div className="card">
-          <div className="card-title">📍 Onde o motorista está?</div>
-          <div className="grid-2">
-            <CampoCidadeAutocomplete
-              label="Cidade" value={cidade}
-              onChange={setCidade}
-              onSelecionar={({ cidade: c, uf: u }) => { setCidade(c); if (u) setUf(u); }}
-              placeholder="Curitiba"
-            />
-            <div className="field"><label>UF</label><input value={uf} onChange={e => setUf(e.target.value.toUpperCase())} maxLength={2} placeholder="PR" /></div>
-          </div>
-          <button className="btn btn-primary" onClick={buscar} disabled={loading} style={{ marginTop: 4 }}>{loading ? "Buscando..." : "🔍 Buscar"}</button>
-        </div>
-        {error && <div className="alert alert-error">{error}</div>}
+  const cartaoBusca = (
+    <div className="card">
+      <div className="card-title">📍 Onde o motorista está?</div>
+      <div className="grid-2">
+        <CampoCidadeAutocomplete
+          label="Cidade" value={cidade}
+          onChange={setCidade}
+          onSelecionar={({ cidade: c, uf: u }) => { setCidade(c); if (u) setUf(u); }}
+          placeholder="Curitiba"
+        />
+        <div className="field"><label>UF</label><input value={uf} onChange={e => setUf(e.target.value.toUpperCase())} maxLength={2} placeholder="PR" /></div>
+      </div>
+      <button className="btn btn-primary" onClick={buscar} disabled={loading} style={{ marginTop: 4 }}>{loading ? "Buscando..." : "🔍 Buscar"}</button>
+    </div>
+  );
 
-        {resultados !== null && (
-          resultados.length === 0 ? (
-            <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>🚛</div>
-              Nenhum motorista disponível nessa cidade no momento
-            </div>
-          ) : resultados.map(m => (
-            <div key={m.motorista_id} className="uber-card">
-              <div className="uber-card-header" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Avatar nome={m.motorista_nome} fotoUrl={m.motorista_foto_url} logoEmpresaUrl={m.motorista_logo_empresa_url} size={44} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>{m.motorista_nome}</div>
-                  <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>🚛 {m.tipo_veiculo}{m.placa_veiculo ? ` · ${m.placa_veiculo}` : ""}</div>
-                  {Number(m.avaliacao_media) > 0 && <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>⭐ {Number(m.avaliacao_media).toFixed(1)}</div>}
-                </div>
-              </div>
-              <div style={{ padding: "0 16px 14px", display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <span className="tag-chip">🕐 {formatDisponibilidade(m.disponivel_em)}</span>
-                {m.cidade_destino && <span className="tag-chip">🎯 Quer ir até {m.cidade_destino}/{m.uf_destino}</span>}
-              </div>
-              <div className="uber-card-footer">
-                <span style={{ fontSize: 12, color: "var(--text3)" }}>{m.cidade_atual}/{m.uf_atual}</span>
-                <button className="btn btn-primary btn-sm" onClick={() => convidar(m)}>Convidar pra este frete</button>
-              </div>
-            </div>
-          ))
-        )}
+  const cardMotorista = (m) => (
+    <div key={m.motorista_id} className="uber-card">
+      <div className="uber-card-header" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Avatar nome={m.motorista_nome} fotoUrl={m.motorista_foto_url} logoEmpresaUrl={m.motorista_logo_empresa_url} size={44} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{m.motorista_nome}</div>
+          <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>🚛 {m.tipo_veiculo}{m.placa_veiculo ? ` · ${m.placa_veiculo}` : ""}</div>
+          {Number(m.avaliacao_media) > 0 && <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>⭐ {Number(m.avaliacao_media).toFixed(1)}</div>}
+        </div>
+      </div>
+      <div style={{ padding: "0 16px 14px", display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <span className="tag-chip">🕐 {formatDisponibilidade(m.disponivel_em)}</span>
+        {m.cidade_destino && <span className="tag-chip">🎯 Quer ir até {m.cidade_destino}/{m.uf_destino}</span>}
+      </div>
+      <div className="uber-card-footer">
+        <span style={{ fontSize: 12, color: "var(--text3)" }}>{m.cidade_atual}/{m.uf_atual}</span>
+        <button className="btn btn-primary btn-sm" onClick={() => convidar(m)}>Convidar pra este frete</button>
       </div>
     </div>
+  );
+
+  const resultadosVazio = (
+    <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}>
+      <div style={{ fontSize: 36, marginBottom: 8 }}>🚛</div>
+      Nenhum motorista disponível nessa cidade no momento
+    </div>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header"><button className="back-btn" onClick={() => onNavigate("home-contratante")}>←</button><h1>Buscar Motoristas</h1></div>
+        <div className="content">
+          {cartaoBusca}
+          {error && <div className="alert alert-error">{error}</div>}
+          {resultados !== null && (resultados.length === 0 ? resultadosVazio : resultados.map(cardMotorista))}
+        </div>
+      </div>
+
+      <DesktopShell tipo="contratante" active="buscar" onNavigate={onNavigate}>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Buscar Motoristas</h1>
+        <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 24, alignItems: "start" }}>
+          <div style={{ position: "sticky", top: 16 }}>
+            {cartaoBusca}
+            {error && <div className="alert alert-error" style={{ marginTop: 14 }}>{error}</div>}
+          </div>
+          <div>
+            {resultados === null ? (
+              <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text3)" }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>🔍</div>
+                Informe cidade e UF pra buscar motoristas disponíveis
+              </div>
+            ) : resultados.length === 0 ? resultadosVazio : (
+              <div className="ofertas-grid-desktop">{resultados.map(cardMotorista)}</div>
+            )}
+          </div>
+        </div>
+      </DesktopShell>
+    </>
   );
 }

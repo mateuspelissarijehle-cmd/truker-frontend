@@ -6,6 +6,7 @@ import { maskCep } from "../../utils/mask";
 import { Loading } from "../../components/Loading";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { Avatar } from "../../components/Avatar";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // DADOS PESSOAIS — CONTRATANTE
@@ -174,42 +175,43 @@ export function DadosPessoaisContratante({ onNavigate }) {
         </div>
       </div>
 
-      {/* Desktop: mesmo formulário, mas os campos ganham 2 colunas reais em
-          vez de uma coluna única esticada numa tela larga, e foto + botão
+      {/* Desktop: mesmo shell (TopNavDesktop) de toda outra rota desktop --
+          antes disso usava um header próprio (.screen-form-desktop), migrado
+          aqui pro shell compartilhado (item 6, 08/09/2026). Campos ganham 2
+          colunas reais em vez de uma coluna única esticada, e foto + botão
           salvar viram uma barra lateral fixa -- não precisa rolar até o fim
-          do formulário pra salvar (achado do Mateus, 02/09/2026). */}
-      <div className="only-desktop screen-form-desktop">
-        <div className="header"><button className="back-btn" onClick={() => onNavigate(-1)}>←</button><h1>Dados Pessoais</h1></div>
-        <div className="form-wide-inner" style={{ paddingTop: 8, paddingBottom: 40 }}>
-          {loadingData && <Loading />}
-          {!loadingData && (
-            <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, alignItems: "start" }}>
-              <div style={{ position: "sticky", top: 16 }}>
-                <div className="card" style={{ textAlign: "center", padding: "20px" }}>
-                  <div style={{ margin: "0 auto 12px", width: 96 }}>
-                    <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={96} />
-                  </div>
-                  {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
-                  <label className="btn btn-secondary btn-sm" style={{ cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
-                    {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
-                    <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
-                  </label>
+          do formulário pra salvar. */}
+      <DesktopShell tipo="contratante" active="conta" onNavigate={onNavigate}>
+        <button className="back-btn" style={{ marginBottom: 8 }} onClick={() => onNavigate(-1)}>← Voltar</button>
+        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20 }}>Dados Pessoais</h1>
+        {loadingData && <Loading />}
+        {!loadingData && (
+          <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 24, alignItems: "start" }}>
+            <div style={{ position: "sticky", top: 16 }}>
+              <div className="card" style={{ textAlign: "center", padding: "20px" }}>
+                <div style={{ margin: "0 auto 12px", width: 96 }}>
+                  <Avatar nome={form.nome} fotoUrl={fotoUrl} logoEmpresaUrl={null} size={96} />
                 </div>
-                {success && <div className="alert alert-success" style={{ marginTop: 14 }}>✅ Dados salvos com sucesso!</div>}
-                {error && <div className="alert alert-error" style={{ marginTop: 14 }}>{error}</div>}
-                <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
+                {imagemErro && <div className="alert alert-error" style={{ marginBottom: 10 }}>{imagemErro}</div>}
+                <label className="btn btn-secondary btn-sm" style={{ cursor: enviandoFoto ? "default" : "pointer", opacity: enviandoFoto ? 0.6 : 1 }}>
+                  {enviandoFoto ? "Enviando..." : "📷 Trocar foto de perfil"}
+                  <input type="file" accept="image/*,.heic,.heif" style={{ display: "none" }} disabled={enviandoFoto} onChange={e => enviarImagemPerfil("foto", e)} />
+                </label>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                {cardIdentificacao}
-                {cardContato}
-                <div style={{ gridColumn: "1 / -1" }}>{cardEmergencia}</div>
-                <div style={{ gridColumn: "1 / -1" }}>{cardEndereco}</div>
-                <div style={{ gridColumn: "1 / -1" }}>{cardDocumentacao}</div>
-              </div>
+              {success && <div className="alert alert-success" style={{ marginTop: 14 }}>✅ Dados salvos com sucesso!</div>}
+              {error && <div className="alert alert-error" style={{ marginTop: 14 }}>{error}</div>}
+              <button className="btn btn-primary" style={{ marginTop: 14 }} onClick={salvar} disabled={loading}>{loading ? "Salvando..." : "Salvar alterações"}</button>
             </div>
-          )}
-        </div>
-      </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              {cardIdentificacao}
+              {cardContato}
+              <div style={{ gridColumn: "1 / -1" }}>{cardEmergencia}</div>
+              <div style={{ gridColumn: "1 / -1" }}>{cardEndereco}</div>
+              <div style={{ gridColumn: "1 / -1" }}>{cardDocumentacao}</div>
+            </div>
+          </div>
+        )}
+      </DesktopShell>
     </>
   );
 }

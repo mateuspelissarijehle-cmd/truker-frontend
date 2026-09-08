@@ -6,6 +6,7 @@ import { Loading } from "../../components/Loading";
 import { StatusBadge } from "../../components/StatusBadge";
 import { BottomNavContratante } from "../../components/BottomNavContratante";
 import { Avatar } from "../../components/Avatar";
+import { DesktopShell } from "../../components/DesktopShell";
 
 // ─────────────────────────────────────────────
 // MEUS FRETES CONTRATANTE
@@ -30,62 +31,88 @@ export function MeusFretes({ onNavigate }) {
 
   const totalGasto = fretes.filter(f => f.status === "entregue").reduce((a, f) => a + Number(f.valor_final || f.valor_antt || 0), 0);
 
-  return (
-    <div className="screen">
-      <div className="header">
-        <button className="back-btn" onClick={() => onNavigate("home-contratante")}>←</button>
-        <h1>Meus Fretes</h1>
-      </div>
-      <div className="content">
-        <div className="grid-2" style={{ marginBottom: 14 }}>
-          <div className="stat-card">
-            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total fretes</div>
-            <div className="stat-value" style={{ fontSize: 24 }}>{fretes.length}</div>
-          </div>
-          <div className="stat-card">
-            <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total gasto</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--gold)" }}>{formatMoney(totalGasto)}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
-          {[["todos","Todos"],["andamento","Em andamento"],["aguardando","Aguardando"],["concluido","Concluídos"],["cancelado","Cancelados"]].map(([s, l]) => (
-            <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--gold)" : "var(--border)", background: filtro === s ? "var(--gold)" : "var(--surface)", color: filtro === s ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "Inter, sans-serif" }}>{l}</button>
-          ))}
-        </div>
-        {loading ? <Loading /> : filtrados.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
-        ) : (
-          // Grade responsiva no desktop (item 6, 02/09/2026) -- uma lista
-          // empilhada de cards ficava estreita e comprida sobrando espaço
-          // dos dois lados; em telas largas os cards fluem em colunas.
-          <div className="fretes-grid-desktop">
-            {filtrados.map(f => {
-              const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
-              return (
-                <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-                    <StatusBadge status={f.status} />
-                    <div style={{ textAlign: "right" }}>
-                      <div className="price" style={{ fontSize: 18 }}>{formatMoney(f.valor_final || f.valor_antt || 0)}</div>
-                      <div style={{ fontSize: 10, color: "var(--text3)" }}>valor do frete</div>
-                    </div>
-                  </div>
-                  <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
-                  <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text3)" }}>
-                    <span>📅 {data}</span>
-                    <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      {f.motorista_nome && <Avatar nome={f.motorista_nome} fotoUrl={f.motorista_foto_url} logoEmpresaUrl={f.motorista_logo_empresa_url} size={18} />}
-                      {f.motorista_nome || "Aguardando"}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <BottomNavContratante active="atividade" onNavigate={onNavigate} />
+  const filtroBotoes = (
+    <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto", paddingBottom: 4 }}>
+      {[["todos","Todos"],["andamento","Em andamento"],["aguardando","Aguardando"],["concluido","Concluídos"],["cancelado","Cancelados"]].map(([s, l]) => (
+        <button key={s} onClick={() => setFiltro(s)} style={{ padding: "6px 14px", borderRadius: 20, border: "1px solid", borderColor: filtro === s ? "var(--gold)" : "var(--border)", background: filtro === s ? "var(--gold)" : "var(--surface)", color: filtro === s ? "#fff" : "var(--text3)", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "Inter, sans-serif" }}>{l}</button>
+      ))}
     </div>
+  );
+
+  const grade = loading ? <Loading /> : filtrados.length === 0 ? (
+    <div className="card" style={{ textAlign: "center", padding: 32, color: "var(--text3)" }}><div style={{ fontSize: 36, marginBottom: 8 }}>📦</div>Nenhum frete nessa categoria</div>
+  ) : (
+    // Grade responsiva no desktop (item 6, 02/09/2026) -- uma lista
+    // empilhada de cards ficava estreita e comprida sobrando espaço
+    // dos dois lados; em telas largas os cards fluem em colunas.
+    <div className="fretes-grid-desktop">
+      {filtrados.map(f => {
+        const data = f.criado_em ? new Date(f.criado_em).toLocaleDateString("pt-BR") : "—";
+        return (
+          <div key={f.id} className="frete-card" onClick={() => onNavigate("detalhe-frete", f)}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+              <StatusBadge status={f.status} />
+              <div style={{ textAlign: "right" }}>
+                <div className="price" style={{ fontSize: 18 }}>{formatMoney(f.valor_final || f.valor_antt || 0)}</div>
+                <div style={{ fontSize: 10, color: "var(--text3)" }}>valor do frete</div>
+              </div>
+            </div>
+            <div className="route" style={{ fontSize: 14 }}>{f.origem_cidade || f.origem_endereco || "—"} → {f.dest_cidade || f.dest_endereco || "—"}</div>
+            <div className="meta" style={{ marginTop: 6 }}><span>📦 {f.tipo_carga}</span><span>📏 {f.distancia_km} km</span><span>⚖️ {f.peso_tons}t</span></div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text3)" }}>
+              <span>📅 {data}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                {f.motorista_nome && <Avatar nome={f.motorista_nome} fotoUrl={f.motorista_foto_url} logoEmpresaUrl={f.motorista_logo_empresa_url} size={18} />}
+                {f.motorista_nome || "Aguardando"}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <>
+      <div className="only-mobile screen">
+        <div className="header">
+          <button className="back-btn" onClick={() => onNavigate("home-contratante")}>←</button>
+          <h1>Meus Fretes</h1>
+        </div>
+        <div className="content">
+          <div className="grid-2" style={{ marginBottom: 14 }}>
+            <div className="stat-card">
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total fretes</div>
+              <div className="stat-value" style={{ fontSize: 24 }}>{fretes.length}</div>
+            </div>
+            <div className="stat-card">
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase", marginBottom: 4 }}>Total gasto</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: "var(--gold)" }}>{formatMoney(totalGasto)}</div>
+            </div>
+          </div>
+          {filtroBotoes}
+          {grade}
+        </div>
+        <BottomNavContratante active="atividade" onNavigate={onNavigate} />
+      </div>
+
+      <DesktopShell tipo="contratante" active="atividade" onNavigate={onNavigate}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800 }}>Meus Fretes</h1>
+          <div style={{ display: "flex", gap: 16 }}>
+            <div className="stat-card" style={{ padding: "10px 20px", textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase" }}>Total fretes</div>
+              <div className="stat-value" style={{ fontSize: 20 }}>{fretes.length}</div>
+            </div>
+            <div className="stat-card" style={{ padding: "10px 20px", textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "var(--text3)", textTransform: "uppercase" }}>Total gasto</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "var(--gold)" }}>{formatMoney(totalGasto)}</div>
+            </div>
+          </div>
+        </div>
+        {filtroBotoes}
+        {grade}
+      </DesktopShell>
+    </>
   );
 }
