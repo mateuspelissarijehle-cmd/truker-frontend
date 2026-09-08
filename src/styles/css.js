@@ -19,6 +19,15 @@ export const css = `
     --surface: #FFFFFF; --surface2: #F9F5EE; --surface3: #EFE9DC;
     --border: #DDD4C0; --border2: #E8E0D0;
   }
+  /* html carrega o mesmo fundo do body -- em telas desktop largas
+     (.screen-wide/.screen-form-desktop) o body fica travado numa largura
+     centralizada mesmo escapando visualmente dela, então a área fora dessa
+     caixa mostrava o branco padrão do navegador em vez da cor de fundo do
+     app: uma faixa/emenda visível atrás do conteúdo largo, mais óbvia
+     quanto mais vazia a tela (achado revisando Opções em desktop,
+     08/09/2026 -- o mesmo bug existia no Painel/Solicitar Frete, só
+     imperceptível lá por --black (#F5F0E8) ser quase idêntico ao branco). */
+  html { background: var(--black); }
   body { font-family: 'Inter', sans-serif; background: var(--black); color: var(--white); min-height: 100vh; max-width: 430px; margin: 0 auto; }
   .screen { min-height: 100vh; display: flex; flex-direction: column; padding-bottom: 80px; }
   /* Item 4/6 (27/08/2026): o painel multi-caminhão do solicitante é a única
