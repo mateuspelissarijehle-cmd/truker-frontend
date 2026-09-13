@@ -12,6 +12,7 @@ import {
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { HistoricoPrecoRota } from "../../components/HistoricoPrecoRota";
 import { DesktopShell } from "../../components/DesktopShell";
+import { MapaLeaflet } from "../../components/MapaLeaflet";
 
 // ─────────────────────────────────────────────
 // SOLICITAR FRETE
@@ -158,7 +159,16 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     try {
       const data = await api("GET", `/api/fretes/calcular?origem=${encodeURIComponent(origem)}&destino=${encodeURIComponent(dest)}&peso=${(Number(form.pesoKg)||1000)/1000}&veiculo=${form.tipoVeiculo}&carga=${cargaBackend}&numeroEixos=${form.numeroEixos}`, null, token);
       const pisoMinimo = data.frete?.pisoMinimo || data.frete?.valorAntt || 0;
-      setCalc({ distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracao, pisoMinimo });
+      // origem/destino (lat/lng reais, geocodificados pelo Google Directions em
+      // calcularRota(), services/maps.js) -- guardados aqui pra alimentar o
+      // MapaLeaflet no formulário desktop (item 6, pedido do Mateus,
+      // 11/09/2026: mapa de rota + preço já no formulário, não só depois de
+      // publicar). Não existe endpoint de geocodificação separado -- reusa o
+      // /calcular que já geocodifica os dois pontos de qualquer forma.
+      setCalc({
+        distancia_km: data.rota?.distanciaKm, duracao: data.rota?.duracaoTexto, pisoMinimo,
+        origem: data.rota?.origem || null, destino: data.rota?.destino || null,
+      });
       setValorEditavel(pisoMinimo.toFixed(2));
       setStep(3); // só importa pro wizard mobile -- inofensivo pro layout desktop, que não usa `step`
     } catch (e) { setError(e.message); }
@@ -183,6 +193,40 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     setError(""); setAddr(enderecoAtual);
     calcularComEndereco(enderecoAtual);
   };
+
+  // Auto-recálculo com debounce (item 6, pedido do Mateus, 11/09/2026): assim
+  // que endereço + peso (+ campo especial da carga, quando exigido) ficam
+  // completos, recalcula rota/preço sozinho 1s depois de parar de digitar --
+  // sem esperar clique em "Calcular Rota e Valor". Só dispara no formulário
+  // desktop (largura carregada uma vez, mesmo critério já usado em App.jsx
+  // pra decidir home do contratante) -- o mobile continua com o fluxo manual
+  // por etapas de sempre, sem mudança nenhuma. As dependências do effect já
+  // são só os campos que entram na validação/cálculo -- editar "Descrição",
+  // por exemplo, não deveria disparar isso e de fato não dispara. Chama
+  // calcularDesktop() direto (não duplica a validação): quando o timer
+  // dispara, as condições abaixo já garantiram que ela vai passar.
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth < 1024) return;
+    const oc = origemCidade.trim(), ou = origemUF.trim(), dc = destCidade.trim(), du = destUF.trim();
+    const origemCompleta = addr.origemLogradouro && addr.origemNumero && oc && ou;
+    const destCompleto = addr.destLogradouro && addr.destNumero && dc && du;
+    const pesoOk = form.pesoKg && Number(form.pesoKg) > 0;
+    const regras = regrasCarga(form.tipoCarga);
+    const especialOk = regras.especial === "animal" ? !!form.tipoAnimal
+      : regras.especial === "material" ? !!form.tipoMaterial
+      : regras.especial === "itens" ? form.itensMudanca.some(i => i.nome)
+      : true;
+    if (!origemCompleta || !destCompleto || !pesoOk || !especialOk) return;
+
+    const timer = setTimeout(() => calcularDesktop(), 1000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    addr.origemLogradouro, addr.origemNumero, addr.origemComplemento, addr.origemBairro,
+    addr.destLogradouro, addr.destNumero, addr.destComplemento, addr.destBairro,
+    origemCidade, origemUF, destCidade, destUF,
+    form.pesoKg, form.tipoVeiculo, form.numeroEixos, form.tipoCarga, form.tipoAnimal, form.tipoMaterial, form.itensMudanca,
+  ]);
 
   const solicitar = async () => {
     if (!calc) return;
@@ -740,6 +784,20 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
                 </>
               ) : (
                 <>
+                  {/* Mapa da rota real (item 6, pedido do Mateus, 11/09/2026) --
+                      mesmo MapaLeaflet.jsx usado em Painel/Em Trânsito/Detalhe do
+                      Frete, com origem/destino geocodificados pelo cálculo acima
+                      (auto ou manual). Sem `key` fixa por freteId como nos outros
+                      usos -- aqui o par origem/destino muda com o próprio
+                      formulário, então deixa recriar o traçado a cada novo calc. */}
+                  <div style={{ margin: "0 0 12px", borderRadius: 10, overflow: "hidden", position: "relative" }}>
+                    <MapaLeaflet origem={calc.origem} destino={calc.destino} height={200} />
+                    {calcLoading && (
+                      <div style={{ position: "absolute", inset: 0, background: "rgba(245,240,232,0.6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--text2)" }}>
+                        🔄 Atualizando rota...
+                      </div>
+                    )}
+                  </div>
                   <div className="divider" />
                   <div className="info-row"><span className="info-label">Coleta</span><span className="info-value" style={{ fontSize: 12 }}>{addr.origemCidade}/{addr.origemUF}</span></div>
                   <div className="info-row"><span className="info-label">Entrega</span><span className="info-value" style={{ fontSize: 12 }}>{addr.destCidade}/{addr.destUF}</span></div>
