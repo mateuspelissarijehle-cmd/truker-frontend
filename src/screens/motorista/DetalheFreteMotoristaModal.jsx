@@ -12,7 +12,7 @@ import { Avatar } from "../../components/Avatar";
 // GET /api/fretes/:id/extrato, mesmo endpoint da tela de Extrato) e a
 // avaliação recebida da outra parte, se já existir.
 // ─────────────────────────────────────────────
-export function DetalheFreteMotoristaModal({ frete, token, onClose, onVerContrato, contratoLoadingId }) {
+export function DetalheFreteMotoristaModal({ frete, token, onClose, onNavigate, onVerContrato, contratoLoadingId }) {
   const [extrato, setExtrato] = useState(null);
   const [avaliacao, setAvaliacao] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -121,6 +121,11 @@ export function DetalheFreteMotoristaModal({ frete, token, onClose, onVerContrat
             <div style={{ fontSize: 13, color: "var(--text3)" }}>Nenhuma avaliação recebida ainda.</div>
           )}
         </div>
+
+        {frete.status === "entregue" && !frete.ja_avaliou && (
+          <button className="btn btn-outline" style={{ marginBottom: 10 }} onClick={() => { onClose(); onNavigate("avaliar", { frete }); }}>⭐ Avaliar Contratante</button>
+        )}
+        {frete.status === "entregue" && frete.ja_avaliou && <div className="alert alert-success" style={{ marginBottom: 10 }}>✅ Você já avaliou este frete.</div>}
 
         <button className="btn btn-secondary" onClick={() => onVerContrato(frete.id)} disabled={contratoLoadingId === frete.id}>
           {contratoLoadingId === frete.id ? "Baixando contrato..." : "📄 Baixar Contrato"}

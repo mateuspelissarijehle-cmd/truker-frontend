@@ -1,5 +1,23 @@
 import { API_BASE, API_TIMEOUT_MS } from "../config";
 
+// Handler chamado quando o backend confirma que o token da sessão não é mais
+// válido (registrado pelo AuthProvider) -- deixa este módulo desacoplado de
+// React/contexto, já que `api()` é uma função solta, não um hook. Detecção é
+// por MENSAGEM exata do authMiddleware.js (não por status 401 puro): outras
+// rotas também usam 401 pra coisas que não são token inválido (ex: "E-mail ou
+// senha incorretos" no login, "Senha atual incorreta" em trocar senha) -- um
+// 401 genérico ia deslogar o usuário no meio de um login que só errou a senha.
+let handlerTokenInvalido = null;
+export function definirHandlerTokenInvalido(fn) { handlerTokenInvalido = fn; }
+const MENSAGENS_TOKEN_INVALIDO = new Set(["Token inválido ou expirado", "Token não fornecido"]);
+
+function tratarRespostaComErro(res, data) {
+  if (res.status === 401 && MENSAGENS_TOKEN_INVALIDO.has(data.error)) {
+    handlerTokenInvalido?.();
+  }
+  throw new Error(data.error || data.message || "Erro na requisição");
+}
+
 export async function api(method, path, body, token, timeoutMs = API_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -21,7 +39,7 @@ export async function api(method, path, body, token, timeoutMs = API_TIMEOUT_MS)
     clearTimeout(timeoutId);
   }
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || data.message || "Erro na requisição");
+  if (!res.ok) tratarRespostaComErro(res, data);
   return data;
 }
 
@@ -48,7 +66,7 @@ export async function apiUpload(method, path, formData, token) {
     clearTimeout(timeoutId);
   }
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || data.message || "Erro na requisição");
+  if (!res.ok) tratarRespostaComErro(res, data);
   return data;
 }
 
@@ -70,7 +88,11 @@ export async function baixarArquivoAutenticado(path, token, nomePadrao) {
   });
   if (!res.ok) {
     let msg = "Não foi possível baixar o arquivo";
-    try { const data = await res.json(); msg = data.error || msg; } catch { /* resposta de erro sem JSON válido, mantém msg padrão */ }
+    try {
+      const data = await res.json();
+      msg = data.error || msg;
+      if (res.status === 401 && MENSAGENS_TOKEN_INVALIDO.has(data.error)) handlerTokenInvalido?.();
+    } catch { /* resposta de erro sem JSON válido, mantém msg padrão */ }
     throw new Error(msg);
   }
   const disposition = res.headers.get("Content-Disposition") || "";

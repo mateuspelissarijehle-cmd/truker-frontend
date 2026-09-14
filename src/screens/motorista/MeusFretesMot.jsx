@@ -121,6 +121,7 @@ export function MeusFretesMot({ onNavigate }) {
           frete={detalheFrete}
           token={token}
           onClose={() => setDetalheFrete(null)}
+          onNavigate={onNavigate}
           onVerContrato={verContrato}
           contratoLoadingId={contratoLoadingId}
         />
