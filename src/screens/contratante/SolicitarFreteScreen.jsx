@@ -5,9 +5,8 @@ import { buscarEnderecoPorCep } from "../../services/viaCep";
 import { formatMoney } from "../../utils/format";
 import { maskCep } from "../../utils/mask";
 import {
-  TIPOS_CARGA, TIPOS_CARGA_VISIVEIS, TIPOS_GRAO, MODO_AGRO_V1,
-  TIPOS_VEICULO, TIPOS_ANIMAL, TIPOS_MATERIAL,
-  CARGA_BACKEND_MAP, eixosPadraoDoChassi, regrasCarga,
+  TIPOS_CARGA, TIPOS_CARGA_VISIVEIS, TIPOS_GRAO,
+  TIPOS_VEICULO, CARGA_BACKEND_MAP, eixosPadraoDoChassi, regrasCarga,
 } from "../../data/catalogos";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { HistoricoPrecoRota } from "../../components/HistoricoPrecoRota";
@@ -23,14 +22,12 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   const motoristaConvidadoId = screenData?.motoristaConvidadoId || null;
   const motoristaConvidadoNome = screenData?.motoristaConvidadoNome || null;
   const [form, setForm] = useState({
-    tipoCarga: MODO_AGRO_V1 ? "graneleiro" : "carga_seca", tipoVeiculo: "truck",
+    tipoCarga: "graneleiro", tipoVeiculo: "truck",
     numeroEixos: eixosPadraoDoChassi("truck"),
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
     descricao: "",
     dataColeta: "", horario: "",
-    // Campos especiais dinâmicos
-    tipoGrao: "", tipoAnimal: "", qtdAnimais: "", tipoMaterial: "",
-    itensMudanca: [{ id: crypto.randomUUID(), nome: "", qtd: "" }],
+    tipoGrao: "",
   });
   const [addr, setAddr] = useState({
     origemCep:"", origemLogradouro:"", origemNumero:"", origemComplemento:"",
@@ -132,12 +129,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     // Peso é sempre obrigatório
     if (!form.pesoKg || Number(form.pesoKg) <= 0) return setError("Informe o peso total da carga (kg).");
 
-    // Validação dos campos especiais obrigatórios
-    const regras = regrasCarga(form.tipoCarga);
-    if (regras.especial === "animal" && !form.tipoAnimal) return setError("Selecione o tipo de animal.");
-    if (regras.especial === "material" && !form.tipoMaterial) return setError("Selecione o tipo de material.");
-    if (regras.especial === "itens" && !form.itensMudanca.some(i => i.nome)) return setError("Adicione ao menos um item da mudança.");
-
     setError(""); setCalcLoading(true);
     const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
     try {
@@ -195,12 +186,7 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     const origemCompleta = addr.origemLogradouro && addr.origemNumero && oc && ou;
     const destCompleto = addr.destLogradouro && addr.destNumero && dc && du;
     const pesoOk = form.pesoKg && Number(form.pesoKg) > 0;
-    const regras = regrasCarga(form.tipoCarga);
-    const especialOk = regras.especial === "animal" ? !!form.tipoAnimal
-      : regras.especial === "material" ? !!form.tipoMaterial
-      : regras.especial === "itens" ? form.itensMudanca.some(i => i.nome)
-      : true;
-    if (!origemCompleta || !destCompleto || !pesoOk || !especialOk) return;
+    if (!origemCompleta || !destCompleto || !pesoOk) return;
 
     const timer = setTimeout(() => calcularDesktop(), 1000);
     return () => clearTimeout(timer);
@@ -209,7 +195,7 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     addr.origemLogradouro, addr.origemNumero, addr.origemComplemento, addr.origemBairro,
     addr.destLogradouro, addr.destNumero, addr.destComplemento, addr.destBairro,
     origemCidade, origemUF, destCidade, destUF,
-    form.pesoKg, form.tipoVeiculo, form.numeroEixos, form.tipoCarga, form.tipoAnimal, form.tipoMaterial, form.itensMudanca,
+    form.pesoKg, form.tipoVeiculo, form.numeroEixos, form.tipoCarga,
   ]);
 
   const solicitar = async () => {
@@ -236,15 +222,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
         larguraM: form.larguraM || null,
         alturaM: form.alturaM || null,
       };
-    }
-    if (regras.especial === "animal") {
-      detalhesCarga.animal = { tipo: form.tipoAnimal || null, quantidade: form.qtdAnimais || null };
-    }
-    if (regras.especial === "material") {
-      detalhesCarga.material = form.tipoMaterial || null;
-    }
-    if (regras.especial === "itens") {
-      detalhesCarga.itens = form.itensMudanca.filter(i => i.nome);
     }
 
     try {
@@ -398,56 +375,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
                   <div className="field"><label>Comp. (m)</label><input type="number" placeholder="6" value={form.comprimentoM} onChange={e => set("comprimentoM", e.target.value)} /></div>
                   <div className="field"><label>Larg. (m)</label><input type="number" placeholder="2.4" value={form.larguraM} onChange={e => set("larguraM", e.target.value)} /></div>
                   <div className="field"><label>Alt. (m)</label><input type="number" placeholder="2.8" value={form.alturaM} onChange={e => set("alturaM", e.target.value)} /></div>
-                </div>
-              )}
-
-              {/* Campo especial: CARGA VIVA → tipo de animal + quantidade */}
-              {regrasCarga(form.tipoCarga).especial === "animal" && (
-                <div className="grid-2">
-                  <div className="field"><label>Tipo de animal *</label>
-                    <select value={form.tipoAnimal} onChange={e => set("tipoAnimal", e.target.value)}>
-                      <option value="">Selecione...</option>
-                      {TIPOS_ANIMAL.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
-                  <div className="field"><label>Qtd. de cabeças</label><input type="number" placeholder="Ex: 18" value={form.qtdAnimais} onChange={e => set("qtdAnimais", e.target.value)} /></div>
-                </div>
-              )}
-
-              {/* Campo especial: CONSTRUÇÃO → tipo de material */}
-              {regrasCarga(form.tipoCarga).especial === "material" && (
-                <div className="field"><label>Tipo de material *</label>
-                  <select value={form.tipoMaterial} onChange={e => set("tipoMaterial", e.target.value)}>
-                    <option value="">Selecione...</option>
-                    {TIPOS_MATERIAL.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-              )}
-
-              {/* Campo especial: MUDANÇA → lista de itens */}
-              {regrasCarga(form.tipoCarga).especial === "itens" && (
-                <div className="field">
-                  <label>Itens da mudança</label>
-                  {form.itensMudanca.map((item, idx) => (
-                    <div key={item.id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                      <input style={{ flex: 2 }} placeholder="Ex: Geladeira" value={item.nome}
-                        onChange={e => {
-                          const arr = [...form.itensMudanca]; arr[idx].nome = e.target.value; set("itensMudanca", arr);
-                        }} />
-                      <input style={{ flex: 1 }} type="number" placeholder="Qtd" value={item.qtd}
-                        onChange={e => {
-                          const arr = [...form.itensMudanca]; arr[idx].qtd = e.target.value; set("itensMudanca", arr);
-                        }} />
-                      {form.itensMudanca.length > 1 && (
-                        <button onClick={() => set("itensMudanca", form.itensMudanca.filter((_, i) => i !== idx))}
-                          style={{ background: "#FDECEA", color: "#C0392B", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 700 }}>×</button>
-                      )}
-                    </div>
-                  ))}
-                  <button className="btn btn-secondary" style={{ width: "100%", marginTop: 4 }}
-                    onClick={() => set("itensMudanca", [...form.itensMudanca, { id: crypto.randomUUID(), nome: "", qtd: "" }])}>
-                    + Adicionar item
-                  </button>
                 </div>
               )}
 
@@ -650,49 +577,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
                   <div className="field"><label>Comp. (m)</label><input type="number" placeholder="6" value={form.comprimentoM} onChange={e => set("comprimentoM", e.target.value)} /></div>
                   <div className="field"><label>Larg. (m)</label><input type="number" placeholder="2.4" value={form.larguraM} onChange={e => set("larguraM", e.target.value)} /></div>
                   <div className="field"><label>Alt. (m)</label><input type="number" placeholder="2.8" value={form.alturaM} onChange={e => set("alturaM", e.target.value)} /></div>
-                </div>
-              )}
-
-              {regrasCarga(form.tipoCarga).especial === "animal" && (
-                <div className="grid-2">
-                  <div className="field"><label>Tipo de animal *</label>
-                    <select value={form.tipoAnimal} onChange={e => set("tipoAnimal", e.target.value)}>
-                      <option value="">Selecione...</option>
-                      {TIPOS_ANIMAL.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
-                  <div className="field"><label>Qtd. de cabeças</label><input type="number" placeholder="Ex: 18" value={form.qtdAnimais} onChange={e => set("qtdAnimais", e.target.value)} /></div>
-                </div>
-              )}
-
-              {regrasCarga(form.tipoCarga).especial === "material" && (
-                <div className="field"><label>Tipo de material *</label>
-                  <select value={form.tipoMaterial} onChange={e => set("tipoMaterial", e.target.value)}>
-                    <option value="">Selecione...</option>
-                    {TIPOS_MATERIAL.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-              )}
-
-              {regrasCarga(form.tipoCarga).especial === "itens" && (
-                <div className="field">
-                  <label>Itens da mudança</label>
-                  {form.itensMudanca.map((item, idx) => (
-                    <div key={item.id} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                      <input style={{ flex: 2 }} placeholder="Ex: Geladeira" value={item.nome}
-                        onChange={e => { const arr = [...form.itensMudanca]; arr[idx].nome = e.target.value; set("itensMudanca", arr); }} />
-                      <input style={{ flex: 1 }} type="number" placeholder="Qtd" value={item.qtd}
-                        onChange={e => { const arr = [...form.itensMudanca]; arr[idx].qtd = e.target.value; set("itensMudanca", arr); }} />
-                      {form.itensMudanca.length > 1 && (
-                        <button onClick={() => set("itensMudanca", form.itensMudanca.filter((_, i) => i !== idx))}
-                          style={{ background: "#FDECEA", color: "#C0392B", border: "none", borderRadius: 8, padding: "0 12px", cursor: "pointer", fontWeight: 700 }}>×</button>
-                      )}
-                    </div>
-                  ))}
-                  <button className="btn btn-secondary" style={{ width: "100%", marginTop: 4 }}
-                    onClick={() => set("itensMudanca", [...form.itensMudanca, { id: crypto.randomUUID(), nome: "", qtd: "" }])}>
-                    + Adicionar item
-                  </button>
                 </div>
               )}
 

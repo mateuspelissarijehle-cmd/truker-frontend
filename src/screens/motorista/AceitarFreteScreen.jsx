@@ -181,11 +181,6 @@ export function AceitarFreteScreen({ frete, onNavigate }) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-          {frete.precisa_munck && <span className="tag-chip">🏗️ Precisa Munck</span>}
-          {frete.precisa_empilhadeira && <span className="tag-chip">🏭 Empilhadeira no pátio</span>}
-        </div>
-
         {!propondoValor && (
           <>
             <button className="btn btn-primary" onClick={aceitar} disabled={loading} style={{ marginBottom: 10 }}>{loading ? "Aceitando..." : "✅ Aceitar pelo valor publicado"}</button>

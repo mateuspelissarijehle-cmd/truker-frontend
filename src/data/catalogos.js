@@ -1,60 +1,37 @@
 // ─────────────────────────────────────────────
 // TIPOS DE CARGA
 // ─────────────────────────────────────────────
+// Limpeza geral pré-Play Store (13/09/2026, pedido do Mateus): removidas as
+// ~20 categorias de carga geral (carga seca, mudança, carga viva, líquidos,
+// construção etc.) que sobraram da versão anterior ao pivô V1-agro --
+// inalcançáveis desde que o formulário de criar frete só oferece
+// graneleiro/fertilizante (ver TIPOS_CARGA_VISIVEIS abaixo). O flag
+// MODO_AGRO_V1 que preservava esse catálogo completo "pra poder reverter"
+// também saiu -- reverter agora é restaurar do histórico do git (o Mateus já
+// tem backup da versão anterior ao pivô), não mais trocar 1 constante.
+//
+// "granel_solido" e "neogranel" abaixo NÃO são opções do formulário -- são os
+// IDs de categoria ANTT que o backend de fato grava em fretes.tipo_carga (ver
+// CARGA_BACKEND_MAP mais abaixo: graneleiro→granel_solido,
+// fertilizante→neogranel). As telas do motorista (Home, Convites, Em
+// Trânsito, Aceitar Frete) resolvem o ícone/label de um frete já criado
+// contra ESSES ids, não contra "graneleiro"/"fertilizante" -- por isso
+// continuam aqui, com o mesmo ícone/label da opção equivalente do formulário
+// (bug preexistente corrigido de passagem: "granel_solido" não tinha entrada
+// nenhuma antes, então todo frete de grão mostrava o ícone genérico 📦 nas
+// telas do motorista).
 export const TIPOS_CARGA = [
-  { id: "carga_seca", label: "Carga Seca", icon: "📦", desc: "Paletes, caixas, embalagens gerais" },
   { id: "graneleiro", label: "Graneleiro", icon: "🌾", desc: "Grãos, cereais, farinha" },
-  { id: "refrigerada", label: "Refrigerada", icon: "❄️", desc: "Alimentos perecíveis, laticínios" },
-  { id: "frigorifico", label: "Frigorífico", icon: "🥩", desc: "Carnes, aves, embutidos" },
-  { id: "mudanca", label: "Mudança", icon: "🏠", desc: "Móveis, eletrodomésticos" },
-  { id: "carga_viva", label: "Carga Viva", icon: "🐄", desc: "Animais vivos" },
-  { id: "liquidos", label: "Líquidos", icon: "💧", desc: "Água, sucos, bebidas" },
-  { id: "inflamavel", label: "Inflamável", icon: "🔥", desc: "Combustíveis, solventes" },
-  { id: "perigosa", label: "Perigosa/IMOS", icon: "⚠️", desc: "Produtos químicos, explosivos" },
-  { id: "farmaceutico", label: "Farmacêutico", icon: "💊", desc: "Medicamentos, insumos" },
-  { id: "eletronicos", label: "Eletrônicos", icon: "💻", desc: "Computadores, celulares, TVs" },
-  { id: "alimentos", label: "Alimentos Secos", icon: "🥫", desc: "Enlatados, grãos embalados" },
-  { id: "bebidas", label: "Bebidas", icon: "🍺", desc: "Cerveja, refrigerante, água" },
-  { id: "construcao", label: "Construção", icon: "🧱", desc: "Cimento, areia, tijolos" },
-  { id: "maquinario", label: "Maquinário", icon: "⚙️", desc: "Máquinas agrícolas, equipamentos" },
-  { id: "superdimensionado", label: "Superdimensionado", icon: "🏗️", desc: "Cargas indivisíveis, oversized" },
-  { id: "residuos", label: "Resíduos/Sucata", icon: "♻️", desc: "Recicláveis, resíduos industriais" },
-  { id: "veiculos", label: "Veículos", icon: "🚗", desc: "Carros, motos, caminhões" },
-  { id: "classificados", label: "Classificados", icon: "🔒", desc: "Valores, documentos, escolta" },
-  { id: "madeira", label: "Madeira", icon: "🪵", desc: "Toras, compensados, móveis" },
-  // As 3 categorias abaixo (19/08/2026) fecham o gap: já existiam em
-  // TABELA_ANTT (services/antt.js, backend) e em CARROCERIAS (services/
-  // matching.js) mas nunca eram selecionáveis por aqui -- CARGA_BACKEND_MAP
-  // agora mapeia direto (mesmo id dos dois lados).
-  { id: "conteinerizado", label: "Container", icon: "🚢", desc: "Carga em container ISO, porta-container" },
-  { id: "neogranel", label: "Neogranel", icon: "🛍️", desc: "Sacaria paletizada — fertilizante, cimento, açúcar" },
-  { id: "granel_pressurizado", label: "Granel Pressurizado", icon: "🛢️", desc: "Gases e líquidos pressurizados — GLP, gases industriais" },
-  // Item 5 (27/08/2026): "Fertilizante" é uma opção separada de "Neogranel"
-  // só pra ficar claro pro solicitante (cerealista) o que ele está escolhendo
-  // -- fisicamente é a MESMA categoria ANTT (sacaria paletizada), mesmo
-  // mapeamento em CARGA_BACKEND_MAP abaixo. Existe porque o retorno do grão
-  // costuma ser feito levando fertilizante no mesmo caminhão -- ver a trava
-  // de higienização em routes/fretes.js (truker-app) e a tela de "Lavagem do
-  // veículo" do motorista.
   { id: "fertilizante", label: "Fertilizante", icon: "🧪", desc: "Fertilizante sólido ensacado/paletizado — mesma categoria ANTT do Neogranel" },
+  { id: "granel_solido", label: "Graneleiro", icon: "🌾", desc: "Grãos, cereais, farinha" },
+  { id: "neogranel", label: "Fertilizante", icon: "🧪", desc: "Fertilizante sólido ensacado/paletizado — mesma categoria ANTT do Neogranel" },
 ];
 
-// ─────────────────────────────────────────────
-// MODO V1 — foco em agronegócio (decisão do Mateus, 27/08/2026)
-// Filtra só o que aparece pro usuário escolher na tela de criar frete.
-// Não remove nada de TIPOS_CARGA/REGRAS_CARGA/CARGA_BACKEND_MAP -- reverter
-// é trocar esta constante pra `false` (mesmo flag espelhado no backend em
-// services/matching.js MODO_AGRO_V1, mas os dois são independentes: cada
-// lado pode ser revertido sem depender do outro).
-// ─────────────────────────────────────────────
-export const MODO_AGRO_V1 = true;
-// "fertilizante" liberado junto dos grãos (item 5, 27/08/2026) -- decisão
-// explícita do Mateus: fertilizante é frete completo no app (não caso
-// especial), pro motorista poder fazer o retorno do porto sem km vazio.
-const IDS_CARGA_VISIVEIS_AGRO_V1 = ["graneleiro", "fertilizante"];
-export const TIPOS_CARGA_VISIVEIS = MODO_AGRO_V1
-  ? TIPOS_CARGA.filter(c => IDS_CARGA_VISIVEIS_AGRO_V1.includes(c.id))
-  : TIPOS_CARGA;
+// Ids que aparecem de verdade no seletor de "Tipo de Carga" do formulário de
+// criar frete -- exclui "granel_solido"/"neogranel" acima (esses só existem
+// pra exibição de fretes já criados, nunca são escolhíveis).
+const IDS_CARGA_VISIVEIS = ["graneleiro", "fertilizante"];
+export const TIPOS_CARGA_VISIVEIS = TIPOS_CARGA.filter(c => IDS_CARGA_VISIVEIS.includes(c.id));
 
 // Grãos primários (escopo da V1) -- sub-seleção só de descrição, não vira
 // categoria ANTT nova nenhuma (todos caem em granel_solido/graneleiro).
@@ -71,41 +48,15 @@ export const TIPOS_GRAO = [
   { id: "outro_grao", label: "Outro grão" },
 ];
 
-// Regras de formulário dinâmico por tipo de carga:
-//  - dimensoes: mostrar campos comprimento/largura/altura?
-//  - especial:  campo extra específico ("animal" | "itens" | "material" | null)
-// Peso é SEMPRE obrigatório (não entra aqui). Espelha a lógica do backend.
+// Regras de formulário dinâmico por tipo de carga: dimensoes = mostrar campos
+// comprimento/largura/altura? (só usado pelas 2 opções escolhíveis do
+// formulário -- graneleiro/fertilizante -- não pelas entradas de exibição
+// granel_solido/neogranel.) Peso é SEMPRE obrigatório (não entra aqui).
 export const REGRAS_CARGA = {
-  carga_seca:        { dimensoes: true,  especial: null },
-  graneleiro:        { dimensoes: false, especial: null },
-  refrigerada:       { dimensoes: true,  especial: null },
-  frigorifico:       { dimensoes: true,  especial: null },
-  mudanca:           { dimensoes: false, especial: "itens" },
-  carga_viva:        { dimensoes: false, especial: "animal" },
-  liquidos:          { dimensoes: false, especial: null },
-  inflamavel:        { dimensoes: false, especial: null },
-  perigosa:          { dimensoes: true,  especial: null },
-  farmaceutico:      { dimensoes: true,  especial: null },
-  eletronicos:       { dimensoes: true,  especial: null },
-  alimentos:         { dimensoes: true,  especial: null },
-  bebidas:           { dimensoes: true,  especial: null },
-  construcao:        { dimensoes: false, especial: "material" },
-  maquinario:        { dimensoes: true,  especial: null },
-  superdimensionado: { dimensoes: true,  especial: null },
-  residuos:          { dimensoes: false, especial: null },
-  veiculos:          { dimensoes: true,  especial: null },
-  classificados:     { dimensoes: true,  especial: null },
-  madeira:           { dimensoes: true,  especial: null },
-  // Mesma regra da categoria ANTT equivalente em services/matching.js CARGA_EXIGE_DIMENSOES.
-  conteinerizado:        { dimensoes: false, especial: null },
-  neogranel:              { dimensoes: true,  especial: null },
-  granel_pressurizado:    { dimensoes: false, especial: null },
-  fertilizante:           { dimensoes: true,  especial: null }, // mesma regra do neogranel (mesma categoria ANTT)
+  graneleiro:   { dimensoes: false },
+  fertilizante: { dimensoes: true },
 };
-export const regrasCarga = (id) => REGRAS_CARGA[id] || { dimensoes: true, especial: null };
-
-export const TIPOS_ANIMAL = ["Bovino", "Suíno", "Aves", "Equino", "Ovino/Caprino", "Outros"];
-export const TIPOS_MATERIAL = ["Cimento", "Areia", "Brita", "Tijolo/Bloco", "Vergalhão/Aço", "Madeira", "Telhas", "Outros"];
+export const regrasCarga = (id) => REGRAS_CARGA[id] || { dimensoes: true };
 
 // TIPOS_VEICULO = CHASSI real (o que determina o número de eixos, base do
 // piso mínimo ANTT — services/antt.js VEICULOS é a mesma lista, mesmos ids).
@@ -137,42 +88,11 @@ export const ICONE_CARROCERIA = {
   gaiola: "🐄", munck: "🏗️",
 };
 
-export const TIPOS_FRETE = [
-  { id: "urbano", label: "Urbano", icon: "🏙️", desc: "Até 50km, dentro da cidade" },
-  { id: "intermunicipal", label: "Intermunicipal", icon: "🛣️", desc: "50 a 300km, entre cidades" },
-  { id: "interestadual", label: "Interestadual", icon: "🗺️", desc: "Acima de 300km, entre estados" },
-  { id: "internacional", label: "Internacional", icon: "🌎", desc: "Cruzando fronteiras" },
-];
-
 // Mapeamento frontend → categoria oficial ANTT (Tabela A, Resolução 5.867/2020,
-// atualizada pela 6.084/2026 -- ver services/antt.js no backend)
-// Categorias disponíveis: geral, frigorificado, granel_liquido, granel_solido,
-// neogranel, conteinerizado, granel_pressurizado, e as 5 subcategorias oficiais
-// de carga perigosa (perigoso_geral, perigoso_conteinerizado, perigoso_frigorificado,
-// perigoso_granel_liquido, perigoso_granel_solido -- adicionadas 18/08/2026,
-// substituindo o "perigoso" genérico que existia antes).
+// atualizada pela 6.084/2026 -- ver services/antt.js no backend). Só as 2
+// opções escolhíveis do formulário precisam de entrada aqui.
 export const CARGA_BACKEND_MAP = {
-  carga_seca: "geral", graneleiro: "granel_solido", refrigerada: "frigorificado",
-  frigorifico: "frigorificado", mudanca: "geral", carga_viva: "geral",
-  liquidos: "granel_liquido",
-  // inflamavel (combustíveis, solventes) é fisicamente líquido na imensa
-  // maioria dos casos reais do catálogo -- mapeado pro piso de carga perigosa
-  // em forma de granel líquido, o mais preciso das 5 subcategorias ANTT pra
-  // esse tipo de carga.
-  inflamavel: "perigoso_granel_liquido",
-  // perigosa/IMOS (produtos químicos, explosivos) normalmente viaja embalada/
-  // paletizada, não a granel -- mapeado pro piso de carga perigosa em forma
-  // geral, a subcategoria ANTT mais adequada pra esse padrão de acondicionamento.
-  perigosa: "perigoso_geral",
-  farmaceutico: "geral", eletronicos: "geral", alimentos: "geral",
-  bebidas: "geral", construcao: "granel_solido", maquinario: "geral",
-  superdimensionado: "geral", residuos: "granel_solido", veiculos: "geral",
-  classificados: "geral", madeira: "geral",
-  // Fecham o gap de 19/08/2026 -- mapeamento direto (mesmo id nos dois lados).
-  conteinerizado: "conteinerizado", neogranel: "neogranel", granel_pressurizado: "granel_pressurizado",
-  // Item 5 (27/08/2026): "fertilizante" é fisicamente a mesma categoria ANTT
-  // de "neogranel" (sacaria paletizada) -- ver comentário na entrada de
-  // TIPOS_CARGA acima.
+  graneleiro: "granel_solido",
   fertilizante: "neogranel",
 };
 

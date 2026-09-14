@@ -31,9 +31,7 @@ export function AuthProvider({ children }) {
   // Registra push notifications sempre que motorista abre o app
   useEffect(() => {
     if (user?.tipo === "motorista" && token) {
-      registrarPushNotifications(token).then(() => {
-        console.log("[TRUKER] Push registration OK para", user?.email);
-      }).catch(err => {
+      registrarPushNotifications(token).catch(err => {
         console.error("[TRUKER] Push registration ERRO:", err);
       });
     }

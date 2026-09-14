@@ -26,7 +26,6 @@ function registrarListenersNativos() {
   // registrarPushNotificationsNativo, então o listener sempre manda pro
   // usuário logado no momento (não fecha sobre um token de sessão antigo).
   PushNotifications.addListener("registration", async (token) => {
-    console.log("[TRUKER] FCM token obtido:", token.value.slice(0, 20) + "...");
     try {
       await api("POST", "/api/push/subscribe-fcm", { token: token.value }, authTokenAtual);
     } catch (err) {
@@ -96,7 +95,6 @@ async function registrarPushNotificationsWeb(token) {
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
     });
     await api("POST", "/api/push/subscribe", { subscription: sub.toJSON() }, token);
-    console.log("[TRUKER] Push subscrito:", sub.endpoint);
   } catch (err) {
     console.error("[TRUKER] Push registration error:", err);
   }
