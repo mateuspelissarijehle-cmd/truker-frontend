@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de Privacidade — TRUKER</title>
+<link rel="icon" href="icon-512.png">
+<style>
+  :root {
+    --gold: #C9A84C; --gold-dark: #A8873A;
+    --bg: #FBF8F1; --surface: #FFFFFF;
+    --text: #1A1209; --text2: #4A3F30; --text3: #8A7E6E;
+    --border: #E5DCC8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 24px 80px; }
+  a { color: var(--gold-dark); }
+  .back { font-size: 13px; }
+  h1 { font-size: 26px; margin: 20px 0 4px; }
+  .updated { font-size: 12px; color: var(--text3); margin-bottom: 28px; }
+  .draft-notice { background: rgba(192,57,43,0.08); border: 1px solid rgba(192,57,43,0.35); border-radius: 10px; padding: 16px 18px; font-size: 13px; color: #7A2C22; margin-bottom: 32px; }
+  h2 { font-size: 17px; margin: 34px 0 8px; color: var(--text); }
+  p, li { font-size: 14px; color: var(--text2); }
+  ul { padding-left: 20px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--surface); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text3); }
+  code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .placeholder { background: #fff8e1; border: 1px dashed #C9A84C; padding: 1px 6px; border-radius: 4px; font-style: italic; }
+
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17130C; --surface: #211A10; --text: #F5EEDD; --text2: #D8CBB0; --text3: #9C8E76; --border: #3A3021; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="back"><a href="index.html">← TRUKER</a></div>
+  <h1>Política de Privacidade</h1>
+  <div class="updated">Última atualização: <span class="placeholder">[DATA DE PUBLICAÇÃO — PREENCHER]</span></div>
+
+  <div class="draft-notice">
+    ⚠️ <strong>Este é um rascunho técnico</strong>, escrito com base no que o
+    aplicativo TRUKER efetivamente coleta e processa hoje (levantado
+    diretamente no código-fonte do backend e do app). Não é texto jurídico
+    definitivo — precisa de revisão por advogado especializado em LGPD antes
+    de publicar oficialmente, principalmente pra confirmar a base legal
+    exata de cada tratamento, os prazos de retenção definitivos e a
+    identificação formal do Controlador e do Encarregado (DPO). Campos
+    marcados como <span class="placeholder">[PREENCHER]</span> só o Mateus
+    sabe.
+  </div>
+
+  <p>
+    Esta Política de Privacidade descreve como o <strong>TRUKER</strong>
+    ("nós", "aplicativo", "plataforma") coleta, usa, compartilha e protege
+    dados pessoais de usuários — motoristas e contratantes — em conformidade
+    com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, "LGPD").
+  </p>
+
+  <h2>1. Quem é o Controlador dos dados</h2>
+  <p>
+    <strong>GMDA Consultoria e Serviços LTDA</strong> (nome fantasia: PontaCred), inscrita no
+    CNPJ sob o nº <strong>49.821.140/0001-10</strong>, com
+    sede na <strong>Rua Marechal Deodoro, nº 630, Conj. 75GV, Cond. Centro Comercial Itá, Centro, Curitiba/PR, CEP 80010-010</strong>,
+    é a Controladora dos dados pessoais tratados pelo TRUKER.
+  </p>
+  <p>
+    Encarregado de Proteção de Dados (DPO): <span class="placeholder">[NOME
+    — PREENCHER, ainda sem DPO formal designado]</span>, contato:
+    contato@getruker.com.
+  </p>
+
+  <h2>2. Quais dados coletamos, pra quê, e com que base legal</h2>
+  <table>
+    <tr><th>Dado</th><th>Finalidade</th><th>Base legal (LGPD)</th></tr>
+    <tr><td>Nome, e-mail, telefone, CPF/CNPJ</td><td>Cadastro e identificação da conta, emissão de contrato e nota/recibo</td><td>Execução de contrato (art. 7º, V)</td></tr>
+    <tr><td>Endereço, CEP</td><td>Cadastro do perfil, cálculo de rota</td><td>Execução de contrato</td></tr>
+    <tr><td>Foto de perfil, logo da empresa</td><td>Identificação visual entre contratante e motorista dentro do app</td><td>Consentimento / execução de contrato</td></tr>
+    <tr><td>CNH, RNTRC, comprovante de endereço (documentos)</td><td>Verificação de identidade e habilitação do motorista, exigida por regulação do setor de transporte</td><td>Cumprimento de obrigação legal/regulatória + execução de contrato</td></tr>
+    <tr><td>Localização em tempo real (GPS)</td><td>Rastreamento do frete durante coleta/trânsito/entrega, cálculo de rota e ETA</td><td>Execução de contrato</td></tr>
+    <tr><td>Dados de pagamento (Pix, cartão) — processados via gateway terceiro (Asaas)</td><td>Processamento do pagamento do frete</td><td>Execução de contrato</td></tr>
+    <tr><td>Mensagens de chat entre contratante e motorista</td><td>Comunicação operacional sobre o frete em andamento</td><td>Execução de contrato</td></tr>
+    <tr><td>Avaliações e comentários pós-entrega</td><td>Reputação e confiança na plataforma</td><td>Legítimo interesse</td></tr>
+    <tr><td>Token de notificação push (dispositivo)</td><td>Envio de notificações sobre fretes, chat e status</td><td>Consentimento (configurável nas preferências de notificação)</td></tr>
+    <tr><td>Localização aproximada de emergência (botão SOS)</td><td>Registro de alerta de emergência com localização, pra acionamento de contato/autoridade</td><td>Proteção da vida (art. 7º, VII) e legítimo interesse</td></tr>
+    <tr><td>Dados de uso/navegação no app</td><td>Melhoria do produto, diagnóstico de erros</td><td>Legítimo interesse</td></tr>
+  </table>
+
+  <h2>3. Com quem compartilhamos dados</h2>
+  <p>Usamos os seguintes fornecedores (operadores de dados, nos termos da LGPD) pra operar o TRUKER:</p>
+  <ul>
+    <li><strong>Asaas</strong> — processamento de pagamentos (Pix e cartão).</li>
+    <li><strong>Resend</strong> — envio de e-mails transacionais (verificação de conta, códigos de confirmação).</li>
+    <li><strong>Google Maps Platform</strong> — cálculo de rota, geocodificação e distância.</li>
+    <li><strong>Firebase (Google)</strong> — envio de notificações push no app nativo Android/iOS.</li>
+    <li><strong>Railway</strong> — hospedagem do servidor/backend e do banco de dados.</li>
+    <li><strong>Vercel</strong> — hospedagem do site/aplicativo web.</li>
+  </ul>
+  <p>
+    Não vendemos dados pessoais a terceiros. Dados do motorista (nome, foto,
+    avaliação) são visíveis ao contratante do frete em andamento, e
+    vice-versa — é assim que a operação funciona. Dados de contato completo
+    (endereço, documento) não são expostos entre usuários além do
+    necessário pra execução do frete.
+  </p>
+
+  <h2>4. Por quanto tempo guardamos os dados</h2>
+  <p>
+    <span class="placeholder">[PRAZO DE RETENÇÃO — PREENCHER/CONFIRMAR COM
+    ADVOGADO]</span>. Como referência: dados de conta ficam enquanto a conta
+    estiver ativa; dados de fretes concluídos (contrato, comprovante,
+    histórico financeiro) tendem a precisar de retenção mais longa por
+    obrigação fiscal/contábil; localização em tempo real (rastreamento GPS)
+    não precisa de retenção longa após a entrega ser confirmada — prazo
+    exato a definir.
+  </p>
+
+  <h2>5. Seus direitos (LGPD, art. 18)</h2>
+  <p>Você pode solicitar, a qualquer momento:</p>
+  <ul>
+    <li>Confirmação de que tratamos seus dados, e acesso a eles;</li>
+    <li>Correção de dados incompletos, inexatos ou desatualizados;</li>
+    <li>Anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em desacordo com a lei;</li>
+    <li>Portabilidade dos dados a outro fornecedor de serviço;</li>
+    <li>Eliminação dos dados tratados com base no seu consentimento;</li>
+    <li>Informação sobre com quem compartilhamos seus dados;</li>
+    <li>Revogação do consentimento, quando aplicável.</li>
+  </ul>
+  <p>
+    Pra exercer qualquer um desses direitos, entre em contato pelo e-mail
+    contato@getruker.com.
+  </p>
+
+  <h2>6. Segurança</h2>
+  <p>
+    Senhas são armazenadas com hash (nunca em texto puro). Comunicação
+    entre o app e o servidor é criptografada (HTTPS/TLS). Documentos
+    sensíveis (CNH, comprovantes) e dados de pagamento nunca trafegam nem
+    ficam armazenados em texto puro em nenhum log do sistema. Números
+    completos de cartão de crédito não passam pelo nosso servidor —
+    tokenização acontece direto no gateway de pagamento.
+  </p>
+
+  <h2>7. Menores de idade</h2>
+  <p>
+    O TRUKER não é destinado a menores de 18 anos — o cadastro tanto de
+    contratante quanto de motorista pressupõe capacidade civil plena
+    (inclusive pela exigência de CNH válida no caso do motorista).
+  </p>
+
+  <h2>8. Alterações nesta política</h2>
+  <p>
+    Podemos atualizar esta política periodicamente. Mudanças relevantes
+    serão comunicadas dentro do app antes de entrarem em vigor.
+  </p>
+
+  <h2>9. Contato</h2>
+  <p>
+    Dúvidas sobre esta política ou sobre o tratamento dos seus dados:
+    contato@getruker.com.
+  </p>
+</div>
+</body>
+</html>
