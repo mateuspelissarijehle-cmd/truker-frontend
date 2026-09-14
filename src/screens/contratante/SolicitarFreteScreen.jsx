@@ -7,7 +7,7 @@ import { maskCep } from "../../utils/mask";
 import {
   TIPOS_CARGA, TIPOS_CARGA_VISIVEIS, TIPOS_GRAO, MODO_AGRO_V1,
   TIPOS_VEICULO, TIPOS_ANIMAL, TIPOS_MATERIAL,
-  CARGA_BACKEND_MAP, ICONE_CARROCERIA, eixosPadraoDoChassi, regrasCarga,
+  CARGA_BACKEND_MAP, eixosPadraoDoChassi, regrasCarga,
 } from "../../data/catalogos";
 import { CampoCidadeAutocomplete } from "../../components/CampoCidadeAutocomplete";
 import { HistoricoPrecoRota } from "../../components/HistoricoPrecoRota";
@@ -24,15 +24,14 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   const motoristaConvidadoNome = screenData?.motoristaConvidadoNome || null;
   const [form, setForm] = useState({
     tipoCarga: MODO_AGRO_V1 ? "graneleiro" : "carga_seca", tipoVeiculo: "truck",
-    numeroEixos: eixosPadraoDoChassi("truck"), carroceria: "",
+    numeroEixos: eixosPadraoDoChassi("truck"),
     pesoKg: "", comprimentoM: "", larguraM: "", alturaM: "",
-    descricao: "", precisaMunck: false, precisaEmpilhadeira: false,
+    descricao: "",
     dataColeta: "", horario: "",
     // Campos especiais dinâmicos
     tipoGrao: "", tipoAnimal: "", qtdAnimais: "", tipoMaterial: "",
     itensMudanca: [{ id: crypto.randomUUID(), nome: "", qtd: "" }],
   });
-  const [carroceriasDisp, setCarroceriasDisp] = useState([]);
   const [addr, setAddr] = useState({
     origemCep:"", origemLogradouro:"", origemNumero:"", origemComplemento:"",
     origemBairro:"", origemCidade:"", origemUF:"",
@@ -81,21 +80,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
   // Trocar o chassi reresseta o número de eixos pro padrão daquele chassi
   // (o contratante pode ajustar se a composição real for diferente).
   const setTipoVeiculo = (id) => setForm(f => ({ ...f, tipoVeiculo: id, numeroEixos: eixosPadraoDoChassi(id) }));
-
-  // Carroceria desejada (opcional) — carrega o catálogo compatível com o
-  // chassi escolhido, filtrado pelas que aceitam o tipo de carga selecionado
-  // (mesmo catálogo que o motorista usa em "Meu Caminhão", services/matching.js).
-  useEffect(() => {
-    if (!form.tipoVeiculo || !token) { queueMicrotask(() => setCarroceriasDisp([])); return; }
-    api("GET", `/api/motoristas/carrocerias-disponiveis?veiculo=${form.tipoVeiculo}`, null, token)
-      .then(lista => {
-        const cargaBackend = CARGA_BACKEND_MAP[form.tipoCarga] || "geral";
-        const compativeis = lista.filter(c => c.cargas.includes(cargaBackend));
-        setCarroceriasDisp(compativeis);
-        setForm(f => (compativeis.some(c => c.id === f.carroceria) ? f : { ...f, carroceria: "" }));
-      })
-      .catch(() => setCarroceriasDisp([]));
-  }, [form.tipoVeiculo, form.tipoCarga, token]);
 
   const fillCep = async (cep, tipo) => {
     const endereco = await buscarEnderecoPorCep(cep);
@@ -266,7 +250,7 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
     try {
       await api("POST", "/api/fretes", {
         tipoCarga: cargaBackend, tipoVeiculo: form.tipoVeiculo,
-        numeroEixos: form.numeroEixos, carroceria: form.carroceria || undefined,
+        numeroEixos: form.numeroEixos,
         pesoTons: (Number(form.pesoKg)||1000)/1000,
         origemEndereco: composeAddr("origem", addr), origemCidade: addr.origemCidade, origemEstado: addr.origemUF,
         destEndereco: composeAddr("dest", addr), destCidade: addr.destCidade, destEstado: addr.destUF,
@@ -395,21 +379,12 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
                   {TIPOS_VEICULO.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label} — até {v.cap}</option>)}
                 </select>
               </div>
-              <div className="grid-2">
-                <div className="field">
-                  <label>Número de eixos *</label>
-                  <input type="number" min="2" max="9" value={form.numeroEixos}
-                    onChange={e => set("numeroEixos", e.target.value)} />
-                  <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
-                    Padrão pra {tipoVeiculoObj?.label}: {tipoVeiculoObj?.eixosPadrao} eixos — ajuste se a composição real for diferente. É isso que define o piso mínimo ANTT.
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Carroceria desejada (opcional)</label>
-                  <select value={form.carroceria} onChange={e => set("carroceria", e.target.value)} disabled={!carroceriasDisp.length}>
-                    <option value="">Qualquer uma compatível</option>
-                    {carroceriasDisp.map(c => <option key={c.id} value={c.id}>{ICONE_CARROCERIA[c.id] || ""} {c.label}</option>)}
-                  </select>
+              <div className="field">
+                <label>Número de eixos *</label>
+                <input type="number" min="2" max="9" value={form.numeroEixos}
+                  onChange={e => set("numeroEixos", e.target.value)} />
+                <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
+                  Padrão pra {tipoVeiculoObj?.label}: {tipoVeiculoObj?.eixosPadrao} eixos — ajuste se a composição real for diferente. É isso que define o piso mínimo ANTT.
                 </div>
               </div>
             </div>
@@ -479,15 +454,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
               <div className="field"><label>Descrição / observações</label><textarea rows={3} placeholder="Detalhes importantes da carga..." value={form.descricao} onChange={e => set("descricao", e.target.value)} style={{ resize: "none" }} /></div>
             </div>
             <div className="card">
-              <div className="card-title">Equipamentos no pátio</div>
-              {[["precisaMunck", "🏗️ Necessário Munck"], ["precisaEmpilhadeira", "🏭 Há empilhadeira no pátio"]].map(([k, label]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <span style={{ fontSize: 14 }}>{label}</span>
-                  <label className="toggle"><input type="checkbox" checked={form[k]} onChange={e => set(k, e.target.checked)} /><span className="toggle-slider" /></label>
-                </div>
-              ))}
-            </div>
-            <div className="card">
               <div className="card-title">Documentos e Fotos</div>
               <div className="upload-area" style={{ marginBottom: 8 }}>📸 Fotos da carga</div>
               <div className="upload-area" style={{ marginBottom: 8 }}>📄 Nota fiscal</div>
@@ -505,8 +471,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
                 <span className="tag-chip">{tipoCargaObj?.icon} {tipoCargaObj?.label}</span>
                 <span className="tag-chip">🚛 {tipoVeiculoObj?.label}</span>
               </div>
-              {form.precisaMunck && <span className="tag-chip">🏗️ Munck</span>}
-              {form.precisaEmpilhadeira && <span className="tag-chip">🏭 Empilhadeira</span>}
               <div className="divider" />
               <div className="info-row"><span className="info-label">Coleta</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("origem", addr)}</span></div>
               <div className="info-row"><span className="info-label">Entrega</span><span className="info-value" style={{ fontSize: 12 }}>{composeAddr("dest", addr)}</span></div>
@@ -663,18 +627,9 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
                     {TIPOS_VEICULO.map(v => <option key={v.id} value={v.id}>{v.icon} {v.label} — até {v.cap}</option>)}
                   </select>
                 </div>
-                <div className="grid-2">
-                  <div className="field">
-                    <label>Número de eixos *</label>
-                    <input type="number" min="2" max="9" value={form.numeroEixos} onChange={e => set("numeroEixos", e.target.value)} />
-                  </div>
-                  <div className="field">
-                    <label>Carroceria desejada</label>
-                    <select value={form.carroceria} onChange={e => set("carroceria", e.target.value)} disabled={!carroceriasDisp.length}>
-                      <option value="">Qualquer compatível</option>
-                      {carroceriasDisp.map(c => <option key={c.id} value={c.id}>{ICONE_CARROCERIA[c.id] || ""} {c.label}</option>)}
-                    </select>
-                  </div>
+                <div className="field">
+                  <label>Número de eixos *</label>
+                  <input type="number" min="2" max="9" value={form.numeroEixos} onChange={e => set("numeroEixos", e.target.value)} />
                 </div>
                 <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 4 }}>
                   Eixos definem o piso mínimo ANTT — padrão pra {tipoVeiculoObj?.label}: {tipoVeiculoObj?.eixosPadrao}.
@@ -742,15 +697,6 @@ export function SolicitarFreteScreen({ onNavigate, screenData }) {
               )}
 
               <div className="field"><label>Descrição / observações</label><textarea rows={3} placeholder="Detalhes importantes da carga..." value={form.descricao} onChange={e => set("descricao", e.target.value)} style={{ resize: "none" }} /></div>
-
-              <div className="grid-2">
-                {[["precisaMunck", "🏗️ Necessário Munck"], ["precisaEmpilhadeira", "🏭 Há empilhadeira no pátio"]].map(([k, label]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 13 }}>{label}</span>
-                    <label className="toggle"><input type="checkbox" checked={form[k]} onChange={e => set(k, e.target.checked)} /><span className="toggle-slider" /></label>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="card">
