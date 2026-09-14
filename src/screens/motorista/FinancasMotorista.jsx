@@ -20,6 +20,8 @@ export function FinancasMotorista({ onNavigate }) {
   const [metaKmVazio, setMetaKmVazio] = useState(800);
   const [editMeta, setEditMeta] = useState(false);
   const [novaMeta, setNovaMeta] = useState("800");
+  const [salvandoMeta, setSalvandoMeta] = useState(false);
+  const [erroMeta, setErroMeta] = useState("");
   const tiposDespesa = TIPOS_DESPESA;
 
   const kmVazio = Number(ganhos?.km_vazio_total || 0);
@@ -38,7 +40,11 @@ export function FinancasMotorista({ onNavigate }) {
   useEffect(() => {
     queueMicrotask(() => { setLoadingGanhos(true); setLoadingExtrato(true); });
     api("GET", "/api/motoristas/ganhos", null, token)
-      .then(setGanhos).catch(() => setGanhos(null)).finally(() => setLoadingGanhos(false));
+      .then(d => {
+        setGanhos(d);
+        if (d?.meta_km_vazio) { setMetaKmVazio(d.meta_km_vazio); setNovaMeta(String(d.meta_km_vazio)); }
+      })
+      .catch(() => setGanhos(null)).finally(() => setLoadingGanhos(false));
     api("GET", "/api/motoristas/extrato", null, token)
       .then(d => setExtrato(d.transacoes || []))
       .catch(() => setExtrato([]))
@@ -47,6 +53,21 @@ export function FinancasMotorista({ onNavigate }) {
 
   const totalReceitas = Number(ganhos?.ganhos_total || 0);
   const saldo = totalReceitas - totalDespesas;
+
+  const salvarMeta = async () => {
+    const valor = Number(novaMeta);
+    if (!Number.isFinite(valor) || valor <= 0) { setErroMeta("Meta deve ser maior que zero"); return; }
+    setSalvandoMeta(true); setErroMeta("");
+    try {
+      await api("PATCH", "/api/motoristas/meta-km-vazio", { metaKmVazio: valor }, token);
+      setMetaKmVazio(valor);
+      setEditMeta(false);
+    } catch (e) {
+      setErroMeta(e.message || "Erro ao salvar meta");
+    } finally {
+      setSalvandoMeta(false);
+    }
+  };
 
   const corpo = (
     <>
@@ -214,9 +235,12 @@ export function FinancasMotorista({ onNavigate }) {
                       <span style={{ fontSize: 12, color: "var(--orange)", cursor: "pointer" }} onClick={() => setEditMeta(true)}>✏️ Editar</span>
                     </div>
                   ) : (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                      <input type="number" value={novaMeta} onChange={e => setNovaMeta(e.target.value)} style={{ width: 80, background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", color: "var(--white)", fontSize: 14, fontFamily: "Inter, sans-serif" }} />
-                      <button className="btn btn-primary btn-sm" onClick={() => { setMetaKmVazio(Number(novaMeta)); setEditMeta(false); }}>OK</button>
+                    <div>
+                      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <input type="number" value={novaMeta} onChange={e => setNovaMeta(e.target.value)} style={{ width: 80, background: "var(--dark3)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px", color: "var(--white)", fontSize: 14, fontFamily: "Inter, sans-serif" }} />
+                        <button className="btn btn-primary btn-sm" onClick={salvarMeta} disabled={salvandoMeta}>{salvandoMeta ? "..." : "OK"}</button>
+                      </div>
+                      {erroMeta && <div style={{ fontSize: 11, color: "var(--red)", marginTop: 4 }}>{erroMeta}</div>}
                     </div>
                   )}
                 </div>

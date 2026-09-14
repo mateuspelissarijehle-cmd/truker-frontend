@@ -20,6 +20,7 @@ import { AdminSeguradorasScreen } from "./screens/admin/AdminSeguradorasScreen";
 import { AdminTrocarSenha } from "./screens/admin/AdminTrocarSenha";
 import { AdminFretesProblemaScreen } from "./screens/admin/AdminFretesProblemaScreen";
 import { AdminCancelamentosScreen } from "./screens/admin/AdminCancelamentosScreen";
+import { AdminSosScreen } from "./screens/admin/AdminSosScreen";
 import { ChatScreen } from "./screens/shared/ChatScreen";
 import { AvaliarScreen } from "./screens/shared/AvaliarScreen";
 import { OpcoesContratante } from "./screens/contratante/OpcoesContratante";
@@ -123,6 +124,7 @@ function Router() {
       case "admin-trocar-senha": return <AdminTrocarSenha {...p} />;
       case "admin-fretes-problema": return <AdminFretesProblemaScreen {...p} />;
       case "admin-cancelamentos": return <AdminCancelamentosScreen {...p} />;
+      case "admin-sos": return <AdminSosScreen {...p} />;
       case "home-contratante": return <ContratanteHome {...p} />;
       case "solicitar-frete": return <SolicitarFreteScreen screenData={screenData} {...p} />;
       case "painel-caminhoes": return <PainelCaminhoesScreen {...p} />;

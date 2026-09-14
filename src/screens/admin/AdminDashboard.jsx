@@ -21,6 +21,7 @@ export function AdminDashboard({ onNavigate }) {
   const [resultadoLimpeza, setResultadoLimpeza] = useState(null);
   const [totalFretesProblema, setTotalFretesProblema] = useState(0);
   const [totalCancelamentosPendentes, setTotalCancelamentosPendentes] = useState(0);
+  const [totalSosRecentes, setTotalSosRecentes] = useState(0);
   const [pisoAntt, setPisoAntt] = useState(null);
   const [marcandoPisoAntt, setMarcandoPisoAntt] = useState(false);
 
@@ -47,6 +48,9 @@ export function AdminDashboard({ onNavigate }) {
       .catch(() => {});
     api("GET", "/api/admin/cancelamentos-pendentes", null, token)
       .then(r => setTotalCancelamentosPendentes(r.totalItens))
+      .catch(() => {});
+    api("GET", "/api/admin/sos-recentes", null, token)
+      .then(r => setTotalSosRecentes(r.length))
       .catch(() => {});
     carregarPisoAntt();
   }, [token, carregarPisoAntt]);
@@ -130,6 +134,9 @@ export function AdminDashboard({ onNavigate }) {
 
         <button className="btn btn-primary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-usuarios")}>
           🔧 Gerenciar Usuários (Master)
+        </button>
+        <button className={`btn ${totalSosRecentes > 0 ? "btn-danger" : "btn-secondary"}`} style={{ marginBottom: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }} onClick={() => onNavigate("admin-sos")}>
+          🆘 SOS Recentes {totalSosRecentes > 0 && <span className="badge badge-admin" style={{ marginLeft: 4 }}>{totalSosRecentes}</span>}
         </button>
         <button className={`btn ${totalFretesProblema > 0 ? "btn-danger" : "btn-secondary"}`} style={{ marginBottom: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }} onClick={() => onNavigate("admin-fretes-problema")}>
           ⚠️ Fretes com Problema {totalFretesProblema > 0 && <span className="badge badge-admin" style={{ marginLeft: 4 }}>{totalFretesProblema}</span>}

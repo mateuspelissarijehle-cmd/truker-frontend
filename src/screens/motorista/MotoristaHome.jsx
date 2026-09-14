@@ -25,13 +25,14 @@ export function MotoristaHome({ onNavigate }) {
   const [buscaCidade, setBuscaCidade] = useState("");
   const [buscaCidadeDebounced, setBuscaCidadeDebounced] = useState("");
   const [kmVazio, setKmVazio] = useState(0);
-  const metaKmVazio = 800;
+  const [metaKmVazio, setMetaKmVazio] = useState(800);
 
-  // Busca km vazio real do dia
+  // Busca km vazio real do dia (e a meta mensal do motorista, editável em Finanças)
   useEffect(() => {
     api("GET", "/api/motoristas/ganhos", null, token)
       .then(d => {
         setKmVazio(parseFloat(d.km_vazio_hoje || 0));
+        if (d?.meta_km_vazio) setMetaKmVazio(parseFloat(d.meta_km_vazio));
       })
       .catch(() => {});
   }, [token]);
