@@ -22,6 +22,7 @@ export function AdminDashboard({ onNavigate }) {
   const [totalFretesProblema, setTotalFretesProblema] = useState(0);
   const [totalCancelamentosPendentes, setTotalCancelamentosPendentes] = useState(0);
   const [totalSosRecentes, setTotalSosRecentes] = useState(0);
+  const [totalExclusoesPendentes, setTotalExclusoesPendentes] = useState(0);
   const [pisoAntt, setPisoAntt] = useState(null);
   const [marcandoPisoAntt, setMarcandoPisoAntt] = useState(false);
 
@@ -51,6 +52,9 @@ export function AdminDashboard({ onNavigate }) {
       .catch(() => {});
     api("GET", "/api/admin/sos-recentes", null, token)
       .then(r => setTotalSosRecentes(r.length))
+      .catch(() => {});
+    api("GET", "/api/admin/exclusoes-conta", null, token)
+      .then(r => setTotalExclusoesPendentes(r.filter(s => s.status === "pendente").length))
       .catch(() => {});
     carregarPisoAntt();
   }, [token, carregarPisoAntt]);
@@ -143,6 +147,9 @@ export function AdminDashboard({ onNavigate }) {
         </button>
         <button className={`btn ${totalCancelamentosPendentes > 0 ? "btn-danger" : "btn-secondary"}`} style={{ marginBottom: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }} onClick={() => onNavigate("admin-cancelamentos")}>
           💸 Cancelamentos Pendentes {totalCancelamentosPendentes > 0 && <span className="badge badge-admin" style={{ marginLeft: 4 }}>{totalCancelamentosPendentes}</span>}
+        </button>
+        <button className={`btn ${totalExclusoesPendentes > 0 ? "btn-danger" : "btn-secondary"}`} style={{ marginBottom: 14, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }} onClick={() => onNavigate("admin-exclusoes-conta")}>
+          🗑️ Exclusões de Conta {totalExclusoesPendentes > 0 && <span className="badge badge-admin" style={{ marginLeft: 4 }}>{totalExclusoesPendentes}</span>}
         </button>
         <button className="btn btn-secondary" style={{ marginBottom: 14 }} onClick={() => onNavigate("admin-motorista-teste")}>
           🚛 Criar Motorista de Teste

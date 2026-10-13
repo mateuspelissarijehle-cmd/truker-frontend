@@ -26,6 +26,14 @@ export function PrivacidadeScreen({ onNavigate }) {
           </div>
           <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
         </div>
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer" }} onClick={() => onNavigate("excluir-conta")}>
+          <span style={{ fontSize: 20 }}>🗑️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, color: "var(--red)" }}>Excluir minha conta</div>
+            <div style={{ fontSize: 12, color: "var(--text3)" }}>Peça a exclusão da sua conta e dos seus dados</div>
+          </div>
+          <span style={{ color: "var(--text3)", fontSize: 18 }}>›</span>
+        </div>
         <div className="card">
           <div className="card-title">🔒 Segurança dos seus dados</div>
           <p style={{ fontSize: 12, color: "var(--text3)", lineHeight: 1.6 }}>
